@@ -1,0 +1,8 @@
+O.linux*
+O.Common
+envPaths
+bin/
+lib/
+db/
+dbd/
+*.pyc
