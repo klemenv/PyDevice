@@ -1,0 +1,37 @@
+record(ao, "Py:Test:Ao") {
+  field(DTYP, "pydev")
+  field(OUT,  "@pydev pydevdemo helloworld")
+  field(VAL,  "0.000000")
+  field(TPRO, "1")
+}
+
+record(longout, "Py:Test:Longout") {
+  field(DTYP, "pydev")
+  field(OUT,  "@pydev pydevdemo writeLongout")
+  field(VAL,  "17")
+  field(TPRO, "1")
+}
+
+record(bo, "Py:Test:Bo") {
+  field(DTYP, "pydev")
+  field(OUT,  "@pydev pydevdemo writeBo")
+  field(TPRO, "1")
+  field(ZNAM, "zero")
+  field(ONAM, "uno")
+}
+
+record(mbbo, "Py:Test:Mbbo") {
+  field(DTYP, "pydev")
+  field(OUT,  "@pydev pydevdemo writeMbbo")
+  field(ZRVL, "0")
+  field(ZRST, "zero")
+  field(ONVL, "1")
+  field(ONST, "uno")
+  field(TPRO, "1")
+}
+
+record(stringout, "Py:Test:Stringout") {
+  field(DTYP, "pydev")
+  field(OUT,  "@pydev pydevdemo writeStringout")
+  field(TPRO, "1")
+}

@@ -1,0 +1,7 @@
+# include "base.dbd"
+# local menu, record, device, driver, breakpoint definitions
+device(ao,INST_IO,devPyDevAo,"pydev")
+device(longout,INST_IO,devPyDevLongout,"pydev")
+device(bo,INST_IO,devPyDevBo,"pydev")
+device(mbbo,INST_IO,devPyDevMbbo,"pydev")
+device(stringout,INST_IO,devPyDevStringout,"pydev")

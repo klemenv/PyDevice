@@ -1,0 +1,88 @@
+# Where to install configuration files for ChannelWatcher
+
+vpath %.cwConfig $(USR_VPATH) $(GENERIC_SRC_DIRS) $(dir $(RESTORES))
+vpath %.cwsubstitutions $(USR_VPATH) $(GENERIC_SRC_DIRS) $(COMMON_DIR)
+
+INSTALL_RESTORE = $(INSTALL_LOCATION)/restore
+
+##################################################### Restore Flags
+
+INSTALL_RESTOREFLAGS = -I $(INSTALL_RESTORE)
+RELEASE_RESTOREFLAGS = $(patsubst %/dbd,%/restore, $(RELEASE_DBDFLAGS))
+RESTOREFLAGS  = $($*_RESTOREFLAGS) $(USR_RESTOREFLAGS) -I. $(GENERIC_SRC_INCLUDES) $(INSTALL_RESTOREFLAGS) $(RELEASE_RESTOREFLAGS)
+RESTOREFLAGS += -I$(COMMON_DIR)
+
+#####################################################  Targets
+
+INSTALL_RESTORES += $(addprefix $(INSTALL_RESTORE)/,$(notdir $(RESTORES)))
+
+COMMON_RESTORES += $(filter $(COMMON_DIR)/%, $(foreach file, $(RESTORES), \
+    $(firstword  $(SOURCE_RESTORES) $(COMMON_DIR)/$(file) ) ) )
+SOURCE_RESTORES = $(wildcard $(file) $(SOURCE_RESTORES_bbb) )
+SOURCE_RESTORES_bbb = $(foreach dir, $(GENERIC_SRC_DIRS), $(SOURCE_RESTORES_aaa)  )
+SOURCE_RESTORES_aaa = $(addsuffix /$(file), $(dir) )
+
+COMMONS = $(COMMON_DIR)/*.cwConfig \
+          $(COMMON_DIR)/*.cwsubstitutions
+
+##################################################### 
+
+ifndef T_A
+
+COMMON_DIR = .
+INSTALL_RESTORES =
+COMMON_RESTORES = .
+COMMONS = $(RESTORES)
+
+all:    install
+
+install: buildInstall
+
+buildInstall : build
+
+rebuild: clean install
+
+.PHONY: all inc build install clean rebuild buildInstall
+
+endif # T_A defined
+
+
+build : $(COMMON_RESTORES) \
+	$(INSTALL_RESTORES)
+
+clean:: 
+#	@$(RM) $(COMMONS)
+
+realclean:: clean
+
+##################################################### Substitution files
+
+$(INSTALL_RESTORE)/%.cwsubstitutions: %.cwsubstitutions
+	@echo "Installing cwsubstitutions file $@"
+	@$(INSTALL) -d -m 644 $< $(@D)
+
+.PRECIOUS: $(COMMON_DIR)/%.cwsubstitutions
+
+##################################################### cwConfig files
+
+$(COMMON_DIR)/%.cwConfig: %.cwsubstitutions
+	@echo "Inflating cwConfig from $< using local rule"
+	@$(RM) $@
+	@echo "$(MSI) -S$< > $(@F) </dev/null"
+	@$(MSI) -I.. $(RESTOREFLAGS) -S$< </dev/null > $@
+
+$(INSTALL_RESTORE)/%.cwConfig: $(COMMON_DIR)/%.cwConfig
+	@echo "Installing cwConfig file $@"
+	@$(INSTALL) -d -m 644 $< $(@D)
+
+$(INSTALL_RESTORE)/%: %
+	@echo "Installing restore file $@"
+	@$(INSTALL) -d -m 644 $< $(@D)
+
+$(INSTALL_RESTORE)/%: ../%
+	@echo "Installing restore file $@"
+	@$(INSTALL) -d -m 644 $< $(@D)
+
+.PRECIOUS: $(COMMON_RESTORES)
+
+##################################################### END OF FILE
