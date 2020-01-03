@@ -169,9 +169,7 @@ void processInpRecordCb(stringinRecord *rec, PyModule &module, const std::string
 {
     try
     {
-printf("Calling stringin exec\n");
         std::string val = module.exec<char*>(func);
-printf("New stringin val: %s\n", val.c_str());
         strncpy(rec->val, val.c_str(), sizeof(rec->val) - 1);
         rec->val[sizeof(rec->val)-1] = '\0';
     }
@@ -232,7 +230,6 @@ static void processOutRecordCb(T* rec, PyModule& module, const std::string& func
 {
     try
     {
-printf("Calling out exec\n");
         module.exec(func, rec->val);
     }
     catch (std::exception& error)
