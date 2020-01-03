@@ -22,11 +22,10 @@
 class PyModule
 {
     public:
-        using Callback = std::function<void(bool, std::string)>;
-        using Task = std::function<void(void)>;
+        using Task = std::function<void(PyModule &)>;
 
     private:
-        bool m_processing{true};
+        bool m_processing{false};
         std::list<Task> m_queue;
         epicsMutex m_mutex;
         epicsEvent m_event;
@@ -37,12 +36,22 @@ class PyModule
         PyModule(const std::string& id);
         ~PyModule();
 
-        template <typename T>
-        void schedule(const std::string& func, T arg, Callback& cb);
+        void schedule(Task& cb);
+
+        /**
+         * Main thread function, should not be called directly.
+         *
+         * It needs to be public due to C linkage.
+         */
         void run();
 
-        PyObject* resolveFunction(const std::string& name);
+        template <typename T>
+        void exec(const std::string& func, T arg);
+
+        template <typename T>
+        T exec(const std::string& func);
 
     private:
-        void exec(PyObject *func, PyObject *args, Callback &cb);
+        template <typename R, typename A>
+        R exec(const std::string& func, A arg);
 };

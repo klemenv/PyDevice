@@ -8,11 +8,16 @@
  * @date Oct 2018
  */
 
+#include <aiRecord.h>
 #include <aoRecord.h>
+#include <biRecord.h>
 #include <boRecord.h>
 #include <dbCommon.h>
+#include <longinRecord.h>
 #include <longoutRecord.h>
+#include <mbbiRecord.h>
 #include <mbboRecord.h>
+#include <stringinRecord.h>
 #include <stringoutRecord.h>
 
 #include <alarm.h>
@@ -39,15 +44,22 @@ struct PyDevContext {
     CALLBACK callback;
 };
 
-static std::map<std::string, PyModule> g_pyDevices;
-static epicsMutex g_mutex; //!< Global mutex to protect g_pyDevices.
-
-static PyModule& getPyModule(const std::string& file)
+static PyModule& getPyModule(const std::string& file, bool create=false)
 {
-    ScopedLock lock(g_mutex);
-    auto it = g_pyDevices.find(file);
-    if (it == g_pyDevices.end())
-        throw std::range_error("device doesn't exist");
+    static std::map<std::string, PyModule> modules;
+    static epicsMutex mutex;
+
+    ScopedLock lock(mutex);
+    auto it = modules.find(file);
+    if (it == modules.end())
+    {
+        if (!create)
+        {
+            throw std::range_error("device doesn't exist");
+        }
+        bool inserted;
+        std::tie(it, inserted) = modules.emplace(file, file);
+    }
 
     return std::reference_wrapper<PyModule>(it->second);
 }
@@ -84,32 +96,27 @@ static std::pair<std::string, std::string> parseRecordAddress(const std::string 
     return std::make_pair(tokens[1], tokens[2]);
 }
 
-template<typename T>
-long initOutRecord(T* rec)
+long initRecord(dbCommon* rec, const char* addr)
 {
     rec->dpvt = nullptr;
 
     std::string module;
     std::string func;
     try {
-        std::tie(module, func) = parseRecordAddress(rec->out.value.instio.string);
+        std::tie(module, func) = parseRecordAddress(addr);
     }
     catch (...)
     {
         if (rec->tpro == 1)
         {
-            printf("ERROR: invalid record link or no connection\n");
+            printf("ERROR: invalid record link '%s'\n", addr);
         }
         return -1;
     }
 
     try
     {
-        ScopedLock lock(g_mutex);
-        if (g_pyDevices.find(module) == g_pyDevices.end())
-        {
-            g_pyDevices.emplace(module, module);
-        }
+        (void)getPyModule(module, true);
     }
     catch (...)
     {
@@ -125,13 +132,115 @@ long initOutRecord(T* rec)
     return 0;
 }
 
-static void processOutRecordCb(dbCommon* rec, bool success, const std::string& error)
+template <typename T>
+long initInpRecord(T *rec)
 {
-    if (!success) {
+    return initRecord(reinterpret_cast<dbCommon*>(rec), rec->inp.value.instio.string);
+}
+
+template <typename T>
+long initOutRecord(T *rec)
+{
+    return initRecord(reinterpret_cast<dbCommon*>(rec), rec->out.value.instio.string);
+}
+
+template <typename T>
+static void processInpRecordCb(T *rec, PyModule &module, const std::string &func)
+{
+    try
+    {
+        rec->val = module.exec<decltype(rec->val)>(func);
+    }
+    catch (std::exception &error)
+    {
         recGblSetSevr(rec, epicsAlarmWrite, epicsSevInvalid);
         if (rec->tpro == 1)
         {
-            printf("Error returned from Python function:\n%s\n", error.c_str());
+            printf("%s\n", error.what());
+        }
+    }
+
+    auto ctx = reinterpret_cast<PyDevContext *>(rec->dpvt);
+    callbackRequestProcessCallback(&ctx->callback, rec->prio, rec);
+}
+
+template <>
+void processInpRecordCb(stringinRecord *rec, PyModule &module, const std::string &func)
+{
+    try
+    {
+printf("Calling stringin exec\n");
+        std::string val = module.exec<char*>(func);
+printf("New stringin val: %s\n", val.c_str());
+        strncpy(rec->val, val.c_str(), sizeof(rec->val) - 1);
+        rec->val[sizeof(rec->val)-1] = '\0';
+    }
+    catch (std::exception &error)
+    {
+        recGblSetSevr(rec, epicsAlarmWrite, epicsSevInvalid);
+        if (rec->tpro == 1)
+        {
+            printf("%s\n", error.what());
+        }
+    }
+
+    auto ctx = reinterpret_cast<PyDevContext *>(rec->dpvt);
+    callbackRequestProcessCallback(&ctx->callback, rec->prio, rec);
+}
+
+template <typename T>
+static long processInpRecord(T *rec)
+{
+    PyDevContext *ctx = reinterpret_cast<PyDevContext *>(rec->dpvt);
+    if (ctx == nullptr)
+    {
+        // Keep PACT=1 to prevent further processing
+        rec->pact = 1;
+        recGblSetSevr(rec, epicsAlarmUDF, epicsSevInvalid);
+        return -1;
+    }
+
+    if (rec->pact == 1)
+    {
+        rec->pact = 0;
+        return 0;
+    }
+
+    try
+    {
+        std::string file;
+        std::string func;
+        std::tie(file, func) = parseRecordAddress(rec->inp.value.instio.string);
+        PyModule::Task cb = std::bind(processInpRecordCb<T>, rec, std::placeholders::_1, func);
+
+        PyModule &module = getPyModule(file);
+        module.schedule(cb);
+
+        rec->pact = 1;
+        return 0;
+    }
+    catch (...)
+    {
+        recGblSetSevr(rec, epicsAlarmWrite, epicsSevInvalid);
+        // TODO: if (rec->tpro == 1) { log error }
+        return -1;
+    }
+}
+
+template <typename T>
+static void processOutRecordCb(T* rec, PyModule& module, const std::string& func)
+{
+    try
+    {
+printf("Calling out exec\n");
+        module.exec(func, rec->val);
+    }
+    catch (std::exception& error)
+    {
+        recGblSetSevr(rec, epicsAlarmWrite, epicsSevInvalid);
+        if (rec->tpro == 1)
+        {
+            printf("%s\n", error.what());
         }
     }
 
@@ -159,9 +268,11 @@ static long processOutRecord(T* rec)
         std::string file;
         std::string func;
         std::tie(file, func) = parseRecordAddress(rec->out.value.instio.string);
-        PyModule& module = getPyModule(file);
-        PyModule::Callback cb = std::bind(processOutRecordCb, (dbCommon *)rec, std::placeholders::_1, std::placeholders::_2);
-        module.schedule(func, rec->val, cb);
+        PyModule::Task cb = std::bind(processOutRecordCb<T>, rec, std::placeholders::_1, func);
+
+        PyModule &module = getPyModule(file);
+        module.schedule(cb);
+
         rec->pact = 1;
         return 0;
     } catch (...) {
@@ -173,6 +284,64 @@ static long processOutRecord(T* rec)
 
 extern "C"
 {
+    /*** INPUT RECORDS ***/
+    struct
+    {
+        long number{5};
+        DEVSUPFUN report{nullptr};
+        DEVSUPFUN init{nullptr};
+        DEVSUPFUN init_record{(DEVSUPFUN)initInpRecord<longinRecord>};
+        DEVSUPFUN get_ioint_info{nullptr};
+        DEVSUPFUN write{(DEVSUPFUN)processInpRecord<longinRecord>};
+    } devPyDevLongin;
+    epicsExportAddress(dset, devPyDevLongin);
+
+    struct
+    {
+        long number{5};
+        DEVSUPFUN report{nullptr};
+        DEVSUPFUN init{nullptr};
+        DEVSUPFUN init_record{(DEVSUPFUN)initInpRecord<mbbiRecord>};
+        DEVSUPFUN get_ioint_info{nullptr};
+        DEVSUPFUN write{(DEVSUPFUN)processInpRecord<mbbiRecord>};
+    } devPyDevMbbi;
+    epicsExportAddress(dset, devPyDevMbbi);
+
+    struct
+    {
+        long number{5};
+        DEVSUPFUN report{nullptr};
+        DEVSUPFUN init{nullptr};
+        DEVSUPFUN init_record{(DEVSUPFUN)initInpRecord<biRecord>};
+        DEVSUPFUN get_ioint_info{nullptr};
+        DEVSUPFUN write{(DEVSUPFUN)processInpRecord<biRecord>};
+    } devPyDevBi;
+    epicsExportAddress(dset, devPyDevBi);
+
+    struct
+    {
+        long number{6};
+        DEVSUPFUN report{nullptr};
+        DEVSUPFUN init{nullptr};
+        DEVSUPFUN init_record{(DEVSUPFUN)initInpRecord<aiRecord>};
+        DEVSUPFUN get_ioint_info{nullptr};
+        DEVSUPFUN write{(DEVSUPFUN)processInpRecord<aiRecord>};
+        DEVSUPFUN special_linconv{nullptr};
+    } devPyDevAi;
+    epicsExportAddress(dset, devPyDevAi);
+
+    struct
+    {
+        long number{5};
+        DEVSUPFUN report{nullptr};
+        DEVSUPFUN init{nullptr};
+        DEVSUPFUN init_record{(DEVSUPFUN)initInpRecord<stringinRecord>};
+        DEVSUPFUN get_ioint_info{nullptr};
+        DEVSUPFUN write{(DEVSUPFUN)processInpRecord<stringinRecord>};
+    } devPyDevStringin;
+    epicsExportAddress(dset, devPyDevStringin);
+
+    /*** OUTPUT RECORDS ***/
     struct
     {
         long number{5};
@@ -228,5 +397,4 @@ extern "C"
         DEVSUPFUN write{(DEVSUPFUN)processOutRecord<stringoutRecord>};
     } devPyDevStringout;
     epicsExportAddress(dset, devPyDevStringout);
-
 }; // extern "C"
