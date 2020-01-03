@@ -260,8 +260,9 @@ R PyModule::exec(const std::string& func, A arg)
     if (ret != nullptr)
     {
         // Success
+        R r = convertFromNative<R>(ret);
         Py_DECREF(ret);
-        return convertFromNative<R>(ret);
+        return r;
     }
     else
     {

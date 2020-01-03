@@ -6,7 +6,8 @@ include $(TOP)/configure/CONFIG
 
 LDDFLAGS += $(shell python-config --ldflags)
 CXXFLAGS += $(shell python-config --cflags)
-CXXFLAGS += -g -ggdb -O0
+CXXFLAGS += -std=c++11
+#CXXFLAGS += -g -ggdb -O0
 
 LIBRARY_IOC += pydev
 

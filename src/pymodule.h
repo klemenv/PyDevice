@@ -34,6 +34,9 @@ class PyModule
 
     public:
         PyModule(const std::string& id);
+        PyModule(const PyModule &other) = delete;
+        PyModule &operator=(const PyModule &other) = delete;
+
         ~PyModule();
 
         void schedule(Task& cb);

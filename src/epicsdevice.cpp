@@ -58,7 +58,7 @@ static PyModule& getPyModule(const std::string& file, bool create=false)
             throw std::range_error("device doesn't exist");
         }
         bool inserted;
-        std::tie(it, inserted) = modules.emplace(file, file);
+        std::tie(it, inserted) = modules.emplace(std::piecewise_construct, std::forward_as_tuple(file), std::forward_as_tuple(file));
     }
 
     return std::reference_wrapper<PyModule>(it->second);
@@ -175,7 +175,7 @@ void processInpRecordCb(stringinRecord *rec, PyModule &module, const std::string
     }
     catch (std::exception &error)
     {
-        recGblSetSevr(rec, epicsAlarmWrite, epicsSevInvalid);
+        recGblSetSevr(rec, epicsAlarmRead, epicsSevInvalid);
         if (rec->tpro == 1)
         {
             printf("%s\n", error.what());
@@ -219,7 +219,7 @@ static long processInpRecord(T *rec)
     }
     catch (...)
     {
-        recGblSetSevr(rec, epicsAlarmWrite, epicsSevInvalid);
+        recGblSetSevr(rec, epicsAlarmRead, epicsSevInvalid);
         // TODO: if (rec->tpro == 1) { log error }
         return -1;
     }
