@@ -15,7 +15,7 @@ Any record type can be used for this simple example:
 ```
 record(longout, "PyDev:Test:HelloWorld") {
     field(DTYP, "pydev")
-    field(OUT,  "@print('Hello world!')
+    field(OUT,  "@print('Hello world!')")
 }
 ```
 Whenever this record processes, the *Hello world!* text is printed to IOC console.
@@ -25,7 +25,7 @@ Record's link can use *%value%* modifier to replace it with current record's val
 ```
 record(longin, "PyDev:Test:HelloWorld") {
     field(DTYP, "pydev")
-    field(INP,  "@myvar=%value%')
+    field(INP,  "@myvar=%value%")
 }
 ```
 
