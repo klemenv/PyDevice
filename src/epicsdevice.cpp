@@ -24,76 +24,32 @@
 #include <callback.h>
 #include <cantProceed.h>
 #include <devSup.h>
+#include <epicsExit.h>
 #include <epicsExport.h>
-#include <epicsGuard.h>
-#include <epicsMutex.h>
 #include <iocsh.h>
 #include <recGbl.h>
 
-#include <dirent.h>
-#include <fstream>
-#include <map>
-#include <sys/types.h>
-#include <vector>
+#include "asyncexec.h"
+#include "pyworker.h"
 
-#include "pymodule.h"
-
-typedef epicsGuard<epicsMutex> ScopedLock;
+#ifndef LINK_VALUE_NEEDLE
+#   define LINK_VALUE_NEEDLE "%value%"
+#endif
 
 struct PyDevContext {
     CALLBACK callback;
 };
 
-static PyModule& getPyModule(const std::string& file, bool create=false)
+std::string linkToPyCode(const std::string& input, const std::string& recordVal)
 {
-    static std::map<std::string, PyModule> modules;
-    static epicsMutex mutex;
-
-    ScopedLock lock(mutex);
-    auto it = modules.find(file);
-    if (it == modules.end())
-    {
-        if (!create)
-        {
-            throw std::range_error("device doesn't exist");
-        }
-        bool inserted;
-        std::tie(it, inserted) = modules.emplace(std::piecewise_construct, std::forward_as_tuple(file), std::forward_as_tuple(file));
+    std::string output = input;
+    const static std::string needle = LINK_VALUE_NEEDLE;
+    size_t pos = output.find(needle);
+    while (pos != std::string::npos) {
+        output.replace(pos, needle.size(), recordVal);
+        pos = output.find(needle);
     }
-
-    return std::reference_wrapper<PyModule>(it->second);
-}
-
-static std::vector<std::string> split(const std::string &text, char delimiter=' ', unsigned maxSplits=0)
-{
-    std::vector<std::string> tokens;
-
-    if (maxSplits == 0)
-        maxSplits = -1;
-    size_t start = 0;
-    while (maxSplits-- > 0 && start != std::string::npos)
-    {
-        size_t end = text.find(delimiter, start);
-        if (end == std::string::npos)
-            break;
-        tokens.push_back(std::move(text.substr(start, end - start)));
-        start = text.find_first_not_of(delimiter, end);
-    }
-    if (start != std::string::npos)
-        tokens.push_back(std::move(text.substr(start)));
-    return tokens;
-}
-
-static std::pair<std::string, std::string> parseRecordAddress(const std::string &addr)
-{
-    // Device address is of the form @pydev MODULE FUNC
-    auto tokens = split(addr, ' ', 2);
-    if (tokens.size() < 3 || tokens[0] != "pydev")
-    {
-        throw std::invalid_argument("invalid device address");
-    }
-
-    return std::make_pair(tokens[1], tokens[2]);
+    return output;
 }
 
 long initRecord(dbCommon* rec, const char* addr)
@@ -101,31 +57,7 @@ long initRecord(dbCommon* rec, const char* addr)
     rec->dpvt = nullptr;
 
     std::string module;
-    std::string func;
-    try {
-        std::tie(module, func) = parseRecordAddress(addr);
-    }
-    catch (...)
-    {
-        if (rec->tpro == 1)
-        {
-            printf("ERROR: invalid record link '%s'\n", addr);
-        }
-        return -1;
-    }
-
-    try
-    {
-        (void)getPyModule(module, true);
-    }
-    catch (...)
-    {
-        if (rec->tpro == 1)
-        {
-            printf("ERROR: Failed to initialize Python module!\n");
-        }
-        return -1;
-    }
+    std::string code;
 
     void *buffer = callocMustSucceed(1, sizeof(PyDevContext), "PyDev::initOutRecord");
     rec->dpvt = new (buffer) PyDevContext;
@@ -144,106 +76,95 @@ long initOutRecord(T *rec)
     return initRecord(reinterpret_cast<dbCommon*>(rec), rec->out.value.instio.string);
 }
 
-template <typename T>
-static void processInpRecordCb(T *rec, PyModule &module, const std::string &func)
-{
-    try
-    {
-        rec->val = module.exec<decltype(rec->val)>(func);
-    }
-    catch (std::exception &error)
-    {
-        recGblSetSevr(rec, epicsAlarmWrite, epicsSevInvalid);
-        if (rec->tpro == 1)
-        {
-            printf("%s\n", error.what());
-        }
-    }
 
+template <typename T>
+static void processInpRecordCb(T* rec)
+{
+    std::string value = std::to_string(rec->val);
+    std::string code = linkToPyCode(rec->inp.value.instio.string, value);
+    try {
+        if (PyWorker::exec(code, (rec->tpro == 1), &rec->val) == false) {
+            if (rec->tpro == 1) {
+                printf("ERROR: Can't convert Python type to record VAL field\n");
+            }
+            recGblSetSevr(rec, epicsAlarmCalc, epicsSevInvalid);
+        }
+    } catch (...) {
+        recGblSetSevr(rec, epicsAlarmCalc, epicsSevInvalid);
+    }
     auto ctx = reinterpret_cast<PyDevContext *>(rec->dpvt);
     callbackRequestProcessCallback(&ctx->callback, rec->prio, rec);
 }
 
+/*
 template <>
-void processInpRecordCb(stringinRecord *rec, PyModule &module, const std::string &func)
+void processInpRecordCb(stringinRecord* rec)
 {
-    try
-    {
-        std::string val = module.exec<char*>(func);
-        strncpy(rec->val, val.c_str(), sizeof(rec->val) - 1);
-        rec->val[sizeof(rec->val)-1] = '\0';
+    std::string value = rec->val;
+    std::string code = linkToPyCode(rec->inp.value.instio.string, value);
+    try {
+        PyWorker::eval(rec->val, code, (rec->tpro == 1));
+    } catch (PyWorker::Exception& e) {
+        recGblSetSevr(rec, epicsAlarmCalc, epicsSevInvalid);
     }
-    catch (std::exception &error)
-    {
-        recGblSetSevr(rec, epicsAlarmRead, epicsSevInvalid);
-        if (rec->tpro == 1)
-        {
-            printf("%s\n", error.what());
-        }
-    }
-
     auto ctx = reinterpret_cast<PyDevContext *>(rec->dpvt);
     callbackRequestProcessCallback(&ctx->callback, rec->prio, rec);
 }
+*/
 
 template <typename T>
-static long processInpRecord(T *rec)
+static long processInpRecord(T* rec)
 {
-    PyDevContext *ctx = reinterpret_cast<PyDevContext *>(rec->dpvt);
-    if (ctx == nullptr)
-    {
+    PyDevContext* ctx = reinterpret_cast<PyDevContext*>(rec->dpvt);
+    if (ctx == nullptr) {
         // Keep PACT=1 to prevent further processing
         rec->pact = 1;
         recGblSetSevr(rec, epicsAlarmUDF, epicsSevInvalid);
         return -1;
     }
 
-    if (rec->pact == 1)
-    {
+    if (rec->pact == 1) {
         rec->pact = 0;
         return 0;
     }
+    rec->pact = 1;
 
-    try
-    {
-        std::string file;
-        std::string func;
-        std::tie(file, func) = parseRecordAddress(rec->inp.value.instio.string);
-        PyModule::Task cb = std::bind(processInpRecordCb<T>, rec, std::placeholders::_1, func);
-
-        PyModule &module = getPyModule(file);
-        module.schedule(cb);
-
-        rec->pact = 1;
-        return 0;
-    }
-    catch (...)
-    {
-        recGblSetSevr(rec, epicsAlarmRead, epicsSevInvalid);
-        // TODO: if (rec->tpro == 1) { log error }
-        return -1;
-    }
+    AsyncExec::Callback cb = std::bind(processInpRecordCb<T>, rec);
+    AsyncExec::schedule(cb);
+    return 0;
 }
 
 template <typename T>
-static void processOutRecordCb(T* rec, PyModule& module, const std::string& func)
+static void processOutRecordCb(T* rec)
 {
-    try
-    {
-        module.exec(func, rec->val);
+    std::string value = std::to_string(rec->val);
+    std::string code = linkToPyCode(rec->out.value.instio.string, value);
+    try {
+        // Ignore the possibility that value hasn't been changed
+        (void)PyWorker::exec(code, (rec->tpro == 1), &rec->val);
+    } catch (...) {
+        recGblSetSevr(rec, epicsAlarmCalc, epicsSevInvalid);
     }
-    catch (std::exception& error)
-    {
-        recGblSetSevr(rec, epicsAlarmWrite, epicsSevInvalid);
-        if (rec->tpro == 1)
-        {
-            printf("%s\n", error.what());
-        }
-    }
-
     auto ctx = reinterpret_cast<PyDevContext *>(rec->dpvt);
     callbackRequestProcessCallback(&ctx->callback, rec->prio, rec);
 }
+
+/*
+template <>
+void processOutRecordCb(longoutRecord* rec)
+{
+    std::string value = rec->val;
+    std::string code = linkToPyCode(rec->out.value.instio.string, value);
+    try {
+        // Ignore the possibility that value hasn't been changed
+        (void)PyWorker::exec(code, (rec->tpro == 1), rec->val);
+    } catch (...) {
+        recGblSetSevr(rec, epicsAlarmCalc, epicsSevInvalid);
+    }
+    auto ctx = reinterpret_cast<PyDevContext *>(rec->dpvt);
+    callbackRequestProcessCallback(&ctx->callback, rec->prio, rec);
+}
+*/
 
 template <typename T>
 static long processOutRecord(T* rec)
@@ -260,23 +181,11 @@ static long processOutRecord(T* rec)
         rec->pact = 0;
         return 0;
     }
+    rec->pact = 1;
 
-    try{
-        std::string file;
-        std::string func;
-        std::tie(file, func) = parseRecordAddress(rec->out.value.instio.string);
-        PyModule::Task cb = std::bind(processOutRecordCb<T>, rec, std::placeholders::_1, func);
-
-        PyModule &module = getPyModule(file);
-        module.schedule(cb);
-
-        rec->pact = 1;
-        return 0;
-    } catch (...) {
-        recGblSetSevr(rec, epicsAlarmWrite, epicsSevInvalid);
-        // TODO: if (rec->tpro == 1) { log error }
-        return -1;
-    }
+    AsyncExec::Callback cb = std::bind(processOutRecordCb<T>, rec);
+    AsyncExec::schedule(cb);
+    return 0;
 }
 
 extern "C"
@@ -289,10 +198,10 @@ extern "C"
         DEVSUPFUN init{nullptr};
         DEVSUPFUN init_record{(DEVSUPFUN)initInpRecord<longinRecord>};
         DEVSUPFUN get_ioint_info{nullptr};
-        DEVSUPFUN write{(DEVSUPFUN)processInpRecord<longinRecord>};
+        DEVSUPFUN process{(DEVSUPFUN)processInpRecord<longinRecord>};
     } devPyDevLongin;
     epicsExportAddress(dset, devPyDevLongin);
-
+/*
     struct
     {
         long number{5};
@@ -337,7 +246,7 @@ extern "C"
         DEVSUPFUN write{(DEVSUPFUN)processInpRecord<stringinRecord>};
     } devPyDevStringin;
     epicsExportAddress(dset, devPyDevStringin);
-
+*/
     /*** OUTPUT RECORDS ***/
     struct
     {
@@ -346,10 +255,11 @@ extern "C"
         DEVSUPFUN init{nullptr};
         DEVSUPFUN init_record{(DEVSUPFUN)initOutRecord<longoutRecord>};
         DEVSUPFUN get_ioint_info{nullptr};
-        DEVSUPFUN write{(DEVSUPFUN)processOutRecord<longoutRecord>};
+        DEVSUPFUN process{(DEVSUPFUN)processOutRecord<longoutRecord>};
     } devPyDevLongout;
     epicsExportAddress(dset, devPyDevLongout);
 
+/*
     struct
     {
         long number{5};
@@ -394,4 +304,43 @@ extern "C"
         DEVSUPFUN write{(DEVSUPFUN)processOutRecord<stringoutRecord>};
     } devPyDevStringout;
     epicsExportAddress(dset, devPyDevStringout);
+*/
+
+epicsShareFunc int pydevExec(const char *line)
+{
+    try {
+        PyWorker::exec(line, true);
+    } catch (...) {
+        // pass
+    }
+    return 0;
+}
+
+static const iocshArg pydevExecArg0 = { "line", iocshArgString };
+static const iocshArg *const pydevExecArgs[] = { &pydevExecArg0 };
+static const iocshFuncDef pydevExecDef = { "pydevExec", 1, pydevExecArgs };
+static void pydevExecCall(const iocshArgBuf * args)
+{
+    pydevExec(args[0].sval);
+}
+
+static void pydevUnregister(void)
+{
+    AsyncExec::shutdown();
+    PyWorker::shutdown();
+}
+
+static void pydevRegister(void)
+{
+    static bool firstTime = true;
+    if (firstTime) {
+        firstTime = false;
+        PyWorker::init();
+        AsyncExec::init();
+        iocshRegister(&pydevExecDef, pydevExecCall);
+        epicsAtExit(pydevUnregister, 0);
+    }
+}
+epicsExportRegistrar(pydevRegister);
+
 }; // extern "C"

@@ -1,4 +1,4 @@
-#!../../bin/linux-x86_64/pydevioc
+#!../../bin/linux-x86_64-debug/pydevioc
 
 < envPaths
 
@@ -15,4 +15,9 @@ pydevioc_registerRecordDeviceDriver pdbbase
 dbLoadRecords("${TOP}/db/test.db")
 
 cd ${TOP}/iocBoot/${IOC}
+
+pydevExec("import pydevtest")
+pydevExec("google = pydevtest.HttpClient('www.google.com', 80)")
+pydevExec("example = pydevtest.HttpClient('www.example.com', 80)")
+
 iocInit

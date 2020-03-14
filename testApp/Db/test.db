@@ -1,74 +1,40 @@
-record(ao, "Py:Test:Ao") {
+record(longout, "PyDev:B_SP") {
   field(DTYP, "pydev")
-  field(OUT,  "@pydev demo writeAo")
-  field(VAL,  "0.000000")
-  field(TPRO, "1")
-}
-
-record(longout, "Py:Test:Longout") {
-  field(DTYP, "pydev")
-  field(OUT,  "@pydev demo writeLongout")
-  field(VAL,  "17")
-  field(TPRO, "1")
-}
-
-record(bo, "Py:Test:Bo") {
-  field(DTYP, "pydev")
-  field(OUT,  "@pydev demo writeBo")
-  field(TPRO, "1")
-  field(ZNAM, "zero")
-  field(ONAM, "uno")
-}
-
-record(mbbo, "Py:Test:Mbbo") {
-  field(DTYP, "pydev")
-  field(OUT,  "@pydev demo writeMbbo")
-  field(ZRVL, "0")
-  field(ZRST, "zero")
-  field(ONVL, "1")
-  field(ONST, "uno")
-  field(TPRO, "1")
-}
-
-record(stringout, "Py:Test:Stringout") {
-  field(DTYP, "pydev")
-  field(OUT,  "@pydev demo writeStringout")
-  field(TPRO, "1")
-}
-
-record(ai, "Py:Test:Ai") {
-  field(DTYP, "pydev")
-  field(INP,  "@pydev demo readAi")
-  field(TPRO, "1")
-}
-
-record(longin, "Py:Test:Longin") {
-  field(DTYP, "pydev")
-  field(INP,  "@pydev demo readLongin")
-  field(TPRO, "1")
-}
-
-record(bi, "Py:Test:Bi") {
-  field(DTYP, "pydev")
-  field(INP,  "@pydev demo readBi")
-  field(TPRO, "1")
-  field(ZNAM, "zero")
-  field(ONAM, "uno")
-}
-
-record(mbbi, "Py:Test:Mbbi") {
-  field(DTYP, "pydev")
-  field(INP,  "@pydev demo readMbbi")
-  field(ZRVL, "0")
-  field(ZRST, "zero")
-  field(ONVL, "1")
-  field(ONST, "uno")
-  field(TPRO, "1")
-}
-
-record(stringin, "Py:Test:Stringin") {
-  field(DTYP, "pydev")
-  field(INP,  "@pydev demo readStringin")
-  field(TPRO, "1")
+  field(OUT,  "@pydevtest.b=%value%")
+  field(VAL,  "1")
   field(PINI, "YES")
+  field(TPRO, "1")
+  field(FLNK, "PyDev:B_RB")
+}
+record(longin, "PyDev:B_RB") {
+  field(DTYP, "pydev")
+  field(INP,  "@pydevtest.b")
+  field(TPRO, "1")
+}
+record(longin, "PyDev:Pow2") {
+  field(DTYP, "pydev")
+  field(INP,  "@%value%**2")
+  field(TPRO, "1")
+}
+record(longin, "PyDev:Pow10") {
+  field(DTYP, "pydev")
+  field(INP,  "@pydevtest.pow(%value%,10)")
+  field(TPRO, "1")
+}
+record(longout, "PyDev:PrintA") {
+  field(DTYP, "pydev")
+  field(OUT,  "@print(pydevtest.a)")
+  field(TPRO, "1")
+}
+
+
+record(longout, "PyDev:Http:Google") {
+  field(DTYP, "pydev")
+  field(OUT,  "@google.get()")
+  field(TPRO, "1")
+}
+record(longout, "PyDev:Http:Example") {
+  field(DTYP, "pydev")
+  field(OUT,  "@example.get()")
+  field(TPRO, "1")
 }
