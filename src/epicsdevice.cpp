@@ -5,7 +5,7 @@
  * See file LICENSE that is included with this distribution.
  *
  * @author Klemen Vodopivec
- * @date Oct 2018
+ * @date Jan-Mar 2020
  */
 
 #include <aiRecord.h>
@@ -31,6 +31,7 @@
 #include <recGbl.h>
 
 #include <map>
+#include <string.h>
 
 #include "asyncexec.h"
 #include "pyworker.h"
@@ -60,7 +61,6 @@ static std::string linkToPyCode(const std::string& input, const std::string& rec
 
 static void scanCallback(IOSCANPVT scan)
 {
-    printf("Received new value\n");
 #ifdef VERSION_INT
 #  if EPICS_VERSION_INT < VERSION_INT(3,16,0,0)
     scanIoRequest(scan);
@@ -72,7 +72,6 @@ static void scanCallback(IOSCANPVT scan)
 #else
     scanIoRequest(scan);
 #endif
-
 }
 
 long initRecord(dbCommon* rec, const std::string& addr)
@@ -141,21 +140,46 @@ static void processInpRecordCb(T* rec)
     callbackRequestProcessCallback(&ctx->callback, rec->prio, rec);
 }
 
-/*
+template <>
+void processInpRecordCb(aiRecord* rec)
+{
+    std::string value = std::to_string(rec->rval);
+    std::string code = linkToPyCode(rec->inp.value.instio.string, value);
+    try {
+        if (PyWorker::exec(code, (rec->tpro == 1), &rec->rval) == false) {
+            if (rec->tpro == 1) {
+                printf("ERROR: Can't convert Python type to record VAL field\n");
+            }
+            recGblSetSevr(rec, epicsAlarmCalc, epicsSevInvalid);
+        }
+    } catch (...) {
+        recGblSetSevr(rec, epicsAlarmCalc, epicsSevInvalid);
+    }
+    auto ctx = reinterpret_cast<PyDevContext *>(rec->dpvt);
+    callbackRequestProcessCallback(&ctx->callback, rec->prio, rec);
+}
+
 template <>
 void processInpRecordCb(stringinRecord* rec)
 {
     std::string value = rec->val;
     std::string code = linkToPyCode(rec->inp.value.instio.string, value);
     try {
-        PyWorker::eval(rec->val, code, (rec->tpro == 1));
-    } catch (PyWorker::Exception& e) {
+        if (PyWorker::exec(code, (rec->tpro == 1), value) == true) {
+            strncpy(rec->val, value.c_str(), sizeof(rec->val));
+            rec->val[sizeof(rec->val)-1] = 0;
+        } else {
+            if (rec->tpro == 1) {
+                printf("ERROR: Can't convert Python type to record VAL field\n");
+            }
+            recGblSetSevr(rec, epicsAlarmCalc, epicsSevInvalid);
+        }
+    } catch (...) {
         recGblSetSevr(rec, epicsAlarmCalc, epicsSevInvalid);
     }
     auto ctx = reinterpret_cast<PyDevContext *>(rec->dpvt);
     callbackRequestProcessCallback(&ctx->callback, rec->prio, rec);
 }
-*/
 
 template <typename T>
 static long processInpRecord(T* rec)
@@ -194,22 +218,37 @@ static void processOutRecordCb(T* rec)
     callbackRequestProcessCallback(&ctx->callback, rec->prio, rec);
 }
 
-/*
 template <>
-void processOutRecordCb(longoutRecord* rec)
+void processOutRecordCb(aoRecord* rec)
 {
-    std::string value = rec->val;
+    std::string value = std::to_string(rec->rval);
     std::string code = linkToPyCode(rec->out.value.instio.string, value);
     try {
         // Ignore the possibility that value hasn't been changed
-        (void)PyWorker::exec(code, (rec->tpro == 1), rec->val);
+        (void)PyWorker::exec(code, (rec->tpro == 1), &rec->rval);
     } catch (...) {
         recGblSetSevr(rec, epicsAlarmCalc, epicsSevInvalid);
     }
     auto ctx = reinterpret_cast<PyDevContext *>(rec->dpvt);
     callbackRequestProcessCallback(&ctx->callback, rec->prio, rec);
 }
-*/
+
+template <>
+void processOutRecordCb(stringoutRecord* rec)
+{
+    std::string value = rec->val;
+    std::string code = linkToPyCode(rec->out.value.instio.string, value);
+    try {
+        // Ignore the possibility that value hasn't been changed
+        (void)PyWorker::exec(code, (rec->tpro == 1), value);
+        strncpy(rec->val, value.c_str(), sizeof(rec->val));
+        rec->val[sizeof(rec->val)-1] = 0;
+    } catch (...) {
+        recGblSetSevr(rec, epicsAlarmCalc, epicsSevInvalid);
+    }
+    auto ctx = reinterpret_cast<PyDevContext *>(rec->dpvt);
+    callbackRequestProcessCallback(&ctx->callback, rec->prio, rec);
+}
 
 template <typename T>
 static long processOutRecord(T* rec)
@@ -246,14 +285,14 @@ extern "C"
         DEVSUPFUN process{(DEVSUPFUN)processInpRecord<longinRecord>};
     } devPyDevLongin;
     epicsExportAddress(dset, devPyDevLongin);
-/*
+
     struct
     {
         long number{5};
         DEVSUPFUN report{nullptr};
         DEVSUPFUN init{nullptr};
         DEVSUPFUN init_record{(DEVSUPFUN)initInpRecord<mbbiRecord>};
-        DEVSUPFUN get_ioint_info{nullptr};
+        DEVSUPFUN get_ioint_info{(DEVSUPFUN)getIointInfo<mbbiRecord>};
         DEVSUPFUN write{(DEVSUPFUN)processInpRecord<mbbiRecord>};
     } devPyDevMbbi;
     epicsExportAddress(dset, devPyDevMbbi);
@@ -264,7 +303,7 @@ extern "C"
         DEVSUPFUN report{nullptr};
         DEVSUPFUN init{nullptr};
         DEVSUPFUN init_record{(DEVSUPFUN)initInpRecord<biRecord>};
-        DEVSUPFUN get_ioint_info{nullptr};
+        DEVSUPFUN get_ioint_info{(DEVSUPFUN)getIointInfo<biRecord>};
         DEVSUPFUN write{(DEVSUPFUN)processInpRecord<biRecord>};
     } devPyDevBi;
     epicsExportAddress(dset, devPyDevBi);
@@ -275,7 +314,7 @@ extern "C"
         DEVSUPFUN report{nullptr};
         DEVSUPFUN init{nullptr};
         DEVSUPFUN init_record{(DEVSUPFUN)initInpRecord<aiRecord>};
-        DEVSUPFUN get_ioint_info{nullptr};
+        DEVSUPFUN get_ioint_info{(DEVSUPFUN)getIointInfo<aiRecord>};
         DEVSUPFUN write{(DEVSUPFUN)processInpRecord<aiRecord>};
         DEVSUPFUN special_linconv{nullptr};
     } devPyDevAi;
@@ -287,11 +326,11 @@ extern "C"
         DEVSUPFUN report{nullptr};
         DEVSUPFUN init{nullptr};
         DEVSUPFUN init_record{(DEVSUPFUN)initInpRecord<stringinRecord>};
-        DEVSUPFUN get_ioint_info{nullptr};
+        DEVSUPFUN get_ioint_info{(DEVSUPFUN)getIointInfo<stringinRecord>};
         DEVSUPFUN write{(DEVSUPFUN)processInpRecord<stringinRecord>};
     } devPyDevStringin;
     epicsExportAddress(dset, devPyDevStringin);
-*/
+
     /*** OUTPUT RECORDS ***/
     struct
     {
@@ -304,14 +343,13 @@ extern "C"
     } devPyDevLongout;
     epicsExportAddress(dset, devPyDevLongout);
 
-/*
     struct
     {
         long number{5};
         DEVSUPFUN report{nullptr};
         DEVSUPFUN init{nullptr};
         DEVSUPFUN init_record{(DEVSUPFUN)initOutRecord<mbboRecord>};
-        DEVSUPFUN get_ioint_info{nullptr};
+        DEVSUPFUN get_ioint_info{(DEVSUPFUN)getIointInfo<mbboRecord>};
         DEVSUPFUN write{(DEVSUPFUN)processOutRecord<mbboRecord>};
     } devPyDevMbbo;
     epicsExportAddress(dset, devPyDevMbbo);
@@ -322,7 +360,7 @@ extern "C"
         DEVSUPFUN report{nullptr};
         DEVSUPFUN init{nullptr};
         DEVSUPFUN init_record{(DEVSUPFUN)initOutRecord<boRecord>};
-        DEVSUPFUN get_ioint_info{nullptr};
+        DEVSUPFUN get_ioint_info{(DEVSUPFUN)getIointInfo<boRecord>};
         DEVSUPFUN write{(DEVSUPFUN)processOutRecord<boRecord>};
     } devPyDevBo;
     epicsExportAddress(dset, devPyDevBo);
@@ -333,7 +371,7 @@ extern "C"
         DEVSUPFUN report{nullptr};
         DEVSUPFUN init{nullptr};
         DEVSUPFUN init_record{(DEVSUPFUN)initOutRecord<aoRecord>};
-        DEVSUPFUN get_ioint_info{nullptr};
+        DEVSUPFUN get_ioint_info{(DEVSUPFUN)getIointInfo<aoRecord>};
         DEVSUPFUN write{(DEVSUPFUN)processOutRecord<aoRecord>};
         DEVSUPFUN special_linconv{nullptr};
     } devPyDevAo;
@@ -345,11 +383,10 @@ extern "C"
         DEVSUPFUN report{nullptr};
         DEVSUPFUN init{nullptr};
         DEVSUPFUN init_record{(DEVSUPFUN)initOutRecord<stringoutRecord>};
-        DEVSUPFUN get_ioint_info{nullptr};
+        DEVSUPFUN get_ioint_info{(DEVSUPFUN)getIointInfo<stringoutRecord>};
         DEVSUPFUN write{(DEVSUPFUN)processOutRecord<stringoutRecord>};
     } devPyDevStringout;
     epicsExportAddress(dset, devPyDevStringout);
-*/
 
 epicsShareFunc int pydevExec(const char *line)
 {
@@ -369,7 +406,7 @@ static void pydevExecCall(const iocshArgBuf * args)
     pydevExec(args[0].sval);
 }
 
-static void pydevUnregister(void)
+static void pydevUnregister(void*)
 {
     AsyncExec::shutdown();
     PyWorker::shutdown();

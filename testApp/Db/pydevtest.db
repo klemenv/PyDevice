@@ -26,21 +26,35 @@ record(longout, "PyDev:PrintA") {
   field(OUT,  "@print(pydevtest.a)")
   field(TPRO, "1")
 }
-record(longin, "PyDev:Intr") {
+
+record(longout, "PyDev:Long:Set") {
+  field(DTYP, "pydev")
+  field(OUT,  "@pydevtest.setTest(%value%)")
+  field(TPRO, "1")
+}
+record(longin, "PyDev:Long:Intr") {
   field(DTYP, "pydev")
   field(INP,  "@pydev.iointr('test')")
   field(SCAN, "I/O Intr")
   field(TPRO, "1")
 }
+record(stringout, "PyDev:String:Set") {
+  field(DTYP, "pydev")
+  field(OUT,  "@pydevtest.setTitle('%value%')")
+}
+record(stringin, "PyDev:String:Intr") {
+  field(DTYP, "pydev")
+  field(INP,  "@pydev.iointr('title')")
+  field(SCAN, "I/O Intr")
+}
 
 
-record(longout, "PyDev:Http:Google") {
+record(stringin, "PyDev:Http:Google") {
   field(DTYP, "pydev")
   field(OUT,  "@google.get()")
-  field(TPRO, "1")
 }
-record(longout, "PyDev:Http:Example") {
+record(stringin, "PyDev:Http:Example") {
   field(DTYP, "pydev")
   field(OUT,  "@example.get()")
-  field(TPRO, "1")
 }
+

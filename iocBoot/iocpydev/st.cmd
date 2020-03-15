@@ -12,7 +12,7 @@ dbLoadDatabase "${TOP}/dbd/pydevioc.dbd"
 pydevioc_registerRecordDeviceDriver pdbbase
 
 ## Load record instances
-dbLoadRecords("${TOP}/db/test.db")
+dbLoadRecords("${TOP}/db/pydevtest.db")
 
 cd ${TOP}/iocBoot/${IOC}
 

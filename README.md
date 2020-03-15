@@ -8,7 +8,7 @@ The goal of this project is to provide very easy interface for Python developers
 
 ## Quick introduction
 
-After selecting *pydev* as device type for a particular record, the INP/OUT fields of the record can specify any valid Python code. Link's string must start with @ character followed by Python expression.
+After selecting *pydev* as device type for a particular record, the INP/OUT fields of the record can specify any valid Python code as long as it is prefixed with *@* sign (due to how EPICS parses record links).
 
 ### Hello world example
 Any record type can be used for this simple example:
@@ -21,7 +21,7 @@ record(longout, "PyDev:Test:HelloWorld") {
 Whenever this record processes, the *Hello world!* text is printed to IOC console.
 
 ### Passing values from records to Python code
-Record's link can use *%value%* modifier to replace it with current record's value at runtime. 
+Record's link can use *%value%* modifier to replace it with current record's value at runtime. Use your preferred way to store new value in Python context, usually in variable or passing it to a function.
 ```
 record(longin, "PyDev:Test:HelloWorld") {
     field(DTYP, "pydev")
@@ -31,46 +31,40 @@ record(longin, "PyDev:Test:HelloWorld") {
 
 Note: *%value% modifier can be changed through the PyDevice Makefile when project is built.*
 
-### Getting values from Python into records
+### Getting values from Python code to records
 It is also possible to get value by evaluating arbitrary Python expression.
 ```
 record(longout, "PyDev:Test:RB") {
     field(DTYP, "pydev")
-    field(OUT,  "@tmpVar")
+    field(OUT,  "@myvar")
+    field(SCAN, "1 second")
 }
 ```
-Whenever this record processes, it will read Python variable *tmpVar* and put its value to this record. An example how this can be exercised is using the set-point record:
-```
-record(longout, "PyDev:Test:SP") {
-    field(DTYP, "pydev")
-    field(OUT,  "@tmpVar=%value%")
-    field(FLNK, "PyDev:Test:RB")
-}
-```
+Whenever this record processes, it will read Python variable *tmpVar* and put its value to this record. 
 
-When code specified in the link is a Python expression (any section of the code that evaluates to a value), returned value is assigned to the record automatically. For input records this is required. For output records the return value is optional, which allows them to execute Python expressions or statements (section of code that performs some action).
+When code specified in the link is a Python expression (any section of the code that evaluates to a value), the returned value is assigned to the record automatically. For input records this is required. For output records the return value is optional, which allows them to execute arbitrary Python expressions or statements (section of code that performs some action).
 
 ### Pushing values from Python to record
-Sometimes Python code will want to update EPICS record directly, ie. it received and decoded message in a thread. PyDevice supports I/O Intr scanning in supported records. In such case the record must register a parameter name using the built-in pydev.iointr() function.
+In the previous example we've seen how record can pull value from Python context. Sometimes we will want the opposite to happen, Python code that will update EPICS record directly. An example would be when message is received asynchronously and decoded value needs to propagate to record. PyDevice supports I/O Intr scanning in all supported records. In such case the record must register a parameter name using the built-in pydev.iointr() function.
 
 ```
 record(longout, "PyDev:IoIntr") {
   field(DTYP, "pydev")
-  field(OUT,  "@pydev.iointr('myvar)")
+  field(OUT,  "@pydev.iointr('asyncvar')")
   field(SCAN, "I/O Intr")
 }
 ```
 
-This can be simply exercised from IOC shell by executing following command:
+And Python code needs to call pydev.iointr() function passing new value as the second argument. This can be simply exercised from IOC shell by executing following command:
 
 ```
-pydevExec("pydev.iointr('myvar', 7)")
+pydevExec("pydev.iointr('asyncvar', 7)")
 ```
 
-which will immediately push value of 7 to *myvar* parameter and in turn process PyDev:IoIntr record.
+which will immediately push value of 7 to *asyncvar* parameter and in turn process PyDev:IoIntr record.
 
 ### Invoking functions
-Any Python function can be invoked from the record.
+Any Python function can be invoked from the record, including built-in functions as well as functions imported from modules.
 ```
 record(longout, "PyDev:Test:AbsVal") {
     field(DTYP, "pydev")
@@ -92,12 +86,12 @@ record(longout, "PyDev:Test:Log2") {
     field(OUT,  "@math.log(%value%,2)")
 }
 ```
-This approach might be useful to handle each Python module from a individual EPICS database file, which can be selected at boot time.
+This approach might be useful to handle each Python module from an individual EPICS database file, which can be selected at boot time.
 
 It is also possible to import Python modules (or call any other Python function for that matter) from the IOC console using **pydevExec()** command.
 
 ### Custom modules
-Python modules are imported from standard system import locations. Refer to your Python distribution for details. In order to specify particular location for custom files, we need to define PYTHONPATH environment variable. This can easily be done at IOC startup, in this example we include python/ folder from PyDevice distribution folder.
+Python modules are imported from standard system import locations. Refer to your Python distribution for details. In order to specify particular location for custom files, we need to define PYTHONPATH environment variable. This can easily be done at IOC startup, in this example we include python/ sub-folder from PyDevice top location.
 
 ```
 epicsEnvSet("PYTHONPATH","$(TOP)/python")
@@ -119,7 +113,6 @@ class HttpClient(object):
         self._socket.sendall(req)
         rsp = self._socket.recv(1024)
         self._socket.close()
-        print rsp
         return rsp
 ```
 
@@ -133,10 +126,9 @@ pydevExec("google = pydevtest.HttpClient('www.google.com', 80)")
 Newly created objects live in the global scope of Python interpreter, so they can be referenced from records. The record will trigger simple GET to Google web server request whenever it is processed.
 
 ```
-record(longout, "PyDev:Http:Google") {
+record(stringin, "PyDev:Http:Google") {
   field(DTYP, "pydev")
   field(OUT,  "@google.get()")
-  field(TPRO, "1")
 }
 ```
 
@@ -152,13 +144,13 @@ Assuming all dependencies are satisfied, project should build linkable library a
 ### Supported records
 
 A subset of EPICS records is supported:
-* ao
-* longout
-* bo
-* mbbo
-* stringout
-* ai
-* longin
-* bi
-* mbbi
-* stringin
+  * ao
+  * longout
+  * bo
+  * mbbo
+  * stringout
+  * ai
+  * longin
+  * bi
+  * mbbi
+  * stringin

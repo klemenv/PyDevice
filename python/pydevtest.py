@@ -1,4 +1,5 @@
 import socket
+import pydev
 
 a = "Hello World from test!!!"
 
@@ -16,8 +17,20 @@ class HttpClient(object):
         self._socket.sendall(req)
         rsp = self._socket.recv(1024)
         self._socket.close()
-        print rsp
         return rsp
+
+title = None
+def setTitle(text):
+    global title
+    title = text
+
+    pydev.iointr("title", title)
+
+test = 0
+def setTest(val):
+    global test
+    test = val
+    pydev.iointr("test", test)
 
 if __name__ == "__main__":
     s = HttpClient("www.google.com", 80)
