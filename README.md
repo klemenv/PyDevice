@@ -31,7 +31,7 @@ record(longin, "PyDev:Test:HelloWorld") {
 
 Note: *%value% modifier can be changed through the PyDevice Makefile when project is built.*
 
-### Passing values from records to Python code
+### Getting values from Python into records
 It is also possible to get value by evaluating arbitrary Python expression.
 ```
 record(longout, "PyDev:Test:RB") {
