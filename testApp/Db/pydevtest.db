@@ -51,10 +51,10 @@ record(stringin, "PyDev:String:Intr") {
 
 record(stringin, "PyDev:Http:Google") {
   field(DTYP, "pydev")
-  field(OUT,  "@google.get()")
+  field(INP,  "@google.get()")
 }
 record(stringin, "PyDev:Http:Example") {
   field(DTYP, "pydev")
-  field(OUT,  "@example.get()")
+  field(INP,  "@example.get()")
 }
 

@@ -3,7 +3,7 @@
 * in file LICENSE that is included with this distribution. 
 \*************************************************************************/
 
-#include "pyworker.h"
+#include "pywrapper.h"
 
 #include <Python.h>
 
@@ -12,7 +12,7 @@
 
 static PyObject* globDict = nullptr;
 static PyObject* locDict = nullptr;
-static std::map<std::string, std::pair<PyWorker::Callback, PyObject*>> params;
+static std::map<std::string, std::pair<PyWrapper::Callback, PyObject*>> params;
 
 /**
  * Function for caching parameter value or notifying record of new value.
@@ -82,7 +82,7 @@ printf("PyInit_pydev\n");
 }
 #endif
 
-bool PyWorker::init()
+bool PyWrapper::init()
 {
     // Initialize and register `pydev' Python module which serves as
     // communication channel for I/O Intr value exchange
@@ -103,20 +103,20 @@ bool PyWorker::init()
     return true;
 }
 
-void PyWorker::shutdown()
+void PyWrapper::shutdown()
 {
     Py_DecRef(globDict);
     Py_DecRef(locDict);
     Py_Finalize();
 }
 
-void PyWorker::registerIoIntr(const std::string& name, const Callback& cb)
+void PyWrapper::registerIoIntr(const std::string& name, const Callback& cb)
 {
     params[name].first = cb;
     params[name].second = nullptr;
 }
 
-void PyWorker::exec(const std::string& line, bool debug)
+void PyWrapper::exec(const std::string& line, bool debug)
 {
     PyObject* r = PyRun_String(line.c_str(), Py_file_input, globDict, locDict);
     if (r == nullptr) {
@@ -130,7 +130,7 @@ void PyWorker::exec(const std::string& line, bool debug)
 }
 
 template <typename T>
-bool PyWorker::exec(const std::string& line, bool debug, T* val)
+bool PyWrapper::exec(const std::string& line, bool debug, T* val)
 {
     if (val != nullptr) {
         PyObject* r = PyRun_String(line.c_str(), Py_eval_input, globDict, locDict);
@@ -162,11 +162,11 @@ bool PyWorker::exec(const std::string& line, bool debug, T* val)
     Py_DecRef(r);
     return false;
 }
-template bool PyWorker::exec(const std::string&, bool, int32_t*);
-template bool PyWorker::exec(const std::string&, bool, uint16_t*);
-template bool PyWorker::exec(const std::string&, bool, double*);
+template bool PyWrapper::exec(const std::string&, bool, int32_t*);
+template bool PyWrapper::exec(const std::string&, bool, uint16_t*);
+template bool PyWrapper::exec(const std::string&, bool, double*);
 
-bool PyWorker::exec(const std::string& line, bool debug, std::string& val)
+bool PyWrapper::exec(const std::string& line, bool debug, std::string& val)
 {
     PyObject* r = PyRun_String(line.c_str(), Py_eval_input, globDict, locDict);
     if (r != nullptr) {
@@ -197,7 +197,7 @@ bool PyWorker::exec(const std::string& line, bool debug, std::string& val)
     return false;
 }
 
-bool PyWorker::convert(void* in_, int32_t& out)
+bool PyWrapper::convert(void* in_, int32_t& out)
 {
     PyObject* in = reinterpret_cast<PyObject*>(in_);
     if (PyInt_Check(in)) {
@@ -232,7 +232,7 @@ bool PyWorker::convert(void* in_, int32_t& out)
     return false;
 }
 
-bool PyWorker::convert(void* in_, uint16_t& out)
+bool PyWrapper::convert(void* in_, uint16_t& out)
 {
     PyObject* in = reinterpret_cast<PyObject*>(in_);
     if (PyInt_Check(in)) {
@@ -269,7 +269,7 @@ bool PyWorker::convert(void* in_, uint16_t& out)
     return false;
 }
 
-bool PyWorker::convert(void* in_, double& out)
+bool PyWrapper::convert(void* in_, double& out)
 {
     PyObject* in = reinterpret_cast<PyObject*>(in_);
     if (PyInt_Check(in)) {
@@ -303,7 +303,7 @@ bool PyWorker::convert(void* in_, double& out)
     return false;
 }
 
-bool PyWorker::convert(void* in_, std::string& out)
+bool PyWrapper::convert(void* in_, std::string& out)
 {
     PyObject* in = reinterpret_cast<PyObject*>(in_);
     if (PyString_Check(in)) {

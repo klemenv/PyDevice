@@ -29,7 +29,7 @@
 #include <string.h>
 
 #include "asyncexec.h"
-#include "pyworker.h"
+#include "pywrapper.h"
 
 #ifndef LINK_VALUE_NEEDLE
 #   define LINK_VALUE_NEEDLE "%value%"
@@ -81,8 +81,8 @@ long initRecord(dbCommon* rec, const std::string& addr)
         auto it = ioScanPvts.find(param);
         if (it == ioScanPvts.end()) {
             scanIoInit( &ioScanPvts[param] );
-            PyWorker::Callback cb = std::bind(scanCallback, ioScanPvts[param]);
-            PyWorker::registerIoIntr(param, cb);
+            PyWrapper::Callback cb = std::bind(scanCallback, ioScanPvts[param]);
+            PyWrapper::registerIoIntr(param, cb);
             it = ioScanPvts.find(param);
         }
         ctx->scan = it->second;
@@ -122,7 +122,7 @@ static void processInpRecordCb(T* rec)
     std::string value = std::to_string(rec->val);
     std::string code = linkToPyCode(rec->inp.value.instio.string, value);
     try {
-        if (PyWorker::exec(code, (rec->tpro == 1), &rec->val) == false) {
+        if (PyWrapper::exec(code, (rec->tpro == 1), &rec->val) == false) {
             if (rec->tpro == 1) {
                 printf("ERROR: Can't convert Python type to record VAL field\n");
             }
@@ -141,7 +141,7 @@ void processInpRecordCb(aiRecord* rec)
     std::string value = std::to_string(rec->rval);
     std::string code = linkToPyCode(rec->inp.value.instio.string, value);
     try {
-        if (PyWorker::exec(code, (rec->tpro == 1), &rec->rval) == false) {
+        if (PyWrapper::exec(code, (rec->tpro == 1), &rec->rval) == false) {
             if (rec->tpro == 1) {
                 printf("ERROR: Can't convert Python type to record VAL field\n");
             }
@@ -160,7 +160,7 @@ void processInpRecordCb(stringinRecord* rec)
     std::string value = rec->val;
     std::string code = linkToPyCode(rec->inp.value.instio.string, value);
     try {
-        if (PyWorker::exec(code, (rec->tpro == 1), value) == true) {
+        if (PyWrapper::exec(code, (rec->tpro == 1), value) == true) {
             strncpy(rec->val, value.c_str(), sizeof(rec->val));
             rec->val[sizeof(rec->val)-1] = 0;
         } else {
@@ -205,7 +205,7 @@ static void processOutRecordCb(T* rec)
     std::string code = linkToPyCode(rec->out.value.instio.string, value);
     try {
         // Ignore the possibility that value hasn't been changed
-        (void)PyWorker::exec(code, (rec->tpro == 1), &rec->val);
+        (void)PyWrapper::exec(code, (rec->tpro == 1), &rec->val);
     } catch (...) {
         recGblSetSevr(rec, epicsAlarmCalc, epicsSevInvalid);
     }
@@ -220,7 +220,7 @@ void processOutRecordCb(aoRecord* rec)
     std::string code = linkToPyCode(rec->out.value.instio.string, value);
     try {
         // Ignore the possibility that value hasn't been changed
-        (void)PyWorker::exec(code, (rec->tpro == 1), &rec->rval);
+        (void)PyWrapper::exec(code, (rec->tpro == 1), &rec->rval);
     } catch (...) {
         recGblSetSevr(rec, epicsAlarmCalc, epicsSevInvalid);
     }
@@ -235,7 +235,7 @@ void processOutRecordCb(stringoutRecord* rec)
     std::string code = linkToPyCode(rec->out.value.instio.string, value);
     try {
         // Ignore the possibility that value hasn't been changed
-        (void)PyWorker::exec(code, (rec->tpro == 1), value);
+        (void)PyWrapper::exec(code, (rec->tpro == 1), value);
         strncpy(rec->val, value.c_str(), sizeof(rec->val));
         rec->val[sizeof(rec->val)-1] = 0;
     } catch (...) {
@@ -386,7 +386,7 @@ extern "C"
 epicsShareFunc int pydevExec(const char *line)
 {
     try {
-        PyWorker::exec(line, true);
+        PyWrapper::exec(line, true);
     } catch (...) {
         // pass
     }
@@ -404,7 +404,7 @@ static void pydevExecCall(const iocshArgBuf * args)
 static void pydevUnregister(void*)
 {
     AsyncExec::shutdown();
-    PyWorker::shutdown();
+    PyWrapper::shutdown();
 }
 
 static void pydevRegister(void)
@@ -412,7 +412,7 @@ static void pydevRegister(void)
     static bool firstTime = true;
     if (firstTime) {
         firstTime = false;
-        PyWorker::init();
+        PyWrapper::init();
         AsyncExec::init();
         iocshRegister(&pydevExecDef, pydevExecCall);
         epicsAtExit(pydevUnregister, 0);

@@ -6,7 +6,7 @@
 #include <functional>
 #include <string>
 
-class PyWorker {
+class PyWrapper {
     private:
         static bool convert(void* in, int32_t& out);
         static bool convert(void* in, double& out);
