@@ -1,12 +1,7 @@
-/* epicsdevice.cpp
- *
- * Copyright (c) 2018 Oak Ridge National Laboratory.
- * All rights reserved.
- * See file LICENSE that is included with this distribution.
- *
- * @author Klemen Vodopivec
- * @date Jan-Mar 2020
- */
+/*************************************************************************\
+* PyDevice is distributed subject to a Software License Agreement found
+* in file LICENSE that is included with this distribution. 
+\*************************************************************************/
 
 #include <aiRecord.h>
 #include <aoRecord.h>
