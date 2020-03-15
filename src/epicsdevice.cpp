@@ -23,11 +23,14 @@
 #include <alarm.h>
 #include <callback.h>
 #include <cantProceed.h>
+#include <dbScan.h>
 #include <devSup.h>
 #include <epicsExit.h>
 #include <epicsExport.h>
 #include <iocsh.h>
 #include <recGbl.h>
+
+#include <map>
 
 #include "asyncexec.h"
 #include "pyworker.h"
@@ -38,9 +41,12 @@
 
 struct PyDevContext {
     CALLBACK callback;
+    IOSCANPVT scan;
 };
 
-std::string linkToPyCode(const std::string& input, const std::string& recordVal)
+static std::map<std::string, IOSCANPVT> ioScanPvts;
+
+static std::string linkToPyCode(const std::string& input, const std::string& recordVal)
 {
     std::string output = input;
     const static std::string needle = LINK_VALUE_NEEDLE;
@@ -52,15 +58,44 @@ std::string linkToPyCode(const std::string& input, const std::string& recordVal)
     return output;
 }
 
-long initRecord(dbCommon* rec, const char* addr)
+static void scanCallback(IOSCANPVT scan)
 {
-    rec->dpvt = nullptr;
+    printf("Received new value\n");
+#ifdef VERSION_INT
+#  if EPICS_VERSION_INT < VERSION_INT(3,16,0,0)
+    scanIoRequest(scan);
+#  else
+    scanIoImmediate(scan, priorityHigh);
+    scanIoImmediate(scan, priorityMedium);
+    scanIoImmediate(scan, priorityLow);
+#  endif
+#else
+    scanIoRequest(scan);
+#endif
 
-    std::string module;
-    std::string code;
+}
 
-    void *buffer = callocMustSucceed(1, sizeof(PyDevContext), "PyDev::initOutRecord");
-    rec->dpvt = new (buffer) PyDevContext;
+long initRecord(dbCommon* rec, const std::string& addr)
+{
+    void *buffer = callocMustSucceed(1, sizeof(PyDevContext), "PyDev::initRecord");
+    PyDevContext* ctx = new (buffer) PyDevContext;
+    rec->dpvt = ctx;
+
+    // This could be better checked with regex
+    if (addr.find("pydev.iointr('") == 0 && addr.substr(addr.size()-2) == "')") {
+        std::string param = addr.substr(14, addr.size()-16);
+        auto it = ioScanPvts.find(param);
+        if (it == ioScanPvts.end()) {
+            scanIoInit( &ioScanPvts[param] );
+            PyWorker::Callback cb = std::bind(scanCallback, ioScanPvts[param]);
+            PyWorker::registerIoIntr(param, cb);
+            it = ioScanPvts.find(param);
+        }
+        ctx->scan = it->second;
+    } else {
+        ctx->scan = nullptr;
+    }
+
     return 0;
 }
 
@@ -74,6 +109,16 @@ template <typename T>
 long initOutRecord(T *rec)
 {
     return initRecord(reinterpret_cast<dbCommon*>(rec), rec->out.value.instio.string);
+}
+
+template <typename T>
+long getIointInfo(int dir, T *rec, IOSCANPVT* io)
+{
+    PyDevContext* ctx = reinterpret_cast<PyDevContext*>(rec->dpvt);
+    if (ctx != nullptr && ctx->scan != nullptr) {
+        *io = ctx->scan;
+    }
+    return 0;
 }
 
 
@@ -197,7 +242,7 @@ extern "C"
         DEVSUPFUN report{nullptr};
         DEVSUPFUN init{nullptr};
         DEVSUPFUN init_record{(DEVSUPFUN)initInpRecord<longinRecord>};
-        DEVSUPFUN get_ioint_info{nullptr};
+        DEVSUPFUN get_ioint_info{(DEVSUPFUN)getIointInfo<longinRecord>};
         DEVSUPFUN process{(DEVSUPFUN)processInpRecord<longinRecord>};
     } devPyDevLongin;
     epicsExportAddress(dset, devPyDevLongin);
@@ -254,7 +299,7 @@ extern "C"
         DEVSUPFUN report{nullptr};
         DEVSUPFUN init{nullptr};
         DEVSUPFUN init_record{(DEVSUPFUN)initOutRecord<longoutRecord>};
-        DEVSUPFUN get_ioint_info{nullptr};
+        DEVSUPFUN get_ioint_info{(DEVSUPFUN)getIointInfo<longoutRecord>};
         DEVSUPFUN process{(DEVSUPFUN)processOutRecord<longoutRecord>};
     } devPyDevLongout;
     epicsExportAddress(dset, devPyDevLongout);

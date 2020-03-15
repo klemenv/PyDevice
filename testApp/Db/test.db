@@ -26,6 +26,12 @@ record(longout, "PyDev:PrintA") {
   field(OUT,  "@print(pydevtest.a)")
   field(TPRO, "1")
 }
+record(longin, "PyDev:Intr") {
+  field(DTYP, "pydev")
+  field(INP,  "@pydev.iointr('test')")
+  field(SCAN, "I/O Intr")
+  field(TPRO, "1")
+}
 
 
 record(longout, "PyDev:Http:Google") {

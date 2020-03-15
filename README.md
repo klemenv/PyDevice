@@ -20,7 +20,7 @@ record(longout, "PyDev:Test:HelloWorld") {
 ```
 Whenever this record processes, the *Hello world!* text is printed to IOC console.
 
-### Passing values between records and Python code
+### Passing values from records to Python code
 Record's link can use *%value%* modifier to replace it with current record's value at runtime. 
 ```
 record(longin, "PyDev:Test:HelloWorld") {
@@ -31,21 +31,43 @@ record(longin, "PyDev:Test:HelloWorld") {
 
 Note: *%value% modifier can be changed through the PyDevice Makefile when project is built.*
 
-Next example will demonstrate how to pass value to and from Python code using two records. 
+### Passing values from records to Python code
+It is also possible to get value by evaluating arbitrary Python expression.
+```
+record(longout, "PyDev:Test:RB") {
+    field(DTYP, "pydev")
+    field(OUT,  "@tmpVar")
+}
+```
+Whenever this record processes, it will read Python variable *tmpVar* and put its value to this record. An example how this can be exercised is using the set-point record:
 ```
 record(longout, "PyDev:Test:SP") {
     field(DTYP, "pydev")
     field(OUT,  "@tmpVar=%value%")
     field(FLNK, "PyDev:Test:RB")
 }
-record(longout, "PyDev:Test:RB") {
-    field(DTYP, "pydev")
-    field(OUT,  "@tmpVar")
+```
+
+When code specified in the link is a Python expression (any section of the code that evaluates to a value), returned value is assigned to the record automatically. For input records this is required. For output records the return value is optional, which allows them to execute Python expressions or statements (section of code that performs some action).
+
+### Pushing values from Python to record
+Sometimes Python code will want to update EPICS record directly, ie. it received and decoded message in a thread. PyDevice supports I/O Intr scanning in supported records. In such case the record must register a parameter name using the built-in pydev.iointr() function.
+
+```
+record(longout, "PyDev:IoIntr") {
+  field(DTYP, "pydev")
+  field(OUT,  "@pydev.iointr('myvar)")
+  field(SCAN, "I/O Intr")
 }
 ```
-As an exercise you may want to remove forward link processing to confirm the read back record is reading tmpVar value from Python.
 
-When code specified in the link is a Python statement which returns a value, returned value is assigned to the record automatically. For input records this is required, which means input records can only reference Python variables or call Python functions which return a value. For output records the return value is optional, which allows them to execute arbitrary Python statements and expressions.
+This can be simply exercised from IOC shell by executing following command:
+
+```
+pydevExec("pydev.iointr('myvar', 7)")
+```
+
+which will immediately push value of 7 to *myvar* parameter and in turn process PyDev:IoIntr record.
 
 ### Invoking functions
 Any Python function can be invoked from the record.
