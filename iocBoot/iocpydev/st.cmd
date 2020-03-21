@@ -16,8 +16,8 @@ dbLoadRecords("${TOP}/db/pydevtest.db")
 
 cd ${TOP}/iocBoot/${IOC}
 
-pydevExec("import pydevtest")
-pydevExec("google = pydevtest.HttpClient('www.google.com', 80)")
-pydevExec("example = pydevtest.HttpClient('www.example.com', 80)")
+pydev("import pydevtest")
+pydev("google = pydevtest.HttpClient('www.google.com', 80)")
+pydev("example = pydevtest.HttpClient('www.example.com', 80)")
 
 iocInit

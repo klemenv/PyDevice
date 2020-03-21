@@ -58,7 +58,7 @@ record(longout, "PyDev:IoIntr") {
 And Python code needs to call pydev.iointr() function passing new value as the second argument. This can be simply exercised from IOC shell by executing following command:
 
 ```
-pydevExec("pydev.iointr('asyncvar', 7)")
+pydev("pydev.iointr('asyncvar', 7)")
 ```
 
 which will immediately push value of 7 to *asyncvar* parameter and in turn process PyDev:IoIntr record.
@@ -88,7 +88,7 @@ record(longout, "PyDev:Test:Log2") {
 ```
 This approach might be useful to handle each Python module from an individual EPICS database file, which can be selected at boot time.
 
-It is also possible to import Python modules (or call any other Python function for that matter) from the IOC console using **pydevExec()** command.
+It is also possible to import Python modules (or call any other Python function for that matter) from the IOC console using **pydev()** command.
 
 ### Custom modules
 Python modules are imported from standard system import locations. Refer to your Python distribution for details. In order to specify particular location for custom files, we need to define PYTHONPATH environment variable. This can easily be done at IOC startup, in this example we include python/ sub-folder from PyDevice top location.
@@ -119,8 +119,8 @@ class HttpClient(object):
 The example IOC startup file then instantiates an object for connecting to Google web servers. Because our example record uses this object, we need to specify the next two lines before calling iocInit():
 
 ```
-pydevExec("import pydevtest")
-pydevExec("google = pydevtest.HttpClient('www.google.com', 80)")
+pydev("import pydevtest")
+pydev("google = pydevtest.HttpClient('www.google.com', 80)")
 ```
 
 Newly created objects live in the global scope of Python interpreter, so they can be referenced from records. The record will trigger simple GET to Google web server request whenever it is processed.

@@ -383,7 +383,7 @@ extern "C"
     } devPyDevStringout;
     epicsExportAddress(dset, devPyDevStringout);
 
-epicsShareFunc int pydevExec(const char *line)
+epicsShareFunc int pydev(const char *line)
 {
     try {
         PyWrapper::exec(line, true);
@@ -393,12 +393,12 @@ epicsShareFunc int pydevExec(const char *line)
     return 0;
 }
 
-static const iocshArg pydevExecArg0 = { "line", iocshArgString };
-static const iocshArg *const pydevExecArgs[] = { &pydevExecArg0 };
-static const iocshFuncDef pydevExecDef = { "pydevExec", 1, pydevExecArgs };
-static void pydevExecCall(const iocshArgBuf * args)
+static const iocshArg pydevArg0 = { "line", iocshArgString };
+static const iocshArg *const pydevArgs[] = { &pydevArg0 };
+static const iocshFuncDef pydevDef = { "pydev", 1, pydevArgs };
+static void pydevCall(const iocshArgBuf * args)
 {
-    pydevExec(args[0].sval);
+    pydev(args[0].sval);
 }
 
 static void pydevUnregister(void*)
@@ -414,7 +414,7 @@ static void pydevRegister(void)
         firstTime = false;
         PyWrapper::init();
         AsyncExec::init();
-        iocshRegister(&pydevExecDef, pydevExecCall);
+        iocshRegister(&pydevDef, pydevCall);
         epicsAtExit(pydevUnregister, 0);
     }
 }
