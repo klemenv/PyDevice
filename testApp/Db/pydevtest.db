@@ -40,7 +40,7 @@ record(longin, "PyDev:Long:Intr") {
 }
 record(stringout, "PyDev:String:Set") {
   field(DTYP, "pydev")
-  field(OUT,  "@pydevtest.setTitle('%value%')")
+  field(OUT,  "@pydevtest.setTitle(%value%)")
 }
 record(stringin, "PyDev:String:Intr") {
   field(DTYP, "pydev")

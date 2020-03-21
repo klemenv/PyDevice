@@ -42,13 +42,39 @@ struct PyDevContext {
 
 static std::map<std::string, IOSCANPVT> ioScanPvts;
 
-static std::string linkToPyCode(const std::string& input, const std::string& recordVal)
+template <typename T>
+static std::string valToStr(const T& val)
+{
+    return std::to_string(val);
+}
+
+template <>
+std::string valToStr(const std::string& val)
+{
+    std::string value;
+    // Ensure value string is prefixed with quotes
+    if (val.size() < 2) {
+        value = "'" + val + "'";
+    } else {
+        bool same = (val.front() == val.back());
+        if (same && (val.front() == '\'' || val.front() == '"')) {
+            value = val;
+        } else {
+            value = "'" + val + "'";
+        }
+    }
+    return value;
+}
+
+template <typename T>
+static std::string linkToPyCode(const std::string& input, const T& recordVal)
 {
     std::string output = input;
+    std::string value = valToStr(recordVal);
     const static std::string needle = LINK_VALUE_NEEDLE;
     size_t pos = output.find(needle);
     while (pos != std::string::npos) {
-        output.replace(pos, needle.size(), recordVal);
+        output.replace(pos, needle.size(), value);
         pos = output.find(needle);
     }
     return output;
@@ -119,8 +145,7 @@ long getIointInfo(int dir, T *rec, IOSCANPVT* io)
 template <typename T>
 static void processInpRecordCb(T* rec)
 {
-    std::string value = std::to_string(rec->val);
-    std::string code = linkToPyCode(rec->inp.value.instio.string, value);
+    std::string code = linkToPyCode(rec->inp.value.instio.string, rec->val);
     try {
         if (PyWrapper::exec(code, (rec->tpro == 1), &rec->val) == false) {
             if (rec->tpro == 1) {
@@ -138,8 +163,7 @@ static void processInpRecordCb(T* rec)
 template <>
 void processInpRecordCb(aiRecord* rec)
 {
-    std::string value = std::to_string(rec->rval);
-    std::string code = linkToPyCode(rec->inp.value.instio.string, value);
+    std::string code = linkToPyCode(rec->inp.value.instio.string, rec->rval);
     try {
         if (PyWrapper::exec(code, (rec->tpro == 1), &rec->rval) == false) {
             if (rec->tpro == 1) {
@@ -201,8 +225,7 @@ static long processInpRecord(T* rec)
 template <typename T>
 static void processOutRecordCb(T* rec)
 {
-    std::string value = std::to_string(rec->val);
-    std::string code = linkToPyCode(rec->out.value.instio.string, value);
+    std::string code = linkToPyCode(rec->out.value.instio.string, rec->val);
     try {
         // Ignore the possibility that value hasn't been changed
         (void)PyWrapper::exec(code, (rec->tpro == 1), &rec->val);
@@ -216,8 +239,7 @@ static void processOutRecordCb(T* rec)
 template <>
 void processOutRecordCb(aoRecord* rec)
 {
-    std::string value = std::to_string(rec->rval);
-    std::string code = linkToPyCode(rec->out.value.instio.string, value);
+    std::string code = linkToPyCode(rec->out.value.instio.string, rec->rval);
     try {
         // Ignore the possibility that value hasn't been changed
         (void)PyWrapper::exec(code, (rec->tpro == 1), &rec->rval);
