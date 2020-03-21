@@ -1,5 +1,9 @@
 import socket
-import pydev
+import random
+try:
+    import pydev
+except:
+    pass
 
 a = "Hello World from test!!!"
 
@@ -26,6 +30,12 @@ def setTitle(text):
 
     pydev.iointr("title", title)
 
+def setArray(arr):
+    l = []
+    for i in range(random.randint(1,100)):
+        l.append(random.randint(0,255))
+    return l
+
 test = 0
 def setTest(val):
     global test
@@ -35,4 +45,3 @@ def setTest(val):
 if __name__ == "__main__":
     s = HttpClient("www.google.com", 80)
     print s.get("/")
-    print s.get()

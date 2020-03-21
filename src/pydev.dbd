@@ -11,5 +11,6 @@ device(longin,INST_IO,devPyDevLongin,"pydev")
 device(bi,INST_IO,devPyDevBi,"pydev")
 device(mbbi,INST_IO,devPyDevMbbi,"pydev")
 device(stringin,INST_IO,devPyDevStringin,"pydev")
+device(waveform,INST_IO,devPyDevWaveform,"pydev")
 
 registrar(pydevRegister)

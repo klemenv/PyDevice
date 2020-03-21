@@ -5,6 +5,7 @@
 
 #include <functional>
 #include <string>
+#include <vector>
 
 class PyWrapper {
     private:
@@ -12,6 +13,7 @@ class PyWrapper {
         static bool convert(void* in, double& out);
         static bool convert(void* in, uint16_t& out);
         static bool convert(void* in, std::string& out);
+        template <typename T> static bool convert(void* in, std::vector<T>& out);
     public:
         using Callback = std::function<void()>;
         static bool init();
@@ -20,4 +22,5 @@ class PyWrapper {
         static void exec(const std::string& line, bool debug);
         static bool exec(const std::string& line, bool debug, std::string& val);
         template <typename T> static bool exec(const std::string& line, bool debug, T* val);
+        template <typename T> static bool exec(const std::string& line, bool debug, std::vector<T>& val);
 };

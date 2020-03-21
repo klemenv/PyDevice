@@ -197,6 +197,40 @@ bool PyWrapper::exec(const std::string& line, bool debug, std::string& val)
     return false;
 }
 
+template <typename T>
+bool PyWrapper::exec(const std::string& line, bool debug, std::vector<T>& arr)
+{
+    arr.clear();
+
+    PyObject* r = PyRun_String(line.c_str(), Py_eval_input, globDict, locDict);
+    if (r != nullptr) {
+        bool converted = convert(r, arr);
+        Py_DecRef(r);
+
+        if (!converted) {
+            PyErr_Print();
+            PyErr_Clear();
+            return false;
+        }
+        return true;
+    }
+    PyErr_Clear();
+
+    // Still here, let's try executing code instead
+    r = PyRun_String(line.c_str(), Py_single_input, globDict, locDict);
+    if (r == nullptr) {
+        if (PyErr_Occurred()) {
+            PyErr_Print();
+        }
+        PyErr_Clear();
+        throw std::runtime_error("Failed to execute Python code");
+    }
+    Py_DecRef(r);
+    return false;
+}
+template bool PyWrapper::exec(const std::string&, bool, std::vector<long>&);
+template bool PyWrapper::exec(const std::string&, bool, std::vector<double>&);
+
 bool PyWrapper::convert(void* in_, int32_t& out)
 {
     PyObject* in = reinterpret_cast<PyObject*>(in_);
@@ -348,3 +382,49 @@ bool PyWrapper::convert(void* in_, std::string& out)
     }
     return false;
 }
+
+template <typename T>
+bool PyWrapper::convert(void* in_, std::vector<T>& out)
+{
+    PyObject* in = reinterpret_cast<PyObject*>(in_);
+    if (!PyList_Check(in)) {
+        return false;
+    }
+
+    out.clear();
+    for (Py_ssize_t i = 0; i < PyList_Size(in); i++) {
+        PyObject* el = PyList_GetItem(in, i);
+
+        if (PyInt_Check(el)) {
+            T elval = PyInt_AsLong(el);
+            if (elval == -1.0 && PyErr_Occurred()) {
+                PyErr_Clear();
+                return false;
+            }
+            out.push_back(elval);
+        }
+        if (PyLong_Check(in)) {
+            T elval = PyLong_AsLong(in);
+            if (elval == -1.0 && PyErr_Occurred()) {
+                PyErr_Clear();
+                return false;
+            }
+            out.push_back(elval);
+        }
+        if (PyBool_Check(in)) {
+            T elval = (PyObject_IsTrue(in) ? 1 : 0);
+            out.push_back(elval);
+        }
+        if (PyFloat_Check(in)) {
+            T elval = PyFloat_AsDouble(in);
+            if (elval == -1.0 && PyErr_Occurred()) {
+                PyErr_Clear();
+                return false;
+            }
+            out.push_back(elval);
+        }
+    }
+    return true;
+}
+template bool PyWrapper::convert(void* in_, std::vector<long>& out);
+template bool PyWrapper::convert(void* in_, std::vector<double>& out);

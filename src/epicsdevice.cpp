@@ -14,6 +14,7 @@
 #include <mbboRecord.h>
 #include <stringinRecord.h>
 #include <stringoutRecord.h>
+#include <waveformRecord.h>
 
 #include <alarm.h>
 #include <callback.h>
@@ -23,10 +24,13 @@
 #include <epicsExit.h>
 #include <epicsExport.h>
 #include <iocsh.h>
+#include <menuFtype.h>
 #include <recGbl.h>
 
+#include <algorithm>
 #include <map>
 #include <string.h>
+#include <vector>
 
 #include "asyncexec.h"
 #include "pywrapper.h"
@@ -52,7 +56,7 @@ template <>
 std::string valToStr(const std::string& val)
 {
     std::string value;
-    // Ensure value string is prefixed with quotes
+    // Ensure value string is in quotes
     if (val.size() < 2) {
         value = "'" + val + "'";
     } else {
@@ -62,6 +66,21 @@ std::string valToStr(const std::string& val)
         } else {
             value = "'" + val + "'";
         }
+    }
+    return value;
+}
+
+template <typename T>
+static std::string valToStr(const std::vector<T>& val)
+{
+    std::string value = "[";
+    for (const auto v: val) {
+        value += std::to_string(v) + ",";
+    }
+    if (value.back() == ',') {
+        value.back() = ']';
+    } else {
+        value += "]";
     }
     return value;
 }
@@ -78,6 +97,93 @@ static std::string linkToPyCode(const std::string& input, const T& recordVal)
         pos = output.find(needle);
     }
     return output;
+}
+
+template <typename T>
+static bool toRecArrayVal(waveformRecord* rec, const std::vector<T>& arr)
+{
+    if (rec->ftvl == menuFtypeCHAR) {
+        auto val = reinterpret_cast<epicsInt8*>(rec->bptr);
+        rec->nord = std::min(arr.size(), (size_t)rec->nelm);
+        std::copy(arr.begin(), arr.begin()+rec->nord, val);
+        return true;
+    } else if (rec->ftvl == menuFtypeUCHAR) {
+        auto val = reinterpret_cast<epicsUInt8*>(rec->bptr);
+        rec->nord = std::min(arr.size(), (size_t)rec->nelm);
+        std::copy(arr.begin(), arr.begin()+rec->nord, val);
+        return true;
+    } else if (rec->ftvl == menuFtypeSHORT) {
+        auto val = reinterpret_cast<epicsInt16*>(rec->bptr);
+        rec->nord = std::min(arr.size(), (size_t)rec->nelm);
+        std::copy(arr.begin(), arr.begin()+rec->nord, val);
+        return true;
+    } else if (rec->ftvl == menuFtypeUSHORT) {
+        auto val = reinterpret_cast<epicsUInt16*>(rec->bptr);
+        rec->nord = std::min(arr.size(), (size_t)rec->nelm);
+        std::copy(arr.begin(), arr.begin()+rec->nord, val);
+        return true;
+    } else if (rec->ftvl == menuFtypeLONG) {
+        auto val = reinterpret_cast<epicsInt32*>(rec->bptr);
+        rec->nord = std::min(arr.size(), (size_t)rec->nelm);
+        std::copy(arr.begin(), arr.begin()+rec->nord, val);
+        return true;
+    } else if (rec->ftvl == menuFtypeULONG) {
+        auto val = reinterpret_cast<epicsUInt32*>(rec->bptr);
+        rec->nord = std::min(arr.size(), (size_t)rec->nelm);
+        std::copy(arr.begin(), arr.begin()+rec->nord, val);
+        return true;
+    } else if (rec->ftvl == menuFtypeFLOAT) {
+        auto val = reinterpret_cast<epicsFloat32*>(rec->bptr);
+        rec->nord = std::min(arr.size(), (size_t)rec->nelm);
+        std::copy(arr.begin(), arr.begin()+rec->nord, val);
+        return true;
+    } else if (rec->ftvl == menuFtypeDOUBLE) {
+        auto val = reinterpret_cast<epicsFloat64*>(rec->bptr);
+        rec->nord = std::min(arr.size(), (size_t)rec->nelm);
+        std::copy(arr.begin(), arr.begin()+rec->nord, val);
+        return true;
+    }
+    return false;
+}
+
+template <typename T>
+static bool fromRecArrayVal(waveformRecord* rec, std::vector<T>& arr)
+{
+    arr.resize(rec->nelm);
+    if (rec->ftvl == menuFtypeCHAR) {
+        auto val = reinterpret_cast<epicsInt8*>(rec->bptr);
+        arr.assign(val, val+rec->nelm);
+        return true;
+    } else if (rec->ftvl == menuFtypeUCHAR) {
+        auto val = reinterpret_cast<epicsUInt8*>(rec->bptr);
+        arr.assign(val, val+rec->nelm);
+        return true;
+    } else if (rec->ftvl == menuFtypeSHORT) {
+        auto val = reinterpret_cast<epicsInt16*>(rec->bptr);
+        arr.assign(val, val+rec->nelm);
+        return true;
+    } else if (rec->ftvl == menuFtypeUSHORT) {
+        auto val = reinterpret_cast<epicsUInt16*>(rec->bptr);
+        arr.assign(val, val+rec->nelm);
+        return true;
+    } else if (rec->ftvl == menuFtypeLONG) {
+        auto val = reinterpret_cast<epicsInt32*>(rec->bptr);
+        arr.assign(val, val+rec->nelm);
+        return true;
+    } else if (rec->ftvl == menuFtypeULONG) {
+        auto val = reinterpret_cast<epicsUInt32*>(rec->bptr);
+        arr.assign(val, val+rec->nelm);
+        return true;
+    } else if (rec->ftvl == menuFtypeFLOAT) {
+        auto val = reinterpret_cast<epicsFloat32*>(rec->bptr);
+        arr.assign(val, val+rec->nelm);
+        return true;
+    } else if (rec->ftvl == menuFtypeDOUBLE) {
+        auto val = reinterpret_cast<epicsFloat64*>(rec->bptr);
+        arr.assign(val, val+rec->nelm);
+        return true;
+    }
+    return false;
 }
 
 static void scanCallback(IOSCANPVT scan)
@@ -120,19 +226,29 @@ long initRecord(dbCommon* rec, const std::string& addr)
 }
 
 template <typename T>
-long initInpRecord(T *rec)
+static long initInpRecord(T* rec)
 {
     return initRecord(reinterpret_cast<dbCommon*>(rec), rec->inp.value.instio.string);
 }
 
+template <>
+long initInpRecord(waveformRecord* rec)
+{
+    if (rec->ftvl <= menuFtypeSTRING || rec->ftvl >= menuFtypeENUM) {
+        printf("ERROR: Waveform only supports numeric types\n");
+        return -1;
+    }
+    return initRecord(reinterpret_cast<dbCommon*>(rec), rec->inp.value.instio.string);
+}
+
 template <typename T>
-long initOutRecord(T *rec)
+static long initOutRecord(T* rec)
 {
     return initRecord(reinterpret_cast<dbCommon*>(rec), rec->out.value.instio.string);
 }
 
 template <typename T>
-long getIointInfo(int dir, T *rec, IOSCANPVT* io)
+static long getIointInfo(int dir, T *rec, IOSCANPVT* io)
 {
     PyDevContext* ctx = reinterpret_cast<PyDevContext*>(rec->dpvt);
     if (ctx != nullptr && ctx->scan != nullptr) {
@@ -188,6 +304,38 @@ void processInpRecordCb(stringinRecord* rec)
             strncpy(rec->val, value.c_str(), sizeof(rec->val));
             rec->val[sizeof(rec->val)-1] = 0;
         } else {
+            if (rec->tpro == 1) {
+                printf("ERROR: Can't convert Python type to record VAL field\n");
+            }
+            recGblSetSevr(rec, epicsAlarmCalc, epicsSevInvalid);
+        }
+    } catch (...) {
+        recGblSetSevr(rec, epicsAlarmCalc, epicsSevInvalid);
+    }
+    auto ctx = reinterpret_cast<PyDevContext *>(rec->dpvt);
+    callbackRequestProcessCallback(&ctx->callback, rec->prio, rec);
+}
+
+template <>
+void processInpRecordCb(waveformRecord* rec)
+{
+    try {
+        bool converted = false;
+        if (rec->ftvl == menuFtypeFLOAT || rec->ftvl == menuFtypeDOUBLE) {
+            std::vector<double> arr;
+            if (fromRecArrayVal(rec, arr) == true) {
+                std::string code = linkToPyCode(rec->inp.value.instio.string, arr);
+                converted = (PyWrapper::exec(code, (rec->tpro == 1), arr) && toRecArrayVal(rec, arr));
+            }
+        } else {
+            std::vector<long> arr;
+            if (fromRecArrayVal(rec, arr) == true) {
+                std::string code = linkToPyCode(rec->inp.value.instio.string, arr);
+                converted = (PyWrapper::exec(code, (rec->tpro == 1), arr) && toRecArrayVal(rec, arr));
+            }
+        }
+        
+        if (!converted) {
             if (rec->tpro == 1) {
                 printf("ERROR: Can't convert Python type to record VAL field\n");
             }
@@ -347,6 +495,17 @@ extern "C"
         DEVSUPFUN write{(DEVSUPFUN)processInpRecord<stringinRecord>};
     } devPyDevStringin;
     epicsExportAddress(dset, devPyDevStringin);
+
+    struct
+    {
+        long number{5};
+        DEVSUPFUN report{nullptr};
+        DEVSUPFUN init{nullptr};
+        DEVSUPFUN init_record{(DEVSUPFUN)initInpRecord<waveformRecord>};
+        DEVSUPFUN get_ioint_info{(DEVSUPFUN)getIointInfo<waveformRecord>};
+        DEVSUPFUN write{(DEVSUPFUN)processInpRecord<waveformRecord>};
+    } devPyDevWaveform;
+    epicsExportAddress(dset, devPyDevWaveform);
 
     /*** OUTPUT RECORDS ***/
     struct

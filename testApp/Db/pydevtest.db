@@ -48,6 +48,13 @@ record(stringin, "PyDev:String:Intr") {
   field(SCAN, "I/O Intr")
 }
 
+record(waveform, "PyDev:Array:Set") {
+  field(DTYP, "pydev")
+  field(INP,  "@pydevtest.setArray(%value%)")
+  field(NELM, "100")
+  field(FTVL, "LONG")
+}
+
 
 record(stringin, "PyDev:Http:Google") {
   field(DTYP, "pydev")
