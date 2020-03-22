@@ -9,7 +9,6 @@ include $(TOP)/configure/CONFIG
 # Build the IOC application
 #
 CXXFLAGS += -std=c++11 -g -ggdb -O0
-CXXFLAGS += $(shell python-config --cflags)
 LDFLAGS += $(shell python-config --ldflags)
 
 pydevioc_DIR = $(IPMITOOL)/lib/.libs/

@@ -4,8 +4,8 @@ include $(TOP)/configure/CONFIG
 #----------------------------------------
 #  ADD MACRO DEFINITIONS AFTER THIS LINE
 
-LDDFLAGS += $(shell python-config --ldflags)
-CXXFLAGS += $(shell python-config --cflags)
+LDFLAGS += $(shell python-config --ldflags)
+CXXFLAGS += $(subst -Wstrict-prototypes,,$(shell python-config --cflags))
 CXXFLAGS += -std=c++11
 #CXXFLAGS += -DLINK_VALUE_NEEDLE=\"%value%\"
 #CXXFLAGS += -g -ggdb -O0
