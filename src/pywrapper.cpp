@@ -12,6 +12,7 @@
 
 static PyObject* globDict = nullptr;
 static PyObject* locDict = nullptr;
+static PyThreadState* mainThread = nullptr;
 static std::map<std::string, std::pair<PyWrapper::Callback, PyObject*>> params;
 
 /**
@@ -77,7 +78,6 @@ static PyObject* PyInit_pydev(void)
 #else
 static void PyInit_pydev(void)
 {
-printf("PyInit_pydev\n");
     Py_InitModule("pydev", methods);
 }
 #endif
@@ -95,7 +95,7 @@ bool PyWrapper::init()
     locDict = PyDict_New();
     PyDict_SetItemString(globDict, "__builtins__", PyEval_GetBuiltins());
 
-    PyEval_ReleaseLock();
+    mainThread = PyEval_SaveThread();
 
     // Make `pydev' module appear as built-in module
     exec("import pydev", true);
@@ -105,9 +105,14 @@ bool PyWrapper::init()
 
 void PyWrapper::shutdown()
 {
-    Py_DecRef(globDict);
-    Py_DecRef(locDict);
-    Py_Finalize();
+    PyEval_AcquireLock();
+    PyThreadState_Clear(mainThread);
+    PyThreadState_Delete(mainThread);
+
+    // The following will segfault IOC if there are Python-created threads
+//    Py_DecRef(globDict);
+//    Py_DecRef(locDict);
+//    Py_Finalize();
 }
 
 void PyWrapper::registerIoIntr(const std::string& name, const Callback& cb)
@@ -116,8 +121,19 @@ void PyWrapper::registerIoIntr(const std::string& name, const Callback& cb)
     params[name].second = nullptr;
 }
 
+struct PyGIL {
+    PyGIL() {
+        PyEval_RestoreThread(mainThread);
+    }
+    ~PyGIL() {
+        PyEval_SaveThread();
+    }
+};
+
 void PyWrapper::exec(const std::string& line, bool debug)
 {
+    PyGIL gil;
+
     PyObject* r = PyRun_String(line.c_str(), Py_file_input, globDict, locDict);
     if (r == nullptr) {
         if (debug && PyErr_Occurred()) {
@@ -132,6 +148,7 @@ void PyWrapper::exec(const std::string& line, bool debug)
 template <typename T>
 bool PyWrapper::exec(const std::string& line, bool debug, T* val)
 {
+    PyGIL gil;
     if (val != nullptr) {
         PyObject* r = PyRun_String(line.c_str(), Py_eval_input, globDict, locDict);
         if (r != nullptr) {
@@ -168,6 +185,7 @@ template bool PyWrapper::exec(const std::string&, bool, double*);
 
 bool PyWrapper::exec(const std::string& line, bool debug, std::string& val)
 {
+    PyGIL gil;
     PyObject* r = PyRun_String(line.c_str(), Py_eval_input, globDict, locDict);
     if (r != nullptr) {
         std::string value;
@@ -200,6 +218,7 @@ bool PyWrapper::exec(const std::string& line, bool debug, std::string& val)
 template <typename T>
 bool PyWrapper::exec(const std::string& line, bool debug, std::vector<T>& arr)
 {
+    PyGIL gil;
     arr.clear();
 
     PyObject* r = PyRun_String(line.c_str(), Py_eval_input, globDict, locDict);
