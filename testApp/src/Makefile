@@ -8,10 +8,6 @@ include $(TOP)/configure/CONFIG
 #=============================
 # Build the IOC application
 #
-CXXFLAGS += -std=c++11 -g -ggdb -O0
-LDFLAGS += $(shell python-config --ldflags)
-
-pydevioc_DIR = $(IPMITOOL)/lib/.libs/
 
 PROD_IOC = pydevioc
 # pydevioc.dbd will be created and installed
@@ -27,7 +23,7 @@ pydevioc_DBD += pydev.dbd
 # Add all the support libraries needed by this IOC
 pydevioc_LIBS += pydev
 
-# pydevioc_registerRecordDeviceDriver.cpp derives from ipmi.dbd
+# pydevioc_registerRecordDeviceDriver.cpp derives from pydev.dbd
 pydevioc_SRCS += pydevioc_registerRecordDeviceDriver.cpp
 
 # Build the main IOC entry point on workstation OSs.
@@ -39,7 +35,7 @@ pydevioc_SRCS_vxWorks += -nil-
 
 # Finally link to the EPICS Base libraries
 pydevioc_LIBS += $(EPICS_BASE_IOC_LIBS)
-SYS_PROD_LIBS += python2.7
+SYS_PROD_LIBS += $(shell python-config --ldflags | sed 's/-[^l][^ ]*//g' | sed 's/-l//g')
 
 #===========================
 
