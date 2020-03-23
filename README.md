@@ -2,7 +2,7 @@
 
 # PyDevice
 
-PyDevice is an EPICS device support for Python interpreter. It allows to connect EPICS database with Python functions from a C-based soft IOC.
+PyDevice is an EPICS device support for Python interpreter. It allows to connect EPICS database records with Python code.
 
 The goal of this project is to provide very easy interface for Python developers to integrate Python code into EPICS control system. This is achieved by allowing arbitrary Python code to be called from EPICS records, including but not limited to built-in functions, calculation expressions, custom functions etc. In addition, Python code can be executed from IOC shell which is useful for setting up resources or troubleshooting Python code. Since PyDevice simple provides hooks into any Python code, this allows Python modules to be developed and tested in a standalone non-EPICS environment, while finally connected to EPICS PVs.
 
@@ -141,16 +141,35 @@ Assuming all dependencies are satisfied, project should build linkable library a
 
 ## Record support
 
-### Supported records
+The main goal of PyDevice is to allow EPICS records to call arbitrary Python code. For example, EPICS record can change Python variable value or transfer variable value to record value, trigger executing Python function including getting it's return value, import module etc. Reading and writing EPICS Process Variable allows direct callbacks into Python code without the need for main thread of execution.
 
-A subset of EPICS records is supported:
-  * ao
-  * longout
-  * bo
-  * mbbo
-  * stringout
-  * ai
-  * longin
-  * bi
-  * mbbi
-  * stringin
+In order to select PyDevice device support, supported records must set DTYP as *pydev*. In addition, INP or OUT link must start with *@* character followed by any valid Python code. Upon processing, the Python code from the link will execute as is, except when it contains *%value%* string which is replaced with current record's value. Record's type defines whether %value% is replaced with numerical value (ai, ao, bi, bo, mbbi, mbbo, longin, longout records), string value (stringin and stringout records) or a list of numeric values (waveform record). For output records, the executed Python code must return a value compatible with record's type, in which case it is assigned to record. Numerical values are considered compatible and they're adapted to record type, for example Python variable of type double is converted to 32 bit integer when assigned to longout record value. Similar is true for list of numerical values assigned to waveform record, where FTVL field defines the record's value type.
+
+Due to Python's Global Interpreter Lock, PyDevice uses a single thread to execute all Python code. When record processes, the request is queued, record's PACT field is set to 1 and handle is returned to callee. The requests are processed in FIFO order by processing thread. When request is processed, the Python code from record's link is executed and after its completion the record's PACT is set to 0 to finalize the request.
+
+## Building and adding to IOC
+
+### Dependencies
+
+* EPICS 3.14+
+* Python 2.x or 3.5+ headers and libraries
+    * RHEL: yum install python-devel
+    * Debian & Ubuntu: apt install python-dev
+    
+### Compiling PyDevice
+
+In order to PyDevice, all its dependencies must be installed. In configure/RELEASE file change EPICS_BASE. Afterwards issue *make* command in the top level. The compilation will provide dynamic library to be included in the IOC as well as a testing IOC that can be executed from iocBoot/iocpydev folder.
+
+### Adding PyDevice support to IOC
+
+For the existing IOC to receive PyDevice support, a few things need to be added. 
+
+* Edit configure/RELEASE and add PYDEVICE variable to point to PyDevice source location
+* Edit Makefile in IOC's App/src folder and add
+```
+SYS_PROD_LIBS += $(shell python-config --ldflags | sed 's/-[^l][^ ]*//g' | sed 's/-l//g')
+<yourioc>_DBD += pydev.dbd
+<yourioc>_LIB += pydev
+```
+
+Check example IOC provided with PyDevice source. After rebuilding, the IOC should have support for pydev.
