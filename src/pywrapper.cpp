@@ -113,6 +113,8 @@ bool PyWrapper::init()
 
     // Make `pydev' module appear as built-in module
     exec("import pydev", true);
+    exec("import __builtin__", true);
+    exec("__builtin__.pydev=pydev", true);
 
     return true;
 }

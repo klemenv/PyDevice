@@ -1,9 +1,5 @@
 import socket
 import random
-try:
-    import pydev
-except:
-    pass
 
 a = "Hello World from test!!!"
 
@@ -42,6 +38,12 @@ def setTest(val):
     test = val
     pydev.iointr("test", test)
 
+
 if __name__ == "__main__":
+    class pydev:
+        def iointr(name, value):
+            print("%s=%s" % (name, value))
+
     s = HttpClient("www.google.com", 80)
     print s.get("/")
+
