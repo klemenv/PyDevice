@@ -456,20 +456,20 @@ bool PyWrapper::convert(void* in_, std::vector<T>& out)
             }
             out.push_back(elval);
         }
-        if (PyLong_Check(in)) {
-            T elval = PyLong_AsLong(in);
+        if (PyLong_Check(el)) {
+            T elval = PyLong_AsLong(el);
             if (elval == -1.0 && PyErr_Occurred()) {
                 PyErr_Clear();
                 return false;
             }
             out.push_back(elval);
         }
-        if (PyBool_Check(in)) {
-            T elval = (PyObject_IsTrue(in) ? 1 : 0);
+        if (PyBool_Check(el)) {
+            T elval = (PyObject_IsTrue(el) ? 1 : 0);
             out.push_back(elval);
         }
-        if (PyFloat_Check(in)) {
-            T elval = PyFloat_AsDouble(in);
+        if (PyFloat_Check(el)) {
+            T elval = PyFloat_AsDouble(el);
             if (elval == -1.0 && PyErr_Occurred()) {
                 PyErr_Clear();
                 return false;
