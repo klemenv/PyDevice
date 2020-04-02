@@ -36,7 +36,21 @@ static PyObject* pydev_iointr(PyObject* self, PyObject* args)
         PyErr_Clear();
         Py_RETURN_FALSE;
     }
+#if PY_MAJOR_VERSION < 3
+    if (!PyString_Check(param)) {
+        PyErr_SetString(PyExc_TypeError, "Parameter name is not a string"); 
+        Py_RETURN_NONE;
+    }
     std::string name = PyString_AsString(param);
+#else
+    PyObject* tmp = nullptr;
+    if (!PyUnicode_Check(param) || ((tmp=PyUnicode_AsASCIIString(param)) == nullptr)) {
+        PyErr_SetString(PyExc_TypeError, "Parameter name is not a string"); 
+        Py_RETURN_NONE;
+    }
+    std::string name = PyByteArray_AsString(tmp);
+    Py_XDECREF(tmp);
+#endif
 
     auto it = params.find(name);
     if (value) {
@@ -359,6 +373,7 @@ bool PyWrapper::convert(void* in_, double& out)
 bool PyWrapper::convert(void* in_, std::string& out)
 {
     PyObject* in = reinterpret_cast<PyObject*>(in_);
+#if PY_MAJOR_VERSION < 3
     if (PyString_Check(in)) {
         const char* o = PyString_AsString(in);
         if (o == nullptr && PyErr_Occurred()) {
@@ -366,6 +381,23 @@ bool PyWrapper::convert(void* in_, std::string& out)
             return false;
         }
         out = o;
+        return true;
+    }
+#endif
+    if (PyUnicode_Check(in)) {
+        PyObject* tmp = PyUnicode_AsASCIIString(in);
+        if (tmp == nullptr) {
+            PyErr_Clear();
+            return false;
+        }
+        const char* o = PyBytes_AsString(tmp);
+        if (o == nullptr && PyErr_Occurred()) {
+            Py_XDECREF(tmp);
+            PyErr_Clear();
+            return false;
+        }
+        out = o;
+        Py_XDECREF(tmp);
         return true;
     }
     if (PyInt_Check(in)) {
