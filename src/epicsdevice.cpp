@@ -277,6 +277,24 @@ static void processInpRecordCb(T* rec)
 }
 
 template <>
+void processInpRecordCb(mbbiRecord* rec)
+{
+    std::string code = linkToPyCode(rec->inp.value.instio.string, rec->rval);
+    try {
+        if (PyWrapper::exec(code, (rec->tpro == 1), &rec->rval) == false) {
+            if (rec->tpro == 1) {
+                printf("ERROR: Can't convert Python type to record VAL field\n");
+            }
+            recGblSetSevr(rec, epicsAlarmCalc, epicsSevInvalid);
+        }
+    } catch (...) {
+        recGblSetSevr(rec, epicsAlarmCalc, epicsSevInvalid);
+    }
+    auto ctx = reinterpret_cast<PyDevContext *>(rec->dpvt);
+    callbackRequestProcessCallback(&ctx->callback, rec->prio, rec);
+}
+
+template <>
 void processInpRecordCb(aiRecord* rec)
 {
     std::string code = linkToPyCode(rec->inp.value.instio.string, rec->rval);
@@ -377,6 +395,20 @@ static void processOutRecordCb(T* rec)
     try {
         // Ignore the possibility that value hasn't been changed
         (void)PyWrapper::exec(code, (rec->tpro == 1), &rec->val);
+    } catch (...) {
+        recGblSetSevr(rec, epicsAlarmCalc, epicsSevInvalid);
+    }
+    auto ctx = reinterpret_cast<PyDevContext *>(rec->dpvt);
+    callbackRequestProcessCallback(&ctx->callback, rec->prio, rec);
+}
+
+template <>
+void processOutRecordCb(mbboRecord* rec)
+{
+    std::string code = linkToPyCode(rec->out.value.instio.string, rec->rval);
+    try {
+        // Ignore the possibility that value hasn't been changed
+        (void)PyWrapper::exec(code, (rec->tpro == 1), &rec->rval);
     } catch (...) {
         recGblSetSevr(rec, epicsAlarmCalc, epicsSevInvalid);
     }

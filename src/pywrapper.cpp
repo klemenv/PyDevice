@@ -146,180 +146,26 @@ struct PyGIL {
     }
 };
 
-void PyWrapper::exec(const std::string& line, bool debug)
-{
-    PyGIL gil;
-
-    PyObject* r = PyRun_String(line.c_str(), Py_file_input, globDict, locDict);
-    if (r == nullptr) {
-        if (debug && PyErr_Occurred()) {
-            PyErr_Print();
-        }
-        PyErr_Clear();
-        throw std::runtime_error("Failed to execute Python code");
-    }
-    Py_DecRef(r);
-}
-
 template <typename T>
-bool PyWrapper::exec(const std::string& line, bool debug, T* val)
-{
-    PyGIL gil;
-    if (val != nullptr) {
-        PyObject* r = PyRun_String(line.c_str(), Py_eval_input, globDict, locDict);
-        if (r != nullptr) {
-            T value;
-            bool converted = convert(r, value);
-            Py_DecRef(r);
-
-            if (!converted) {
-                PyErr_Print();
-                PyErr_Clear();
-                return false;
-            }
-            *val = value;
-            return true;
-        }
-        PyErr_Clear();
-    }
-
-    // Either *val == nullptr or eval failed, let's try executing code instead
-    PyObject* r = PyRun_String(line.c_str(), Py_single_input, globDict, locDict);
-    if (r == nullptr) {
-        if (PyErr_Occurred()) {
-            PyErr_Print();
-        }
-        PyErr_Clear();
-        throw std::runtime_error("Failed to execute Python code");
-    }
-    Py_DecRef(r);
-    return false;
-}
-template bool PyWrapper::exec(const std::string&, bool, int32_t*);
-template bool PyWrapper::exec(const std::string&, bool, uint16_t*);
-template bool PyWrapper::exec(const std::string&, bool, double*);
-
-bool PyWrapper::exec(const std::string& line, bool debug, std::string& val)
-{
-    PyGIL gil;
-    PyObject* r = PyRun_String(line.c_str(), Py_eval_input, globDict, locDict);
-    if (r != nullptr) {
-        std::string value;
-        bool converted = convert(r, value);
-        Py_DecRef(r);
-
-        if (!converted) {
-            PyErr_Print();
-            PyErr_Clear();
-            return false;
-        }
-        val = value;
-        return true;
-    }
-    PyErr_Clear();
-
-    // Still here, let's try executing code instead
-    r = PyRun_String(line.c_str(), Py_single_input, globDict, locDict);
-    if (r == nullptr) {
-        if (PyErr_Occurred()) {
-            PyErr_Print();
-        }
-        PyErr_Clear();
-        throw std::runtime_error("Failed to execute Python code");
-    }
-    Py_DecRef(r);
-    return false;
-}
-
-template <typename T>
-bool PyWrapper::exec(const std::string& line, bool debug, std::vector<T>& arr)
-{
-    PyGIL gil;
-    arr.clear();
-
-    PyObject* r = PyRun_String(line.c_str(), Py_eval_input, globDict, locDict);
-    if (r != nullptr) {
-        bool converted = convert(r, arr);
-        Py_DecRef(r);
-
-        if (!converted) {
-            PyErr_Print();
-            PyErr_Clear();
-            return false;
-        }
-        return true;
-    }
-    PyErr_Clear();
-
-    // Still here, let's try executing code instead
-    r = PyRun_String(line.c_str(), Py_single_input, globDict, locDict);
-    if (r == nullptr) {
-        if (PyErr_Occurred()) {
-            PyErr_Print();
-        }
-        PyErr_Clear();
-        throw std::runtime_error("Failed to execute Python code");
-    }
-    Py_DecRef(r);
-    return false;
-}
-template bool PyWrapper::exec(const std::string&, bool, std::vector<long>&);
-template bool PyWrapper::exec(const std::string&, bool, std::vector<double>&);
-
-bool PyWrapper::convert(void* in_, int32_t& out)
-{
-    PyObject* in = reinterpret_cast<PyObject*>(in_);
-    if (PyInt_Check(in)) {
-        out = PyInt_AsLong(in);
-        if (out == -1 && PyErr_Occurred()) {
-            PyErr_Clear();
-            return false;
-        }
-        return true;
-    }
-    if (PyLong_Check(in)) {
-        out = PyLong_AsLong(in);
-        if (out == -1 && PyErr_Occurred()) {
-            PyErr_Clear();
-            return false;
-        }
-        return true;
-    }
-    if (PyBool_Check(in)) {
-        out = (PyObject_IsTrue(in) ? 1 : 0);
-        return true;
-    }
-    if (PyFloat_Check(in)) {
-        double o = PyFloat_AsDouble(in);
-        out = o;
-        if (o == -1.0 && PyErr_Occurred()) {
-            PyErr_Clear();
-            return false;
-        }
-        return true;
-    }
-    return false;
-}
-
-bool PyWrapper::convert(void* in_, uint16_t& out)
+bool PyWrapper::convert(void* in_, T& out)
 {
     PyObject* in = reinterpret_cast<PyObject*>(in_);
     if (PyInt_Check(in)) {
         long o = PyInt_AsLong(in);
-        out = o;
         if (o == -1 && PyErr_Occurred()) {
             PyErr_Clear();
             return false;
         }
+        out = o;
         return true;
     }
     if (PyLong_Check(in)) {
         long o = PyLong_AsLong(in);
-        out = o;
         if (o == -1 && PyErr_Occurred()) {
             PyErr_Clear();
             return false;
         }
+        out = o;
         return true;
     }
     if (PyBool_Check(in)) {
@@ -328,50 +174,21 @@ bool PyWrapper::convert(void* in_, uint16_t& out)
     }
     if (PyFloat_Check(in)) {
         double o = PyFloat_AsDouble(in);
-        out = o;
         if (o == -1.0 && PyErr_Occurred()) {
             PyErr_Clear();
             return false;
         }
+        out = o;
         return true;
     }
     return false;
 }
+template bool PyWrapper::convert(void* in_, int32_t& out);
+template bool PyWrapper::convert(void* in_, uint16_t& out);
+template bool PyWrapper::convert(void* in_, uint32_t& out);
+template bool PyWrapper::convert(void* in_, double& out);
 
-bool PyWrapper::convert(void* in_, double& out)
-{
-    PyObject* in = reinterpret_cast<PyObject*>(in_);
-    if (PyInt_Check(in)) {
-        out = PyInt_AsLong(in);
-        if (out == -1.0 && PyErr_Occurred()) {
-            PyErr_Clear();
-            return false;
-        }
-        return true;
-    }
-    if (PyLong_Check(in)) {
-        out = PyLong_AsLong(in);
-        if (out == -1.0 && PyErr_Occurred()) {
-            PyErr_Clear();
-            return false;
-        }
-        return true;
-    }
-    if (PyBool_Check(in)) {
-        out = (PyObject_IsTrue(in) ? 1.0 : 0.0);
-        return true;
-    }
-    if (PyFloat_Check(in)) {
-        out = PyFloat_AsDouble(in);
-        if (out == -1.0 && PyErr_Occurred()) {
-            PyErr_Clear();
-            return false;
-        }
-        return true;
-    }
-    return false;
-}
-
+template <>
 bool PyWrapper::convert(void* in_, std::string& out)
 {
     PyObject* in = reinterpret_cast<PyObject*>(in_);
@@ -481,3 +298,125 @@ bool PyWrapper::convert(void* in_, std::vector<T>& out)
 }
 template bool PyWrapper::convert(void* in_, std::vector<long>& out);
 template bool PyWrapper::convert(void* in_, std::vector<double>& out);
+
+void PyWrapper::exec(const std::string& line, bool debug)
+{
+    PyGIL gil;
+
+    PyObject* r = PyRun_String(line.c_str(), Py_file_input, globDict, locDict);
+    if (r == nullptr) {
+        if (debug && PyErr_Occurred()) {
+            PyErr_Print();
+        }
+        PyErr_Clear();
+        throw std::runtime_error("Failed to execute Python code");
+    }
+    Py_DecRef(r);
+}
+
+template <typename T>
+bool PyWrapper::exec(const std::string& line, bool debug, T* val)
+{
+    PyGIL gil;
+    if (val != nullptr) {
+        PyObject* r = PyRun_String(line.c_str(), Py_eval_input, globDict, locDict);
+        if (r != nullptr) {
+            T value;
+            bool converted = convert(r, value);
+            Py_DecRef(r);
+
+            if (!converted) {
+                PyErr_Print();
+                PyErr_Clear();
+                return false;
+            }
+            *val = value;
+            return true;
+        }
+        PyErr_Clear();
+    }
+
+    // Either *val == nullptr or eval failed, let's try executing code instead
+    PyObject* r = PyRun_String(line.c_str(), Py_single_input, globDict, locDict);
+    if (r == nullptr) {
+        if (PyErr_Occurred()) {
+            PyErr_Print();
+        }
+        PyErr_Clear();
+        throw std::runtime_error("Failed to execute Python code");
+    }
+    Py_DecRef(r);
+    return false;
+}
+template bool PyWrapper::exec(const std::string&, bool, int32_t*);
+template bool PyWrapper::exec(const std::string&, bool, uint16_t*);
+template bool PyWrapper::exec(const std::string&, bool, unsigned int*);
+template bool PyWrapper::exec(const std::string&, bool, double*);
+
+bool PyWrapper::exec(const std::string& line, bool debug, std::string& val)
+{
+    PyGIL gil;
+    PyObject* r = PyRun_String(line.c_str(), Py_eval_input, globDict, locDict);
+    if (r != nullptr) {
+        std::string value;
+        bool converted = convert(r, value);
+        Py_DecRef(r);
+
+        if (!converted) {
+            PyErr_Print();
+            PyErr_Clear();
+            return false;
+        }
+        val = value;
+        return true;
+    }
+    PyErr_Clear();
+
+    // Still here, let's try executing code instead
+    r = PyRun_String(line.c_str(), Py_single_input, globDict, locDict);
+    if (r == nullptr) {
+        if (PyErr_Occurred()) {
+            PyErr_Print();
+        }
+        PyErr_Clear();
+        throw std::runtime_error("Failed to execute Python code");
+    }
+    Py_DecRef(r);
+    return false;
+}
+
+template <typename T>
+bool PyWrapper::exec(const std::string& line, bool debug, std::vector<T>& arr)
+{
+    PyGIL gil;
+    arr.clear();
+
+    PyObject* r = PyRun_String(line.c_str(), Py_eval_input, globDict, locDict);
+    if (r != nullptr) {
+        bool converted = convert(r, arr);
+        Py_DecRef(r);
+
+        if (!converted) {
+            PyErr_Print();
+            PyErr_Clear();
+            return false;
+        }
+        return true;
+    }
+    PyErr_Clear();
+
+    // Still here, let's try executing code instead
+    r = PyRun_String(line.c_str(), Py_single_input, globDict, locDict);
+    if (r == nullptr) {
+        if (PyErr_Occurred()) {
+            PyErr_Print();
+        }
+        PyErr_Clear();
+        throw std::runtime_error("Failed to execute Python code");
+    }
+    Py_DecRef(r);
+    return false;
+}
+template bool PyWrapper::exec(const std::string&, bool, std::vector<long>&);
+template bool PyWrapper::exec(const std::string&, bool, std::vector<double>&);
+
