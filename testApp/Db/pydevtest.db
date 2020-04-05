@@ -1,67 +1,89 @@
-record(longout, "PyDev:B_SP") {
+# longin/longout PVs
+record(longout, "PyDev:Long:PrintVal") {
   field(DTYP, "pydev")
-  field(OUT,  "@pydevtest.b=%value%")
+  field(OUT,  "@print(%name% + ': val=%VAL%')")
+  field(DESC, "Simply print record value to IOC console")
+}
+record(longout, "PyDev:Sleep") {
+  field(DTYP, "pydev")
+  field(OUT,  "@time.sleep(%VAL%)")
+  field(FLNK, "PyDev:Long:PrintVal")
+}
+record(longout, "PyDev:Long:SetB") {
+  field(DTYP, "pydev")
+  field(OUT,  "@b=%VAL%")
   field(VAL,  "1")
-  field(PINI, "YES")
-  field(TPRO, "1")
-  field(FLNK, "PyDev:B_RB")
+  field(FLNK, "PyDev:Long:ReadB")
 }
-record(longin, "PyDev:B_RB") {
+record(longin, "PyDev:Long:ReadB") {
   field(DTYP, "pydev")
-  field(INP,  "@pydevtest.b")
-  field(TPRO, "1")
-}
-record(longin, "PyDev:Pow2") {
-  field(DTYP, "pydev")
-  field(INP,  "@%value%**2")
-  field(TPRO, "1")
-}
-record(longin, "PyDev:Pow10") {
-  field(DTYP, "pydev")
-  field(INP,  "@pydevtest.pow(%value%,10)")
-  field(TPRO, "1")
-}
-record(longout, "PyDev:PrintA") {
-  field(DTYP, "pydev")
-  field(OUT,  "@print(pydevtest.a)")
-  field(TPRO, "1")
+  field(INP,  "@b")
 }
 
-record(longout, "PyDev:Long:Set") {
+# stringin/stringout PVs
+record(stringout, "PyDev:Log") {
   field(DTYP, "pydev")
-  field(OUT,  "@pydevtest.setTest(%value%)")
-  field(TPRO, "1")
+  # Single quotes are needed around string based fields
+  field(OUT,  "@print('%VAL%')")
 }
-record(longin, "PyDev:Long:Intr") {
+record(stringout, "PyDev:Exec") {
   field(DTYP, "pydev")
-  field(INP,  "@pydev.iointr('test')")
-  field(SCAN, "I/O Intr")
-  field(TPRO, "1")
-}
-record(stringout, "PyDev:String:Set") {
-  field(DTYP, "pydev")
-  field(OUT,  "@pydevtest.setTitle(%value%)")
-}
-record(stringin, "PyDev:String:Intr") {
-  field(DTYP, "pydev")
-  field(INP,  "@pydev.iointr('title')")
-  field(SCAN, "I/O Intr")
+  # Write Python code to be executed dirctly to record
+  field(OUT,  "@%VAL%")
 }
 
-record(waveform, "PyDev:Array:Set") {
+# bi/bo PVs
+record(longin, "PyDev:Equal") {
   field(DTYP, "pydev")
-  field(INP,  "@pydevtest.setArray(%value%)")
-  field(NELM, "100")
+  field(INP,  "@cmp(%VAL%, 10)==0")
+  field(LOW,  "0")
+  field(LSV,  "MAJOR")
+}
+
+# mbbi/mbbo PVs
+record(mbbo, "PyDev:Enum:PrintVal") {
+  field(DTYP, "pydev")
+  field(OUT,  "@print('val=%VAL% rval=%RVAL%')")
+  field(ZRVL, "0")
+  field(ONVL, "10")
+  field(TWVL, "20")
+  field(ZRST, "zero")
+  field(ONST, "ten")
+  field(TWST, "twenty")
+}
+
+# ai/ao PVs
+record(ai, "PyDev:Double:Pow2") {
+  field(DTYP, "pydev")
+  field(INP,  "@%VAL%**2")
+}
+
+# waveform array PVs
+record(waveform, "PyDev:Array:Pow2") {
+  field(DTYP, "pydev")
+  field(INP,  "@map(lambda x: x**2, %VAL%)")
+  field(NELM, "5")
   field(FTVL, "LONG")
 }
+record(waveform, "PyDev:Array:Stat") {
+  field(DTYP, "pydev")
+  field(INP,  "@[min(%VAL%),max(%VAL%),sum(%VAL%)/len(%VAL%)]")
+  field(NELM, "5")
+  field(FTVL, "DOUBLE")
+}
 
-
-record(stringin, "PyDev:Http:Google") {
+# Custom Python code from python/pydevtest.py
+record(stringin, "PyDev:Google:Refresh") {
   field(DTYP, "pydev")
   field(INP,  "@google.get()")
 }
-record(stringin, "PyDev:Http:Example") {
+record(stringin, "PyDev:Google:Rsp:Proto") {
   field(DTYP, "pydev")
-  field(INP,  "@example.get()")
+  field(INP,  "@pydev.iointr('proto')")
+  field(SCAN, "I/O Intr")
 }
-
+record(longin, "PyDev:Google:Rsp:Code") {
+  field(DTYP, "pydev")
+  field(INP,  "@pydev.iointr('code')")
+  field(SCAN, "I/O Intr")
+}

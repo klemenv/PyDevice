@@ -7,7 +7,6 @@ include $(TOP)/configure/CONFIG
 USR_LDFLAGS += $(shell python-config --ldflags)
 USR_CXXFLAGS += $(subst -Wstrict-prototypes,,$(shell python-config --cflags))
 USR_CXXFLAGS += -std=c++11
-#CXXFLAGS += -DLINK_VALUE_NEEDLE=\"%value%\"
 #CXXFLAGS += -g -ggdb -O0
 
 LIBRARY_IOC += pydev
