@@ -3,6 +3,9 @@
 * in file LICENSE that is included with this distribution. 
 \*************************************************************************/
 
+#ifndef ASYNCEXEC_H
+#define ASYNCEXEC_H
+
 #include <functional>
 
 class AsyncExec {
@@ -12,3 +15,5 @@ class AsyncExec {
         static void shutdown();
         static void schedule(const Callback& callback);
 };
+
+#endif ASYNCEXEC_H

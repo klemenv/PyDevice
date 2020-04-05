@@ -3,6 +3,9 @@
 * in file LICENSE that is included with this distribution. 
 \*************************************************************************/
 
+#ifndef PYWRAPPER_H
+#define PYWRAPPER_H
+
 #include <functional>
 #include <string>
 #include <vector>
@@ -21,3 +24,5 @@ class PyWrapper {
         template <typename T> static bool exec(const std::string& line, bool debug, T* val);
         template <typename T> static bool exec(const std::string& line, bool debug, std::vector<T>& val);
 };
+
+#endif // PYWRAPPER_H
