@@ -14,9 +14,10 @@ LIBRARY_IOC += pydev
 
 DBD += pydev.dbd
 
-pydev_SRCS += pywrapper.cpp
-pydev_SRCS += epicsdevice.cpp
 pydev_SRCS += asyncexec.cpp
+pydev_SRCS += epicsdevice.cpp
+pydev_SRCS += pywrapper.cpp
+pydev_SRCS += util.cpp
 
 pydevice_LIBS += $(EPICS_BASE_IOC_LIBS)
 

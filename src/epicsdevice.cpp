@@ -1,6 +1,6 @@
 /*************************************************************************\
 * PyDevice is distributed subject to a Software License Agreement found
-* in file LICENSE that is included with this distribution. 
+* in file LICENSE that is included with this distribution.
 \*************************************************************************/
 
 #include <aiRecord.h>
@@ -34,10 +34,7 @@
 
 #include "asyncexec.h"
 #include "pywrapper.h"
-
-#ifndef LINK_VALUE_NEEDLE
-#   define LINK_VALUE_NEEDLE "%value%"
-#endif
+#include "util.h"
 
 struct PyDevContext {
     CALLBACK callback;
@@ -45,59 +42,6 @@ struct PyDevContext {
 };
 
 static std::map<std::string, IOSCANPVT> ioScanPvts;
-
-template <typename T>
-static std::string valToStr(const T& val)
-{
-    return std::to_string(val);
-}
-
-template <>
-std::string valToStr(const std::string& val)
-{
-    std::string value;
-    // Ensure value string is in quotes
-    if (val.size() < 2) {
-        value = "'" + val + "'";
-    } else {
-        bool same = (val.front() == val.back());
-        if (same && (val.front() == '\'' || val.front() == '"')) {
-            value = val;
-        } else {
-            value = "'" + val + "'";
-        }
-    }
-    return value;
-}
-
-template <typename T>
-static std::string valToStr(const std::vector<T>& val)
-{
-    std::string value = "[";
-    for (const auto v: val) {
-        value += std::to_string(v) + ",";
-    }
-    if (value.back() == ',') {
-        value.back() = ']';
-    } else {
-        value += "]";
-    }
-    return value;
-}
-
-template <typename T>
-static std::string linkToPyCode(const std::string& input, const T& recordVal)
-{
-    std::string output = input;
-    std::string value = valToStr(recordVal);
-    const static std::string needle = LINK_VALUE_NEEDLE;
-    size_t pos = output.find(needle);
-    while (pos != std::string::npos) {
-        output.replace(pos, needle.size(), value);
-        pos = output.find(needle);
-    }
-    return output;
-}
 
 template <typename T>
 static bool toRecArrayVal(waveformRecord* rec, const std::vector<T>& arr)
@@ -257,15 +201,17 @@ static long getIointInfo(int dir, T *rec, IOSCANPVT* io)
     return 0;
 }
 
-
-template <typename T>
-static void processInpRecordCb(T* rec)
-{
-    std::string code = linkToPyCode(rec->inp.value.instio.string, rec->val);
+/**
+ * @brief Common processing callback function for all records, executes Python code and updates record.
+ * @param rec Record, only need (prio, dpvt) fields from it.
+ * @param exec Function that executed Python code and optionally get new value.
+ * @param needValue Input fields expect return value, but it's optional for output records.
+ */
+static void processCb(dbCommon* rec, std::function<bool()> exec, bool needValue) {
     try {
-        if (PyWrapper::exec(code, (rec->tpro == 1), &rec->val) == false) {
+        if (exec() == false && needValue) {
             if (rec->tpro == 1) {
-                printf("ERROR: Can't convert Python type to record VAL field\n");
+                printf("ERROR: Can't convert returned Python type to record type\n");
             }
             recGblSetSevr(rec, epicsAlarmCalc, epicsSevInvalid);
         }
@@ -276,94 +222,203 @@ static void processInpRecordCb(T* rec)
     callbackRequestProcessCallback(&ctx->callback, rec->prio, rec);
 }
 
-template <>
-void processInpRecordCb(mbbiRecord* rec)
+/**
+ * @brief Templated processCb for longin and longout records prepares Python code string and invokes common processCb().
+ *
+ * Updates record's link and replaces following strings with corresponding field values from record:
+ * - %VAL%
+ * - %NAME%
+ * - %egu%
+ * - %hopr%
+ * - %lopr%
+ * - %high%
+ * - %hihi%
+ * - %low%
+ * - %lolo%
+ */
+template <typename T, typename std::enable_if<Util::is_any<T, longinRecord, longoutRecord>::value, T>::type* = nullptr>
+void processCb(T* rec, const std::string& link, bool needValue)
 {
-    std::string code = linkToPyCode(rec->inp.value.instio.string, rec->rval);
-    try {
-        if (PyWrapper::exec(code, (rec->tpro == 1), &rec->rval) == false) {
-            if (rec->tpro == 1) {
-                printf("ERROR: Can't convert Python type to record VAL field\n");
-            }
-            recGblSetSevr(rec, epicsAlarmCalc, epicsSevInvalid);
-        }
-    } catch (...) {
-        recGblSetSevr(rec, epicsAlarmCalc, epicsSevInvalid);
+    auto fields = Util::getReplacables(link);
+    for (auto& keyval: fields) {
+        if (keyval.first == "%VAL%")       keyval.second = std::to_string(rec->val);
+        else if (keyval.first == "%NAME%") keyval.second = rec->name;
+        else if (keyval.first == "%EGU%")  keyval.second = rec->egu;
+        else if (keyval.first == "%HOPR%") keyval.second = std::to_string(rec->hopr);
+        else if (keyval.first == "%LOPR%") keyval.second = std::to_string(rec->lopr);
+        else if (keyval.first == "%HIGH%") keyval.second = std::to_string(rec->high);
+        else if (keyval.first == "%HIHI%") keyval.second = std::to_string(rec->hihi);
+        else if (keyval.first == "%LOW%")  keyval.second = std::to_string(rec->low);
+        else if (keyval.first == "%LOLO%") keyval.second = std::to_string(rec->lolo);
     }
-    auto ctx = reinterpret_cast<PyDevContext *>(rec->dpvt);
-    callbackRequestProcessCallback(&ctx->callback, rec->prio, rec);
+    std::string code = Util::replace(link, fields);
+    auto worker = [code, rec]() { return PyWrapper::exec(code, (rec->tpro == 1), &rec->val); };
+    processCb(reinterpret_cast<dbCommon*>(rec), worker, needValue);
 }
 
-template <>
-void processInpRecordCb(aiRecord* rec)
+/**
+ * @brief Templated processCb for bi and bo records prepares Python code string and invokes common processCb().
+ *
+ * Updates record's link and replaces following strings with corresponding field values from record:
+ * - %VAL%
+ */
+template <typename T, typename std::enable_if<Util::is_any<T, biRecord, boRecord>::value, T>::type* = nullptr>
+void processCb(T* rec, const std::string& link, bool needValue)
 {
-    std::string code = linkToPyCode(rec->inp.value.instio.string, rec->rval);
-    try {
-        if (PyWrapper::exec(code, (rec->tpro == 1), &rec->rval) == false) {
-            if (rec->tpro == 1) {
-                printf("ERROR: Can't convert Python type to record VAL field\n");
-            }
-            recGblSetSevr(rec, epicsAlarmCalc, epicsSevInvalid);
-        }
-    } catch (...) {
-        recGblSetSevr(rec, epicsAlarmCalc, epicsSevInvalid);
+    auto fields = Util::getReplacables(link);
+    for (auto& keyval: fields) {
+        if      (keyval.first == "%VAL%")  keyval.second = std::to_string(rec->val);
+        else if (keyval.first == "%NAME%") keyval.second = rec->name;
+        else if (keyval.first == "%ZNAM%") keyval.second = rec->znam;
+        else if (keyval.first == "%ONAM%") keyval.second = rec->onam;
     }
-    auto ctx = reinterpret_cast<PyDevContext *>(rec->dpvt);
-    callbackRequestProcessCallback(&ctx->callback, rec->prio, rec);
+    std::string code = Util::replace(link, fields);
+    auto worker = [code, rec]() { return PyWrapper::exec(code, (rec->tpro == 1), &rec->val); };
+    processCb(reinterpret_cast<dbCommon*>(rec), worker, needValue);
 }
 
-template <>
-void processInpRecordCb(stringinRecord* rec)
+/**
+ * @brief Templated processCb for mbbi and mbbo records prepares Python code string and invokes common processCb().
+ *
+ * Updates record's link and replaces following strings with corresponding field values from record:
+ * - %VAL%
+ */
+template <typename T, typename std::enable_if<Util::is_any<T, mbbiRecord, mbboRecord>::value, T>::type* = nullptr>
+void processCb(T* rec, const std::string& link, bool needValue)
 {
-    std::string value = rec->val;
-    std::string code = linkToPyCode(rec->inp.value.instio.string, value);
-    try {
-        if (PyWrapper::exec(code, (rec->tpro == 1), value) == true) {
-            strncpy(rec->val, value.c_str(), sizeof(rec->val));
-            rec->val[sizeof(rec->val)-1] = 0;
-        } else {
-            if (rec->tpro == 1) {
-                printf("ERROR: Can't convert Python type to record VAL field\n");
-            }
-            recGblSetSevr(rec, epicsAlarmCalc, epicsSevInvalid);
-        }
-    } catch (...) {
-        recGblSetSevr(rec, epicsAlarmCalc, epicsSevInvalid);
+    auto fields = Util::getReplacables(link);
+    for (auto& keyval: fields) {
+        if      (keyval.first == "%VAL%")  keyval.second = std::to_string(rec->val);
+        else if (keyval.first == "%RVAL%") keyval.second = std::to_string(rec->rval);
+        else if (keyval.first == "%NAME%") keyval.second = rec->name;
+        else if (keyval.first == "%ZRVL%") keyval.second = std::to_string(rec->zrvl);
+        else if (keyval.first == "%ONVL%") keyval.second = std::to_string(rec->onvl);
+        else if (keyval.first == "%TWVL%") keyval.second = std::to_string(rec->twvl);
+        else if (keyval.first == "%THVL%") keyval.second = std::to_string(rec->thvl);
+        else if (keyval.first == "%FRVL%") keyval.second = std::to_string(rec->frvl);
+        else if (keyval.first == "%FVVL%") keyval.second = std::to_string(rec->fvvl);
+        else if (keyval.first == "%SXVL%") keyval.second = std::to_string(rec->sxvl);
+        else if (keyval.first == "%SVVL%") keyval.second = std::to_string(rec->svvl);
+        else if (keyval.first == "%EIVL%") keyval.second = std::to_string(rec->eivl);
+        else if (keyval.first == "%NIVL%") keyval.second = std::to_string(rec->nivl);
+        else if (keyval.first == "%TEVL%") keyval.second = std::to_string(rec->tevl);
+        else if (keyval.first == "%ELVL%") keyval.second = std::to_string(rec->elvl);
+        else if (keyval.first == "%TVVL%") keyval.second = std::to_string(rec->tvvl);
+        else if (keyval.first == "%TTVL%") keyval.second = std::to_string(rec->ttvl);
+        else if (keyval.first == "%FTVL%") keyval.second = std::to_string(rec->ftvl);
+        else if (keyval.first == "%FFVL%") keyval.second = std::to_string(rec->ffvl);
+        else if (keyval.first == "%ZRST%") keyval.second = rec->zrst;
+        else if (keyval.first == "%ONST%") keyval.second = rec->onst;
+        else if (keyval.first == "%TWST%") keyval.second = rec->twst;
+        else if (keyval.first == "%THST%") keyval.second = rec->thst;
+        else if (keyval.first == "%FRST%") keyval.second = rec->frst;
+        else if (keyval.first == "%FVST%") keyval.second = rec->fvst;
+        else if (keyval.first == "%SXST%") keyval.second = rec->sxst;
+        else if (keyval.first == "%SVST%") keyval.second = rec->svst;
+        else if (keyval.first == "%EIST%") keyval.second = rec->eist;
+        else if (keyval.first == "%NIST%") keyval.second = rec->nist;
+        else if (keyval.first == "%TEST%") keyval.second = rec->test;
+        else if (keyval.first == "%ELST%") keyval.second = rec->elst;
+        else if (keyval.first == "%TVST%") keyval.second = rec->tvst;
+        else if (keyval.first == "%TTST%") keyval.second = rec->ttst;
+        else if (keyval.first == "%FTST%") keyval.second = rec->ftst;
+        else if (keyval.first == "%FFST%") keyval.second = rec->ffst;
     }
-    auto ctx = reinterpret_cast<PyDevContext *>(rec->dpvt);
-    callbackRequestProcessCallback(&ctx->callback, rec->prio, rec);
+    std::string code = Util::replace(link, fields);
+    auto worker = [code, rec]() { return PyWrapper::exec(code, (rec->tpro == 1), &rec->rval); };
+    processCb(reinterpret_cast<dbCommon*>(rec), worker, needValue);
 }
 
-template <>
-void processInpRecordCb(waveformRecord* rec)
+/**
+ * @brief Templated processCb for ai and ao records prepares Python code string and invokes common processCb().
+ *
+ * Updates record's link and replaces following strings with corresponding field values from record:
+ * - %VAL%
+ */
+template <typename T, typename std::enable_if<Util::is_any<T, aiRecord, aoRecord>::value, T>::type* = nullptr>
+void processCb(T* rec, const std::string& link, bool needValue)
 {
-    try {
-        bool converted = false;
+    auto fields = Util::getReplacables(link);
+    for (auto& keyval: fields) {
+        if      (keyval.first == "%VAL%")  keyval.second = std::to_string(rec->rval);
+        else if (keyval.first == "%RVAL%") keyval.second = std::to_string(rec->rval);
+        else if (keyval.first == "%ORAW%") keyval.second = std::to_string(rec->oraw);
+        else if (keyval.first == "%NAME%") keyval.second = rec->name;
+        else if (keyval.first == "%EGU%")  keyval.second = rec->egu;
+        else if (keyval.first == "%HOPR%") keyval.second = std::to_string(rec->hopr);
+        else if (keyval.first == "%LOPR%") keyval.second = std::to_string(rec->lopr);
+        else if (keyval.first == "%PREC%") keyval.second = std::to_string(rec->prec);
+    }
+    std::string code = Util::replace(link, fields);
+    auto worker = [code, rec]() { return PyWrapper::exec(code, (rec->tpro == 1), &rec->rval); };
+    processCb(reinterpret_cast<dbCommon*>(rec), worker, needValue);
+}
+
+/**
+ * @brief Templated processCb for stringin and stringout records prepares Python code string and invokes common processCb().
+ *
+ * Updates record's link and replaces following strings with corresponding field values from record:
+ * - %VAL%
+ */
+template <typename T, typename std::enable_if<Util::is_any<T, stringinRecord, stringoutRecord>::value, T>::type* = nullptr>
+void processCb(T* rec, const std::string& link, bool needValue)
+{
+    auto fields = Util::getReplacables(link);
+    for (auto& keyval: fields) {
+        if      (keyval.first == "%VAL%")  keyval.second = rec->val;
+        else if (keyval.first == "%NAME%") keyval.second = rec->name;
+    }
+    std::string code = Util::replace(link, fields);
+    auto worker = [code, rec]() {
+        std::string val(rec->val);
+        if (PyWrapper::exec(code, (rec->tpro == 1), val) == false) {
+            return false;
+        }
+        strncpy(rec->val, val.c_str(), sizeof(rec->val));
+        rec->val[sizeof(rec->val)-1] = 0;
+        return true;
+    };
+    processCb(reinterpret_cast<dbCommon*>(rec), worker, needValue);
+}
+
+/**
+ * @brief Templated processCb for ai and ao records prepares Python code string and invokes common processCb().
+ *
+ * Updates record's link and replaces following strings with corresponding field values from record:
+ * - %VAL%
+ */
+template <typename T, typename std::enable_if<std::is_same<T, waveformRecord>::value, T>::type* = nullptr>
+void processCb(T* rec, const std::string& link, bool needValue)
+{
+    auto fields = Util::getReplacables(link);
+    for (auto& keyval: fields) {
+        if (keyval.first == "%VAL%") {
+            if (rec->ftvl == menuFtypeFLOAT || rec->ftvl == menuFtypeDOUBLE) {
+                std::vector<double> arr;
+                if (fromRecArrayVal(rec, arr) == true) {
+                    keyval.second = Util::arrayToStr(arr);
+                }
+            } else {
+                std::vector<long> arr;
+                if (fromRecArrayVal(rec, arr) == true) {
+                    keyval.second = Util::arrayToStr(arr);
+                }
+            }
+
+
+        }
+    }
+    std::string code = Util::replace(link, fields);
+    auto worker = [code, rec]() {
         if (rec->ftvl == menuFtypeFLOAT || rec->ftvl == menuFtypeDOUBLE) {
             std::vector<double> arr;
-            if (fromRecArrayVal(rec, arr) == true) {
-                std::string code = linkToPyCode(rec->inp.value.instio.string, arr);
-                converted = (PyWrapper::exec(code, (rec->tpro == 1), arr) && toRecArrayVal(rec, arr));
-            }
+            return (PyWrapper::exec(code, (rec->tpro == 1), arr) && toRecArrayVal(rec, arr));
         } else {
             std::vector<long> arr;
-            if (fromRecArrayVal(rec, arr) == true) {
-                std::string code = linkToPyCode(rec->inp.value.instio.string, arr);
-                converted = (PyWrapper::exec(code, (rec->tpro == 1), arr) && toRecArrayVal(rec, arr));
-            }
+            return (PyWrapper::exec(code, (rec->tpro == 1), arr) && toRecArrayVal(rec, arr));
         }
-        
-        if (!converted) {
-            if (rec->tpro == 1) {
-                printf("ERROR: Can't convert Python type to record VAL field\n");
-            }
-            recGblSetSevr(rec, epicsAlarmCalc, epicsSevInvalid);
-        }
-    } catch (...) {
-        recGblSetSevr(rec, epicsAlarmCalc, epicsSevInvalid);
-    }
-    auto ctx = reinterpret_cast<PyDevContext *>(rec->dpvt);
-    callbackRequestProcessCallback(&ctx->callback, rec->prio, rec);
+    };
+    processCb(reinterpret_cast<dbCommon*>(rec), worker, false);
 }
 
 template <typename T>
@@ -383,68 +438,10 @@ static long processInpRecord(T* rec)
     }
     rec->pact = 1;
 
-    AsyncExec::Callback cb = std::bind(processInpRecordCb<T>, rec);
-    AsyncExec::schedule(cb);
+    AsyncExec::schedule([rec]() {
+        processCb<T>(rec, rec->inp.value.instio.string, true);
+    });
     return 0;
-}
-
-template <typename T>
-static void processOutRecordCb(T* rec)
-{
-    std::string code = linkToPyCode(rec->out.value.instio.string, rec->val);
-    try {
-        // Ignore the possibility that value hasn't been changed
-        (void)PyWrapper::exec(code, (rec->tpro == 1), &rec->val);
-    } catch (...) {
-        recGblSetSevr(rec, epicsAlarmCalc, epicsSevInvalid);
-    }
-    auto ctx = reinterpret_cast<PyDevContext *>(rec->dpvt);
-    callbackRequestProcessCallback(&ctx->callback, rec->prio, rec);
-}
-
-template <>
-void processOutRecordCb(mbboRecord* rec)
-{
-    std::string code = linkToPyCode(rec->out.value.instio.string, rec->rval);
-    try {
-        // Ignore the possibility that value hasn't been changed
-        (void)PyWrapper::exec(code, (rec->tpro == 1), &rec->rval);
-    } catch (...) {
-        recGblSetSevr(rec, epicsAlarmCalc, epicsSevInvalid);
-    }
-    auto ctx = reinterpret_cast<PyDevContext *>(rec->dpvt);
-    callbackRequestProcessCallback(&ctx->callback, rec->prio, rec);
-}
-
-template <>
-void processOutRecordCb(aoRecord* rec)
-{
-    std::string code = linkToPyCode(rec->out.value.instio.string, rec->rval);
-    try {
-        // Ignore the possibility that value hasn't been changed
-        (void)PyWrapper::exec(code, (rec->tpro == 1), &rec->rval);
-    } catch (...) {
-        recGblSetSevr(rec, epicsAlarmCalc, epicsSevInvalid);
-    }
-    auto ctx = reinterpret_cast<PyDevContext *>(rec->dpvt);
-    callbackRequestProcessCallback(&ctx->callback, rec->prio, rec);
-}
-
-template <>
-void processOutRecordCb(stringoutRecord* rec)
-{
-    std::string value = rec->val;
-    std::string code = linkToPyCode(rec->out.value.instio.string, value);
-    try {
-        // Ignore the possibility that value hasn't been changed
-        (void)PyWrapper::exec(code, (rec->tpro == 1), value);
-        strncpy(rec->val, value.c_str(), sizeof(rec->val));
-        rec->val[sizeof(rec->val)-1] = 0;
-    } catch (...) {
-        recGblSetSevr(rec, epicsAlarmCalc, epicsSevInvalid);
-    }
-    auto ctx = reinterpret_cast<PyDevContext *>(rec->dpvt);
-    callbackRequestProcessCallback(&ctx->callback, rec->prio, rec);
 }
 
 template <typename T>
@@ -464,8 +461,9 @@ static long processOutRecord(T* rec)
     }
     rec->pact = 1;
 
-    AsyncExec::Callback cb = std::bind(processOutRecordCb<T>, rec);
-    AsyncExec::schedule(cb);
+    AsyncExec::schedule([rec]() {
+        processCb<T>(rec, rec->out.value.instio.string, false);
+    });
     return 0;
 }
 
@@ -606,7 +604,7 @@ epicsShareFunc int pydev(const char *line)
     return 0;
 }
 
-static const iocshArg pydevArg0 = { "line", iocshArgString };
+static const iocshArg pydevArg0 = { "pycode", iocshArgString };
 static const iocshArg *const pydevArgs[] = { &pydevArg0 };
 static const iocshFuncDef pydevDef = { "pydev", 1, pydevArgs };
 static void pydevCall(const iocshArgBuf * args)
