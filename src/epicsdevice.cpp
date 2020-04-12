@@ -39,6 +39,7 @@
 struct PyDevContext {
     CALLBACK callback;
     IOSCANPVT scan;
+    int processCbStatus;
 };
 
 static std::map<std::string, IOSCANPVT> ioScanPvts;
@@ -192,9 +193,9 @@ static long initOutRecord(T* rec)
 }
 
 template <typename T>
-static long getIointInfo(int dir, T *rec, IOSCANPVT* io)
+static long getIointInfo(int /*direction*/, T *rec, IOSCANPVT* io)
 {
-    PyDevContext* ctx = reinterpret_cast<PyDevContext*>(rec->dpvt);
+    auto ctx = reinterpret_cast<PyDevContext*>(rec->dpvt);
     if (ctx != nullptr && ctx->scan != nullptr) {
         *io = ctx->scan;
     }
@@ -207,18 +208,23 @@ static long getIointInfo(int dir, T *rec, IOSCANPVT* io)
  * @param exec Function that executed Python code and optionally get new value.
  * @param needValue Input fields expect return value, but it's optional for output records.
  */
-static void processCb(dbCommon* rec, std::function<bool()> exec, bool needValue) {
+static void processCb(dbCommon* rec, std::function<bool()> exec, bool needValue)
+{
+    auto ctx = reinterpret_cast<PyDevContext*>(rec->dpvt);
     try {
         if (exec() == false && needValue) {
             if (rec->tpro == 1) {
                 printf("ERROR: Can't convert returned Python type to record type\n");
             }
             recGblSetSevr(rec, epicsAlarmCalc, epicsSevInvalid);
+            ctx->processCbStatus = -1;
+        } else {
+            ctx->processCbStatus = 0;
         }
     } catch (...) {
         recGblSetSevr(rec, epicsAlarmCalc, epicsSevInvalid);
+        ctx->processCbStatus = -1;
     }
-    auto ctx = reinterpret_cast<PyDevContext *>(rec->dpvt);
     callbackRequestProcessCallback(&ctx->callback, rec->prio, rec);
 }
 
@@ -228,13 +234,13 @@ static void processCb(dbCommon* rec, std::function<bool()> exec, bool needValue)
  * Updates record's link and replaces following strings with corresponding field values from record:
  * - %VAL%
  * - %NAME%
- * - %egu%
- * - %hopr%
- * - %lopr%
- * - %high%
- * - %hihi%
- * - %low%
- * - %lolo%
+ * - %EGU%
+ * - %HOPR%
+ * - %LOPR%
+ * - %HIGH%
+ * - %HIHI%
+ * - %LOW%
+ * - %LOLO%
  */
 template <typename T, typename std::enable_if<Util::is_any<T, longinRecord, longoutRecord>::value, T>::type* = nullptr>
 void processCb(T* rec, const std::string& link, bool needValue)
@@ -330,17 +336,22 @@ void processCb(T* rec, const std::string& link, bool needValue)
 }
 
 /**
- * @brief Templated processCb for ai and ao records prepares Python code string and invokes common processCb().
+ * @brief Templated processCb for ai records prepares Python code string and invokes common processCb().
  *
  * Updates record's link and replaces following strings with corresponding field values from record:
  * - %VAL%
  */
-template <typename T, typename std::enable_if<Util::is_any<T, aiRecord, aoRecord>::value, T>::type* = nullptr>
+template <typename T, typename std::enable_if<Util::is_any<T, aiRecord>::value, T>::type* = nullptr>
 void processCb(T* rec, const std::string& link, bool needValue)
 {
+    auto ctx = reinterpret_cast<PyDevContext*>(rec->dpvt);
+
+    rec->val -= rec->aoff;
+    if (rec->aslo != 0.0) rec->val /= rec->aslo;
+
     auto fields = Util::getReplacables(link);
     for (auto& keyval: fields) {
-        if      (keyval.first == "%VAL%")  keyval.second = std::to_string(rec->rval);
+        if      (keyval.first == "%VAL%")  keyval.second = std::to_string(rec->val);
         else if (keyval.first == "%RVAL%") keyval.second = std::to_string(rec->rval);
         else if (keyval.first == "%ORAW%") keyval.second = std::to_string(rec->oraw);
         else if (keyval.first == "%NAME%") keyval.second = rec->name;
@@ -350,7 +361,59 @@ void processCb(T* rec, const std::string& link, bool needValue)
         else if (keyval.first == "%PREC%") keyval.second = std::to_string(rec->prec);
     }
     std::string code = Util::replace(link, fields);
-    auto worker = [code, rec]() { return PyWrapper::exec(code, (rec->tpro == 1), &rec->rval); };
+    auto worker = [code, rec]() {
+        epicsFloat64 val;
+        bool ret = PyWrapper::exec(code, (rec->tpro == 1), &val);
+        if (ret == true) {
+            val = (val * rec->aslo) + rec->aoff;
+            if (rec->smoo == 0.0 || rec->udf)
+                rec->val = val;
+            else
+                rec->val = (rec->val * rec->smoo) + (val * (1.0 - rec->smoo));
+            rec->udf = 0;
+        }
+        return ret;
+    };
+    processCb(reinterpret_cast<dbCommon*>(rec), worker, needValue);
+    if (ctx->processCbStatus == 0)
+        ctx->processCbStatus = 2; // No convertion needed
+}
+
+/**
+ * @brief Templated processCb for ai records prepares Python code string and invokes common processCb().
+ *
+ * Updates record's link and replaces following strings with corresponding field values from record:
+ * - %VAL%
+ */
+template <typename T, typename std::enable_if<Util::is_any<T, aoRecord>::value, T>::type* = nullptr>
+void processCb(T* rec, const std::string& link, bool needValue)
+{
+    rec->val = rec->oval - rec->aoff;
+    if (rec->aslo != 0.0) rec->val /= rec->aslo;
+
+    auto fields = Util::getReplacables(link);
+    for (auto& keyval: fields) {
+        if      (keyval.first == "%VAL%")  keyval.second = std::to_string(rec->val);
+        else if (keyval.first == "%RVAL%") keyval.second = std::to_string(rec->rval);
+        else if (keyval.first == "%ORAW%") keyval.second = std::to_string(rec->oraw);
+        else if (keyval.first == "%NAME%") keyval.second = rec->name;
+        else if (keyval.first == "%EGU%")  keyval.second = rec->egu;
+        else if (keyval.first == "%HOPR%") keyval.second = std::to_string(rec->hopr);
+        else if (keyval.first == "%LOPR%") keyval.second = std::to_string(rec->lopr);
+        else if (keyval.first == "%PREC%") keyval.second = std::to_string(rec->prec);
+    }
+    std::string code = Util::replace(link, fields);
+    auto worker = [code, rec]() {
+        epicsFloat64 val;
+        bool ret = PyWrapper::exec(code, (rec->tpro == 1), &val);
+        if (ret == true) {
+            rec->val = val;
+            if (rec->aslo != 0.0) rec->val *= rec->aslo;
+            rec->val += rec->aoff;
+            rec->udf = 0;
+        }
+        return ret;
+    };
     processCb(reinterpret_cast<dbCommon*>(rec), worker, needValue);
 }
 
@@ -388,7 +451,7 @@ void processCb(T* rec, const std::string& link, bool needValue)
  * - %VAL%
  */
 template <typename T, typename std::enable_if<std::is_same<T, waveformRecord>::value, T>::type* = nullptr>
-void processCb(T* rec, const std::string& link, bool needValue)
+void processCb(T* rec, const std::string& link, bool /*needValue*/)
 {
     auto fields = Util::getReplacables(link);
     for (auto& keyval: fields) {
@@ -424,7 +487,7 @@ void processCb(T* rec, const std::string& link, bool needValue)
 template <typename T>
 static long processInpRecord(T* rec)
 {
-    PyDevContext* ctx = reinterpret_cast<PyDevContext*>(rec->dpvt);
+    auto ctx = reinterpret_cast<PyDevContext*>(rec->dpvt);
     if (ctx == nullptr) {
         // Keep PACT=1 to prevent further processing
         rec->pact = 1;
@@ -434,7 +497,7 @@ static long processInpRecord(T* rec)
 
     if (rec->pact == 1) {
         rec->pact = 0;
-        return 0;
+        return ctx->processCbStatus;
     }
     rec->pact = 1;
 
@@ -447,7 +510,7 @@ static long processInpRecord(T* rec)
 template <typename T>
 static long processOutRecord(T* rec)
 {
-    PyDevContext* ctx = reinterpret_cast<PyDevContext*>(rec->dpvt);
+    auto ctx = reinterpret_cast<PyDevContext*>(rec->dpvt);
     if (ctx == nullptr) {
         // Keep PACT=1 to prevent further processing
         rec->pact = 1;
@@ -457,7 +520,7 @@ static long processOutRecord(T* rec)
 
     if (rec->pact == 1) {
         rec->pact = 0;
-        return 0;
+        return ctx->processCbStatus;
     }
     rec->pact = 1;
 
