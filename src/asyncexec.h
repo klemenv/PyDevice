@@ -1,6 +1,6 @@
 /*************************************************************************\
 * PyDevice is distributed subject to a Software License Agreement found
-* in file LICENSE that is included with this distribution. 
+* in file LICENSE that is included with this distribution.
 \*************************************************************************/
 
 #ifndef ASYNCEXEC_H
@@ -13,7 +13,7 @@ class AsyncExec {
         using Callback = std::function<void()>;
         static bool init();
         static void shutdown();
-        static void schedule(const Callback& callback);
+        static bool schedule(const Callback& callback);
 };
 
-#endif ASYNCEXEC_H
+#endif // ASYNCEXEC_H

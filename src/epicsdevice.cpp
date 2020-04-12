@@ -501,10 +501,10 @@ static long processInpRecord(T* rec)
     }
     rec->pact = 1;
 
-    AsyncExec::schedule([rec]() {
+    auto scheduled = AsyncExec::schedule([rec]() {
         processCb<T>(rec, rec->inp.value.instio.string, true);
     });
-    return 0;
+    return (scheduled ? 0 : -1);
 }
 
 template <typename T>
@@ -524,10 +524,10 @@ static long processOutRecord(T* rec)
     }
     rec->pact = 1;
 
-    AsyncExec::schedule([rec]() {
+    auto scheduled = AsyncExec::schedule([rec]() {
         processCb<T>(rec, rec->out.value.instio.string, false);
     });
-    return 0;
+    return (scheduled ? 0 : -1);
 }
 
 extern "C"

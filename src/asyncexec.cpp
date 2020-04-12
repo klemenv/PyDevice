@@ -1,6 +1,6 @@
 /*************************************************************************\
 * PyDevice is distributed subject to a Software License Agreement found
-* in file LICENSE that is included with this distribution. 
+* in file LICENSE that is included with this distribution.
 \*************************************************************************/
 
 #include "asyncexec.h"
@@ -91,9 +91,10 @@ void AsyncExec::shutdown()
     worker.reset();
 }
 
-void AsyncExec::schedule(const AsyncExec::Callback& callback)
+bool AsyncExec::schedule(const AsyncExec::Callback& callback)
 {
-    assert(!!worker);
-    assert(!!callback);
+    if (!worker || !callback)
+        return false;
     worker->tasks.enqueue(callback);
+    return true;
 }
