@@ -274,12 +274,13 @@ void processCb(T* rec, const std::string& link, bool needValue)
     auto fields = Util::getReplacables(link);
     for (auto& keyval: fields) {
         if      (keyval.first == "%VAL%")  keyval.second = std::to_string(rec->val);
+        else if (keyval.first == "%RVAL%") keyval.second = std::to_string(rec->rval);
         else if (keyval.first == "%NAME%") keyval.second = rec->name;
         else if (keyval.first == "%ZNAM%") keyval.second = rec->znam;
         else if (keyval.first == "%ONAM%") keyval.second = rec->onam;
     }
     std::string code = Util::replace(link, fields);
-    auto worker = [code, rec]() { return PyWrapper::exec(code, (rec->tpro == 1), &rec->val); };
+    auto worker = [code, rec]() { return PyWrapper::exec(code, (rec->tpro == 1), &rec->rval); };
     processCb(reinterpret_cast<dbCommon*>(rec), worker, needValue);
 }
 
