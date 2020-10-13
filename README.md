@@ -1,15 +1,12 @@
+
 # PyDevice
 
 PyDevice is an EPICS device support for Python interpreter. It allows to connect EPICS database records with Python code.
 
 The goal of this project is to provide very easy interface for Python developers to integrate Python code into EPICS control system. This is achieved by allowing arbitrary Python code to be called from EPICS records, including but not limited to built-in functions, calculation expressions, custom functions etc. In addition, Python code can be executed from IOC shell which is useful for setting up resources or troubleshooting Python code. Since PyDevice simply calls Python code, this allows Python modules to be developed and tested in a standalone non-EPICS environment, and ultimately connected to EPICS PVs.
 
-## Quick introduction
+## Hello World example
 
-After selecting *pydev* as device type for a particular record, the INP/OUT fields of the record can specify any valid Python code as long as it is prefixed with *@* sign (this limitation comes from EPICS base).
-
-### Hello world example
-Any supported record type can be used for this simple example:
 ```
 record(longout, "PyDev:Test:HelloWorld") {
     field(DTYP, "pydev")
@@ -18,117 +15,146 @@ record(longout, "PyDev:Test:HelloWorld") {
 ```
 Whenever this record processes, the *Hello world!* text is printed to the IOC console.
 
-### Passing values from records to Python code
-Record's link can use field modifiers that are replaced with actual values when record processes. Not all record fields can be used this way. This example simply assigns record's value to the Python variable in global dictionary:
+## Quick Tutorial
+
+This tutorial introduces main features of PyDevice through examples.
+
+### Sample Python code
+
+Let's start with defining a standalone Python class that provides an interface to our device, in a file called mydevice.py: 
+
+``` python
+import socket
+
+class MyDevice(object):
+
+def __init__(self, ip, port=4011):
+    self.ip = ip
+    self.port = port
+    self.socket = None
+    self.sent = 0
+
+def connect(self, timeout=1.0):
+    """ Connects to device, throws exception if can't connect """
+    if self.socket:
+        self.socket.close()
+    self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    self.socket.settimeout(timeout)
+    self.socket.connect((self.ip, self.port))
+
+def disconnect(self):
+      if self.socket:
+          self.socket.close()
+          self.socket = None
+
+def send(self, msg):
+    if not self.socket:
+        raise RuntimeError("not connected")
+
+    # TODO: send() doesn't guarantee sending entire message
+    sent = self.socket.send(msg)
+    if sent == 0:
+        self.disconnect()
+        raise RuntimeError("socket connection broken")
+
+    self.sent += sent
 ```
-record(longout, "PyDev:Test:Assign") {
+
+Such class can be easily instantiated and tested in any Python environment:
+
+``` python
+import mydevice
+if __name__ == "__main__":
+    device = MyDevice()
+    device.connect("127.0.0.1")
+    device.send("test")
+```
+
+### Instantiate Python object in the IOC context
+
+Assuming mydevice.py is in Python's search path, we can instantiate a MyDevice object from the IOC st.cmd file. This will create a *device1* variable in the global Python context:
+
+``` shell
+pydev("from mydevice import MyDevice")
+pydev("device1 = MyDevice('127.0.0.1')")
+```
+
+*Hint: `pydev()` function allows to execute arbitrary Python code from IOC shell.*
+
+
+### Trigger connect() from database
+
+In this simple example of database record, we'll trigger establishing connection with the device whenever record processes:
+
+``` shell
+record(longout, "Device1:Connect")
+{
     field(DTYP, "pydev")
-    field(OUT,  "@myvar=%VAL%")
+    field(OUT,  "@device1.connect(timeout=2.0)
 }
 ```
 
-Note: Check <TODO> for valid field modifiers for supported records.
+As noted from the Python code above, *connect()* function may throw an exception. In such case, PyDevice will intercept exception and reflect the failure through SEVR and STAT fields.
+
+### Sending a message to device
+
+This example will use `stringout` record to send simple ASCII text to the device whenever the record processes:
+
+``` shell
+record(stringout, "Device1:Send")
+{
+    field(DTYP, "pydev")
+    field(OUT,  "@device1.send('%VAL%')
+    field(VAL,  "127.0.0.1")
+}
+```
+
+PyDevice will replace certain macros in double percent (%) sign with current record's fields right before the Python code is executed. Ie. %VAL% will be automatically replaced with string in VAL field, by default 127.0.0.1. Fields from other records can not be referenced this way.
+
+*Hint: Arbitrary Python code can be executed from any of the supported records.*
 
 ### Getting values from Python code to records
-It is also possible to get value by evaluating Python expression.
-```
-record(longin, "PyDev:Test:Read") {
+
+It is also possible to get value by evaluating Python expression. In this example we'll read value from a variable by simply referencing the variable name, but it is equally easy to call a function and use its return value:
+
+``` shell
+record(longin, "Device1:Sent") {
     field(DTYP, "pydev")
-    field(INP,  "@myvar")
+    field(INP,  "@device1.sent")
     field(SCAN, "1 second")
 }
 ```
-Whenever this record processes, it will read Python variable *myvar* and assign it to this record's VAL field.
+Whenever this record processes, it will read the value of a member variable *sent* and assign it to this record's VAL field.
 
-When code specified in the link is a Python expression (any section of the code that evaluates to a value), the returned value is assigned to the record automatically. For input records this is required. For output records the return value is optional, which allows them to execute arbitrary Python expressions or statements (section of code that performs some action).
+```mermaid
+sequenceDiagram
+User ->> Database: caput Device1:Send.PROC 1
+Database ->> MyDevice: device1.send('127.0.0.1')
+Database <<- MyDevice: test
+```
 
-### Pushing values from Python to record
-In the previous example we've seen how record can pull value from Python context. Sometimes we want Python code to push values directly to record when available. An example would be when a Python thread has new value and needs to update the record. PyDevice supports I/O Intr scanning in all supported records. In such case the record must register a parameter name using the built-in pydev.iointr() function.
+*Hint: When code specified in the link is a Python expression (any section of the code that evaluates to a value), the returned value is assigned to the record automatically. For input records this is required. For output records the return value is optional, which allows them to execute arbitrary Python expressions or statements (section of code that performs some action).*
+
+### Pushing values from Python to database
+
+In the previous example we've seen how a record can pull a value from Python context. Sometimes we want Python code to push values directly to record when available and avoid periodic scanning. In such case the record must select *I/O Intr* scanning and register a interrupt name using the built-in *pydev.iointr()* function. Let's add a new record that will process automatically when a value of device1.sent changes:
 
 ```
-record(longout, "PyDev:IoIntr") {
+record(longin, "Device1:SentCb") {
   field(DTYP, "pydev")
-  field(OUT,  "@pydev.iointr('asyncvar')")
+  field(OUT,  "@pydev.iointr('bytes_sent')")
   field(SCAN, "I/O Intr")
 }
 ```
 
-And Python code needs to call pydev.iointr() function passing new value as the second argument. This can be simply exercised from IOC shell by executing following command:
+There's is no magic variable tracking implemented in PyDevice that would allow this record to just work. Instead, Python code needs to explicitly tell PyDevice about a new value. In a way, it needs to send an interrupt to PyDevice. In order to distinguish interrupts from different sources, database and Python code must agree on using the same name. In the above example, we simply used name *bytes_sent* but it could be any other unique string. Let's extend the Python sample and add the following line at the end of *send()* function:
 
-```
-pydev("pydev.iointr('asyncvar', 7)")
-```
-
-which will immediately push value of 7 to *asyncvar* parameter and in turn process PyDev:IoIntr record.
-
-### Invoking functions
-Any Python function can be invoked from the record, including built-in functions as well as functions imported from modules.
-```
-record(longout, "PyDev:Test:AbsVal") {
-    field(DTYP, "pydev")
-    field(OUT,  "@abs(%VAL%)")
-}
-```
-Writing a new value to this record will cause record to process, pass new value to Python built-in abs() function and write its return value back to the record. This effectively enforces record to hold only absolute numerical values.
-
-### Importing modules
-Python modules can be imported from a record as well.
-```
-record(longout, "PyDev:Test:ImportMath") {
-    field(DTYP, "pydev")
-    field(OUT,  "@import math")
-    field(PINI, "YES")
-}
-record(ai, "PyDev:Test:Log2") {
-    field(DTYP, "pydev")
-    field(INP,  "@math.log(%VAL%,2)")
-}
-```
-This approach might be useful to handle each Python module from an individual EPICS database file, which can be selected at boot time.
-
-It is also possible to import Python modules (or call any other Python function for that matter) from the IOC console using **pydev()** command.
-
-### Custom modules
-Python modules are imported from standard system import locations. Refer to your Python distribution for details. In order to specify particular location for custom files, we need to define PYTHONPATH environment variable. This can easily be done at IOC startup, in this example we include python/ sub-folder from PyDevice top location.
-
-```
-epicsEnvSet("PYTHONPATH","$(TOP)/python")
+``` python
+pydev.iointr('bytes_sent', self.sent)
 ```
 
-### Combining IOC shell with records
-The examples provided with PyDevice distribution implement a simple HTTP client class which can connect to any HTTP/1.1 web server.
+With this change, whenever a message is succesfully sent to device, the *Device1:SentCb* record will process and receive new value.
 
-```
-import socket
-class HttpClient(object):
-    def __init__(self, host, port):
-        self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self._addr = (host, port)
-
-    def get(self, url="/"):
-        req = "GET %s HTTP/1.1\r\n\r\n" % url
-        self._socket.connect(self._addr)
-        self._socket.sendall(req)
-        rsp = self._socket.recv(1024)
-        self._socket.close()
-        return rsp
-```
-
-In this example we'll instantiate a new object when IOC boots (and before iocInit()) so that any records can use it right away:
-
-```
-pydev("import pydevtest")
-pydev("google = pydevtest.HttpClient('www.google.com', 80)")
-```
-
-Newly created objects live in the global dictionary of Python interpreter, so they can be referenced from records:
-
-```
-record(stringin, "PyDev:Google:Refresh") {
-  field(DTYP, "pydev")
-  field(INP,  "@google.get()")
-}
-```
 
 ## Record support
 
@@ -263,7 +289,7 @@ For the existing IOC to receive PyDevice support, a few things need to be added.
 
 * Edit configure/RELEASE and add PYDEVICE variable to point to PyDevice source location
 * Edit Makefile in IOC's App/src folder and add
-```
+```shell
 SYS_PROD_LIBS += $(shell python-config --ldflags | sed 's/-[^l][^ ]*//g' | sed 's/-l//g')
 <yourioc>_DBD += pydev.dbd
 <yourioc>_LIB += pydev
