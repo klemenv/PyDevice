@@ -126,13 +126,6 @@ record(longin, "Device1:Sent") {
 ```
 Whenever this record processes, it will read the value of a member variable *sent* and assign it to this record's VAL field.
 
-```mermaid
-sequenceDiagram
-User ->> Database: caput Device1:Send.PROC 1
-Database ->> MyDevice: device1.send('127.0.0.1')
-Database <<- MyDevice: test
-```
-
 *Hint: When code specified in the link is a Python expression (any section of the code that evaluates to a value), the returned value is assigned to the record automatically. For input records this is required. For output records the return value is optional, which allows them to execute arbitrary Python expressions or statements (section of code that performs some action).*
 
 ### Pushing values from Python to database
