@@ -4,7 +4,7 @@
 \*************************************************************************/
 
 #include "util.h"
-
+#include <stdexcept>
 namespace Util {
 
 std::map<std::string, std::string> getReplacables(const std::string& text)
