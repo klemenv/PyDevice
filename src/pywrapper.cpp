@@ -1,14 +1,16 @@
 /*************************************************************************\
 * PyDevice is distributed subject to a Software License Agreement found
-* in file LICENSE that is included with this distribution. 
+* in file LICENSE that is included with this distribution.
 \*************************************************************************/
 
 #include "pywrapper.h"
 
+extern "C" {
 #include <Python.h>
-
+};
 #include <map>
 #include <stdexcept>
+#include <iostream>
 
 static PyObject* globDict = nullptr;
 static PyObject* locDict = nullptr;
@@ -17,7 +19,7 @@ static std::map<std::string, std::pair<PyWrapper::Callback, PyObject*>> params;
 
 /**
  * Function for caching parameter value or notifying record of new value.
- * 
+ *
  * This function has two use-cases and are combined into a single function
  * for the simplicity to the end user:
  * 1) when Python code wants to send new parameter value to the record,
@@ -38,14 +40,14 @@ static PyObject* pydev_iointr(PyObject* self, PyObject* args)
     }
 #if PY_MAJOR_VERSION < 3
     if (!PyString_Check(param)) {
-        PyErr_SetString(PyExc_TypeError, "Parameter name is not a string"); 
+        PyErr_SetString(PyExc_TypeError, "Parameter name is not a string");
         Py_RETURN_NONE;
     }
     std::string name = PyString_AsString(param);
 #else
     PyObject* tmp = nullptr;
     if (!PyUnicode_Check(param) || ((tmp=PyUnicode_AsASCIIString(param)) == nullptr)) {
-        PyErr_SetString(PyExc_TypeError, "Parameter name is not a string"); 
+        PyErr_SetString(PyExc_TypeError, "Parameter name is not a string");
         Py_RETURN_NONE;
     }
     std::string name = PyByteArray_AsString(tmp);
@@ -75,6 +77,7 @@ static PyObject* pydev_iointr(PyObject* self, PyObject* args)
 
 static struct PyMethodDef methods[] = {
     { "iointr", pydev_iointr, METH_VARARGS, "PyDevice interface for parameters exchange"},
+    /* sentinel */
     { NULL, NULL, 0, NULL }
 };
 
@@ -83,6 +86,17 @@ static struct PyModuleDef moddef = {
     PyModuleDef_HEAD_INIT, "pydev", NULL, -1, methods, NULL, NULL, NULL, NULL
 };
 #endif
+
+#if PY_MAJOR_VERSION == 2
+#define PYTHON_HAS_INT
+#elif PY_MAJOR_VERSION == 3
+/* has only longs */
+#else
+#warning "You are using unknown python version"
+// #define PyInt_Check(n) PyLong_Check(n)
+// #define PyInt_AsLong(n) PyLong_AsLong(n)
+#endif
+
 
 #if PY_MAJOR_VERSION >= 3
 static PyObject* PyInit_pydev(void)
@@ -102,26 +116,61 @@ bool PyWrapper::init()
     // communication channel for I/O Intr value exchange
     PyImport_AppendInittab("pydev", &PyInit_pydev);
 
+    // Py_SetProgramName(L"python3.7");
+    std::cerr << "Initalising python3" << std::endl;
     Py_Initialize();
+    std::cerr << "Initialsing threads" << std::endl;
     PyEval_InitThreads();
 
+    std::cerr << "Initialsing dics" << std::endl;
+
+#if PY_MAJOR_VERSION == 3
+
+    /*
+     * IN Python 3 the
+     */
+    auto m = PyImport_AddModule("__main__");
+    assert(m);
+    globDict = PyModule_GetDict(m);
+    assert(globDict);
+    locDict = PyDict_New();
+    assert(locDict);
+    /*     */
+#elif PY_MAJOR_VERSION == 2
     globDict = PyDict_New();
     locDict = PyDict_New();
     PyDict_SetItemString(globDict, "__builtins__", PyEval_GetBuiltins());
+#else /* PY_MAJOR_VERSION */
+#error "Unsupported python version"
+#endif /* PY_MAJOR_VERSION */
 
     mainThread = PyEval_SaveThread();
 
     // Make `pydev' module appear as built-in module
+    std::cerr << "Importing pydev" << std::endl;
     exec("import pydev", true);
+    std::cerr << "Importing builtins" << std::endl;
+
+#if PY_MAJOR_VERSION == 3
+    exec("import builtins", true);
+    exec("builtins.pydev=pydev", true);
+    exec("import pydev", true);
+#elif PY_MAJOR_VERSION == 2
     exec("import __builtin__", true);
     exec("__builtin__.pydev=pydev", true);
+#else
+#error "Unsupported python version"
+#endif
+
+    std::cerr << "python imported" << std::endl;
 
     return true;
 }
 
 void PyWrapper::shutdown()
 {
-    PyEval_AcquireLock();
+    // PyEval_AcquireLock();
+    PyEval_AcquireThread(mainThread);
     PyThreadState_Clear(mainThread);
     PyThreadState_Delete(mainThread);
 
@@ -150,6 +199,8 @@ template <typename T>
 bool PyWrapper::convert(void* in_, T& out)
 {
     PyObject* in = reinterpret_cast<PyObject*>(in_);
+
+#ifdef PYTHON_HAS_INT
     if (PyInt_Check(in)) {
         long o = PyInt_AsLong(in);
         if (o == -1 && PyErr_Occurred()) {
@@ -159,6 +210,7 @@ bool PyWrapper::convert(void* in_, T& out)
         out = o;
         return true;
     }
+#endif
     if (PyLong_Check(in)) {
         long o = PyLong_AsLong(in);
         if (o == -1 && PyErr_Occurred()) {
@@ -219,6 +271,7 @@ bool PyWrapper::convert(void* in_, std::string& out)
         Py_XDECREF(tmp);
         return true;
     }
+#ifdef PYTHON_HAS_INT
     if (PyInt_Check(in)) {
         long o = PyInt_AsLong(in);
         if (o == -1 && PyErr_Occurred()) {
@@ -228,6 +281,7 @@ bool PyWrapper::convert(void* in_, std::string& out)
         out = std::to_string(o);
         return true;
     }
+#endif
     if (PyLong_Check(in)) {
         long o = PyLong_AsLong(in);
         if (o == -1 && PyErr_Occurred()) {
@@ -265,6 +319,7 @@ bool PyWrapper::convert(void* in_, std::vector<T>& out)
     for (Py_ssize_t i = 0; i < PyList_Size(in); i++) {
         PyObject* el = PyList_GetItem(in, i);
 
+#ifdef PYTHON_HAS_INT
         if (PyInt_Check(el)) {
             T elval = PyInt_AsLong(el);
             if (elval == -1.0 && PyErr_Occurred()) {
@@ -273,6 +328,7 @@ bool PyWrapper::convert(void* in_, std::vector<T>& out)
             }
             out.push_back(elval);
         }
+#endif
         if (PyLong_Check(el)) {
             T elval = PyLong_AsLong(el);
             if (elval == -1.0 && PyErr_Occurred()) {
@@ -306,6 +362,7 @@ void PyWrapper::exec(const std::string& line, bool debug)
     PyObject* r = PyRun_String(line.c_str(), Py_file_input, globDict, locDict);
     if (r == nullptr) {
         if (debug && PyErr_Occurred()) {
+            std::cerr << "Tried to execute string '" << line << "'" << std::endl;
             PyErr_Print();
         }
         PyErr_Clear();
@@ -340,6 +397,8 @@ bool PyWrapper::exec(const std::string& line, bool debug, T* val)
     PyObject* r = PyRun_String(line.c_str(), Py_single_input, globDict, locDict);
     if (r == nullptr) {
         if (PyErr_Occurred()) {
+            std::cerr << "Tried to execute string '" << line << "'" << std::endl;
+
             PyErr_Print();
         }
         PyErr_Clear();
@@ -419,4 +478,3 @@ bool PyWrapper::exec(const std::string& line, bool debug, std::vector<T>& arr)
 }
 template bool PyWrapper::exec(const std::string&, bool, std::vector<long>&);
 template bool PyWrapper::exec(const std::string&, bool, std::vector<double>&);
-
