@@ -35,7 +35,7 @@ pydevioc_SRCS_vxWorks += -nil-
 
 # Finally link to the EPICS Base libraries
 pydevioc_LIBS += $(EPICS_BASE_IOC_LIBS)
-SYS_PROD_LIBS += $(shell python-config --ldflags | sed 's/-[^l][^ ]*//g' | sed 's/-l//g')
+SYS_PROD_LIBS += $(shell $(PYTHON_CONFIG) --ldflags | sed 's/-[^l][^ ]*//g' | sed 's/-l//g')
 
 #===========================
 
