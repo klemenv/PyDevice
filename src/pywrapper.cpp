@@ -6,20 +6,7 @@
 #include "pywrapper.h"
 
 #include <Python.h>
-
-// Inform user if a rather obscure python version is used
-#if PY_MAJOR_VERSION != 3
-#if PY_MAJOR_VERSION != 2
-#warning "Based on preprocessor macro PY_MAJOR_VERSION your not using python"
-#warning " with version 2 or 3. Inconsisties are expected!"
-#endif /* PY_MAJOR_VERSION != 2 */
-#endif /* PY_MAJOR_VERSION != 3 */
-
-// Define helper marco definition: python2 compiled for?
-#if PY_MAJOR_VERSION <= 2
-#define PYDEV_PYCAPI_COMPAT_VERSION2 1
-#endif /* PY_MAJOR_VERSION >= 3 */
-
+ 
 #include <map>
 #include <stdexcept>
 #include <iostream>
@@ -28,6 +15,7 @@ static PyObject* globDict = nullptr;
 static PyObject* locDict = nullptr;
 static PyThreadState* mainThread = nullptr;
 static std::map<std::string, std::pair<PyWrapper::Callback, PyObject*>> params;
+
 
 /**
  * Function for caching parameter value or notifying record of new value.
@@ -50,13 +38,13 @@ static PyObject* pydev_iointr(PyObject* self, PyObject* args)
         PyErr_Clear();
         Py_RETURN_FALSE;
     }
-#ifdef PYDEV_PYCAPI_COMPAT_VERSION2
+#if PY_MAJOR_VERSION < 3
     if (!PyString_Check(param)) {
         PyErr_SetString(PyExc_TypeError, "Parameter name is not a string");
         Py_RETURN_NONE;
     }
     std::string name = PyString_AsString(param);
-#else /* PYDEV_PYCAPI_COMPAT_VERSION2 */
+#else /* PY_MAJOR_VERSION < 3 */
     PyObject* tmp = nullptr;
     if (!PyUnicode_Check(param) || ((tmp=PyUnicode_AsASCIIString(param)) == nullptr)) {
         PyErr_SetString(PyExc_TypeError, "Parameter name is not a string");
@@ -64,7 +52,7 @@ static PyObject* pydev_iointr(PyObject* self, PyObject* args)
     }
     std::string name = PyByteArray_AsString(tmp);
     Py_XDECREF(tmp);
-#endif /* PYDEV_PYCAPI_COMPAT_VERSION2 */
+#endif /* PY_MAJOR_VERSION < 3 */
 
     auto it = params.find(name);
     if (value) {
@@ -93,22 +81,18 @@ static struct PyMethodDef methods[] = {
     { NULL, NULL, 0, NULL }
 };
 
-#ifndef PYDEV_PYCAPI_COMPAT_VERSION2
-static struct PyModuleDef moddef = {
-    PyModuleDef_HEAD_INIT, "pydev", NULL, -1, methods, NULL, NULL, NULL, NULL
-};
-#endif
-
-
-#ifndef PYDEV_PYCAPI_COMPAT_VERSION2
-static PyObject* PyInit_pydev(void)
-{
-    return PyModule_Create(&moddef);
-}
-#else
+#if PY_MAJOR_VERSION < 3
 static void PyInit_pydev(void)
 {
     Py_InitModule("pydev", methods);
+}
+#else
+static struct PyModuleDef moddef = {
+    PyModuleDef_HEAD_INIT, "pydev", NULL, -1, methods, NULL, NULL, NULL, NULL
+};
+static PyObject* PyInit_pydev(void)
+{
+    return PyModule_Create(&moddef);
 }
 #endif
 
@@ -119,49 +103,43 @@ bool PyWrapper::init()
     PyImport_AppendInittab("pydev", &PyInit_pydev);
 
     // Py_SetProgramName(L"python3.7");
-    std::cerr << "Initalising python3" << std::endl;
     Py_Initialize();
-    std::cerr << "Initialsing threads" << std::endl;
     PyEval_InitThreads();
 
-    std::cerr << "Initialsing dics" << std::endl;
-
-#ifndef PYDEV_PYCAPI_COMPAT_VERSION2
-    /* I think even __import__ is imported from importlib */
+#if PY_MAJOR_VERSION < 3
     auto m = PyImport_AddModule("__main__");
     assert(m);
     globDict = PyModule_GetDict(m);
-    assert(globDict);
     locDict = PyDict_New();
-    assert(locDict);
-#else /* PYDEV_PYCAPI_COMPAT_VERSION2 */
+#else /* PY_MAJOR_VERSION < 3 */
     globDict = PyDict_New();
     locDict = PyDict_New();
     PyDict_SetItemString(globDict, "__builtins__", PyEval_GetBuiltins());
-#endif /* PYDEV_PYCAPI_COMPAT_VERSION2 */
+#endif /* PY_MAJOR_VERSION < 3 */
+
+    assert(globDict);
+    assert(locDict);
 
     mainThread = PyEval_SaveThread();
 
     // Make `pydev' module appear as built-in module
     exec("import pydev", true);
 
-#ifndef PYDEV_PYCAPI_COMPAT_VERSION2
+#if PY_MAJOR_VERSION < 3
+    exec("import __builtin__", true);
+    exec("__builtin__.pydev=pydev", true);
+#else /* PY_MAJOR_VERSION < 3 */
     exec("import builtins", true);
     exec("builtins.pydev=pydev", true);
     exec("import pydev", true);
-#else /* PYDEV_PYCAPI_COMPAT_VERSION2 */
-    exec("import __builtin__", true);
-    exec("__builtin__.pydev=pydev", true);
-#endif /* PYDEV_PYCAPI_COMPAT_VERSION2 */
-
-    std::cerr << "python imported" << std::endl;
+#endif /* PY_MAJOR_VERSION  <  3 */
 
     return true;
 }
 
 void PyWrapper::shutdown()
 {
-    // PyEval_AcquireLock();
+
     PyEval_AcquireThread(mainThread);
     PyThreadState_Clear(mainThread);
     PyThreadState_Delete(mainThread);
@@ -193,7 +171,7 @@ bool PyWrapper::convert(void* in_, T& out)
     PyObject* in = reinterpret_cast<PyObject*>(in_);
 
 
-#ifdef PYDEV_PYCAPI_COMPAT_VERSION2
+#if PY_MAJOR_VERSION < 3
     if (PyInt_Check(in)) {
         long o = PyInt_AsLong(in);
         if (o == -1 && PyErr_Occurred()) {
@@ -238,7 +216,7 @@ bool PyWrapper::convert(void* in_, std::string& out)
 {
     PyObject* in = reinterpret_cast<PyObject*>(in_);
 
-#ifdef PYDEV_PYCAPI_COMPAT_VERSION2
+#if PY_MAJOR_VERSION < 3
     if (PyString_Check(in)) {
         const char* o = PyString_AsString(in);
         if (o == nullptr && PyErr_Occurred()) {
@@ -265,7 +243,7 @@ bool PyWrapper::convert(void* in_, std::string& out)
         Py_XDECREF(tmp);
         return true;
     }
-#ifdef PYDEV_PYCAPI_COMPAT_VERSION2
+#if PY_MAJOR_VERSION < 3
     if (PyInt_Check(in)) {
         long o = PyInt_AsLong(in);
         if (o == -1 && PyErr_Occurred()) {
@@ -312,7 +290,7 @@ bool PyWrapper::convert(void* in_, std::vector<T>& out)
     out.clear();
     for (Py_ssize_t i = 0; i < PyList_Size(in); i++) {
         PyObject* el = PyList_GetItem(in, i);
-#ifdef PYDEV_PYCAPI_COMPAT_VERSION2
+#if PY_MAJOR_VERSION < 3
         if (PyInt_Check(el)) {
             T elval = PyInt_AsLong(el);
             if (elval == -1.0 && PyErr_Occurred()) {
@@ -391,7 +369,6 @@ bool PyWrapper::exec(const std::string& line, bool debug, T* val)
     if (r == nullptr) {
         if (PyErr_Occurred()) {
             std::cerr << "Tried to execute string '" << line << "'" << std::endl;
-
             PyErr_Print();
         }
         PyErr_Clear();
