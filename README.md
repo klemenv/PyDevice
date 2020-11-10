@@ -21,7 +21,7 @@ This tutorial introduces main features of PyDevice through examples.
 
 ### Sample Python code
 
-Let's start with defining a standalone Python class that provides an interface to our device, in a file called mydevice.py: 
+Let's start with defining a standalone Python class that provides an interface to our device, in a file called mydevice.py:
 
 ``` python
 import socket
@@ -268,17 +268,19 @@ Single thread policy doesn't apply to any threads spawned from Python code.
 * EPICS 3.14+ or 7.0+
 * Python 2.x or 3.5+ headers and libraries
     * RHEL: yum install python-devel
-    * Debian & Ubuntu: apt install python-dev
-    
+    * Debian & Ubuntu:
+       * For python2: apt install python-dev
+       * For python3: apt install python3-dev
+
 ### Compiling PyDevice
 
-In order to PyDevice, all its dependencies must be installed. In configure/RELEASE file change EPICS_BASE. Afterwards issue *make* command in the top level. The compilation will provide dynamic library to be included in the IOC as well as a testing IOC that can be executed from iocBoot/iocpydev folder.
+In order to PyDevice, all its dependencies must be installed. In configure/RELEASE file change EPICS_BASE. In configure/CONFIG_SITE set PYTHON_CONFIG=python3-config if you want to use python3. Set Afterwards issue *make* command in the top level. The compilation will provide dynamic library to be included in the IOC as well as a testing IOC that can be executed from iocBoot/iocpydev folder.
 
 Assuming all dependencies are satisfied, project should build linkable library and testing IOC binary. Running st.cmd from test iocBoot/iocpydev folder will start the demo IOC. At this point database and Python code can be modified without rebuilding the PyDevice source code.
 
 ### Adding PyDevice support to IOC
 
-For the existing IOC to receive PyDevice support, a few things need to be added. 
+For the existing IOC to receive PyDevice support, a few things need to be added.
 
 * Edit configure/RELEASE and add PYDEVICE variable to point to PyDevice source location
 * Edit Makefile in IOC's App/src folder and add
