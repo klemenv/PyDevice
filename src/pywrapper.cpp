@@ -6,7 +6,7 @@
 #include "pywrapper.h"
 
 #include <Python.h>
- 
+
 #include <map>
 #include <stdexcept>
 #include <iostream>
@@ -46,11 +46,20 @@ static PyObject* pydev_iointr(PyObject* self, PyObject* args)
     std::string name = PyString_AsString(param);
 #else /* PY_MAJOR_VERSION < 3 */
     PyObject* tmp = nullptr;
-    if (!PyUnicode_Check(param) || ((tmp=PyUnicode_AsASCIIString(param)) == nullptr)) {
-        PyErr_SetString(PyExc_TypeError, "Parameter name is not a string");
+    if (!PyUnicode_Check(param)){
+        PyErr_SetString(PyExc_TypeError, "Parameter name is not a unicode");
         Py_RETURN_NONE;
     }
-    std::string name = PyByteArray_AsString(tmp);
+    tmp = PyUnicode_AsASCIIString(param);
+    if(!tmp){
+        PyErr_SetString(PyExc_TypeError, "Unicode could not be converted to ASCII");
+        Py_RETURN_NONE;
+    }
+    if(!PyBytes_Check(tmp)){
+        PyErr_SetString(PyExc_TypeError, "PyUnicode as ASCII did not return expected bytes object!");
+        Py_RETURN_NONE;
+    }
+    std::string name = PyBytes_AsString(tmp);
     Py_XDECREF(tmp);
 #endif /* PY_MAJOR_VERSION < 3 */
 
