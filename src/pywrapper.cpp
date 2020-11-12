@@ -1,6 +1,6 @@
 /*************************************************************************\
 * PyDevice is distributed subject to a Software License Agreement found
-* in file LICENSE that is included with this distribution. 
+* in file LICENSE that is included with this distribution.
 \*************************************************************************/
 
 #include "pywrapper.h"
@@ -9,15 +9,17 @@
 
 #include <map>
 #include <stdexcept>
+#include <iostream>
 
 static PyObject* globDict = nullptr;
 static PyObject* locDict = nullptr;
 static PyThreadState* mainThread = nullptr;
 static std::map<std::string, std::pair<PyWrapper::Callback, PyObject*>> params;
 
+
 /**
  * Function for caching parameter value or notifying record of new value.
- * 
+ *
  * This function has two use-cases and are combined into a single function
  * for the simplicity to the end user:
  * 1) when Python code wants to send new parameter value to the record,
@@ -38,19 +40,28 @@ static PyObject* pydev_iointr(PyObject* self, PyObject* args)
     }
 #if PY_MAJOR_VERSION < 3
     if (!PyString_Check(param)) {
-        PyErr_SetString(PyExc_TypeError, "Parameter name is not a string"); 
+        PyErr_SetString(PyExc_TypeError, "Parameter name is not a string");
         Py_RETURN_NONE;
     }
     std::string name = PyString_AsString(param);
-#else
+#else /* PY_MAJOR_VERSION < 3 */
     PyObject* tmp = nullptr;
-    if (!PyUnicode_Check(param) || ((tmp=PyUnicode_AsASCIIString(param)) == nullptr)) {
-        PyErr_SetString(PyExc_TypeError, "Parameter name is not a string"); 
+    if (!PyUnicode_Check(param)){
+        PyErr_SetString(PyExc_TypeError, "Parameter name is not a unicode");
         Py_RETURN_NONE;
     }
-    std::string name = PyByteArray_AsString(tmp);
+    tmp = PyUnicode_AsASCIIString(param);
+    if(!tmp){
+        PyErr_SetString(PyExc_TypeError, "Unicode could not be converted to ASCII");
+        Py_RETURN_NONE;
+    }
+    if(!PyBytes_Check(tmp)){
+        PyErr_SetString(PyExc_TypeError, "PyUnicode as ASCII did not return expected bytes object!");
+        Py_RETURN_NONE;
+    }
+    std::string name = PyBytes_AsString(tmp);
     Py_XDECREF(tmp);
-#endif
+#endif /* PY_MAJOR_VERSION < 3 */
 
     auto it = params.find(name);
     if (value) {
@@ -75,24 +86,22 @@ static PyObject* pydev_iointr(PyObject* self, PyObject* args)
 
 static struct PyMethodDef methods[] = {
     { "iointr", pydev_iointr, METH_VARARGS, "PyDevice interface for parameters exchange"},
+    /* sentinel */
     { NULL, NULL, 0, NULL }
 };
 
-#if PY_MAJOR_VERSION >= 3
-static struct PyModuleDef moddef = {
-    PyModuleDef_HEAD_INIT, "pydev", NULL, -1, methods, NULL, NULL, NULL, NULL
-};
-#endif
-
-#if PY_MAJOR_VERSION >= 3
-static PyObject* PyInit_pydev(void)
-{
-    return PyModule_Create(&moddef);
-}
-#else
+#if PY_MAJOR_VERSION < 3
 static void PyInit_pydev(void)
 {
     Py_InitModule("pydev", methods);
+}
+#else
+static struct PyModuleDef moddef = {
+    PyModuleDef_HEAD_INIT, "pydev", NULL, -1, methods, NULL, NULL, NULL, NULL
+};
+static PyObject* PyInit_pydev(void)
+{
+    return PyModule_Create(&moddef);
 }
 #endif
 
@@ -105,23 +114,41 @@ bool PyWrapper::init()
     Py_Initialize();
     PyEval_InitThreads();
 
+#if PY_MAJOR_VERSION < 3
+    auto m = PyImport_AddModule("__main__");
+    assert(m);
+    globDict = PyModule_GetDict(m);
+    locDict = PyDict_New();
+#else /* PY_MAJOR_VERSION < 3 */
     globDict = PyDict_New();
     locDict = PyDict_New();
     PyDict_SetItemString(globDict, "__builtins__", PyEval_GetBuiltins());
+#endif /* PY_MAJOR_VERSION < 3 */
+
+    assert(globDict);
+    assert(locDict);
 
     mainThread = PyEval_SaveThread();
 
     // Make `pydev' module appear as built-in module
     exec("import pydev", true);
+
+#if PY_MAJOR_VERSION < 3
     exec("import __builtin__", true);
     exec("__builtin__.pydev=pydev", true);
+#else /* PY_MAJOR_VERSION < 3 */
+    exec("import builtins", true);
+    exec("builtins.pydev=pydev", true);
+    exec("import pydev", true);
+#endif /* PY_MAJOR_VERSION  <  3 */
 
     return true;
 }
 
 void PyWrapper::shutdown()
 {
-    PyEval_AcquireLock();
+
+    PyEval_AcquireThread(mainThread);
     PyThreadState_Clear(mainThread);
     PyThreadState_Delete(mainThread);
 
@@ -150,6 +177,9 @@ template <typename T>
 bool PyWrapper::convert(void* in_, T& out)
 {
     PyObject* in = reinterpret_cast<PyObject*>(in_);
+
+
+#if PY_MAJOR_VERSION < 3
     if (PyInt_Check(in)) {
         long o = PyInt_AsLong(in);
         if (o == -1 && PyErr_Occurred()) {
@@ -159,6 +189,7 @@ bool PyWrapper::convert(void* in_, T& out)
         out = o;
         return true;
     }
+#endif
     if (PyLong_Check(in)) {
         long o = PyLong_AsLong(in);
         if (o == -1 && PyErr_Occurred()) {
@@ -192,6 +223,7 @@ template <>
 bool PyWrapper::convert(void* in_, std::string& out)
 {
     PyObject* in = reinterpret_cast<PyObject*>(in_);
+
 #if PY_MAJOR_VERSION < 3
     if (PyString_Check(in)) {
         const char* o = PyString_AsString(in);
@@ -219,6 +251,7 @@ bool PyWrapper::convert(void* in_, std::string& out)
         Py_XDECREF(tmp);
         return true;
     }
+#if PY_MAJOR_VERSION < 3
     if (PyInt_Check(in)) {
         long o = PyInt_AsLong(in);
         if (o == -1 && PyErr_Occurred()) {
@@ -228,6 +261,7 @@ bool PyWrapper::convert(void* in_, std::string& out)
         out = std::to_string(o);
         return true;
     }
+#endif
     if (PyLong_Check(in)) {
         long o = PyLong_AsLong(in);
         if (o == -1 && PyErr_Occurred()) {
@@ -264,7 +298,7 @@ bool PyWrapper::convert(void* in_, std::vector<T>& out)
     out.clear();
     for (Py_ssize_t i = 0; i < PyList_Size(in); i++) {
         PyObject* el = PyList_GetItem(in, i);
-
+#if PY_MAJOR_VERSION < 3
         if (PyInt_Check(el)) {
             T elval = PyInt_AsLong(el);
             if (elval == -1.0 && PyErr_Occurred()) {
@@ -273,6 +307,7 @@ bool PyWrapper::convert(void* in_, std::vector<T>& out)
             }
             out.push_back(elval);
         }
+#endif
         if (PyLong_Check(el)) {
             T elval = PyLong_AsLong(el);
             if (elval == -1.0 && PyErr_Occurred()) {
@@ -419,4 +454,3 @@ bool PyWrapper::exec(const std::string& line, bool debug, std::vector<T>& arr)
 }
 template bool PyWrapper::exec(const std::string&, bool, std::vector<long>&);
 template bool PyWrapper::exec(const std::string&, bool, std::vector<double>&);
-

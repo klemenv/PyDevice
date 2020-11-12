@@ -19,6 +19,10 @@ include $(CONFIG)/CONFIG
 # Override the Base definition:
 INSTALL_LOCATION = $(TOP)
 
+# As soon as python3 is the default configuration
+# PYTHON_CONFIG=python3-config
+PYTHON_CONFIG=python-config
+
 # CONFIG_SITE files contain other build configuration settings
 include $(TOP)/configure/CONFIG_SITE
 -include $(TOP)/configure/CONFIG_SITE.$(EPICS_HOST_ARCH).Common
@@ -26,4 +30,3 @@ ifdef T_A
  -include $(TOP)/configure/CONFIG_SITE.Common.$(T_A)
  -include $(TOP)/configure/CONFIG_SITE.$(EPICS_HOST_ARCH).$(T_A)
 endif
-

@@ -1,5 +1,9 @@
 # CONFIG_SITE
 
+# Set this if you intend to build with a specific python version
+#   e.g. using python3
+# PYTHON_CONFIG=python3-config
+
 # Make any application-specific changes to the EPICS build
 #   configuration variables in this file.
 #
