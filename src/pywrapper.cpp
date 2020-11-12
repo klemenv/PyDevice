@@ -111,7 +111,6 @@ bool PyWrapper::init()
     // communication channel for I/O Intr value exchange
     PyImport_AppendInittab("pydev", &PyInit_pydev);
 
-    // Py_SetProgramName(L"python3.7");
     Py_Initialize();
     PyEval_InitThreads();
 
@@ -342,7 +341,6 @@ void PyWrapper::exec(const std::string& line, bool debug)
     PyObject* r = PyRun_String(line.c_str(), Py_file_input, globDict, locDict);
     if (r == nullptr) {
         if (debug && PyErr_Occurred()) {
-            std::cerr << "Tried to execute string '" << line << "'" << std::endl;
             PyErr_Print();
         }
         PyErr_Clear();
@@ -377,7 +375,6 @@ bool PyWrapper::exec(const std::string& line, bool debug, T* val)
     PyObject* r = PyRun_String(line.c_str(), Py_single_input, globDict, locDict);
     if (r == nullptr) {
         if (PyErr_Occurred()) {
-            std::cerr << "Tried to execute string '" << line << "'" << std::endl;
             PyErr_Print();
         }
         PyErr_Clear();
