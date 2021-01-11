@@ -35,7 +35,7 @@ std::string replace(const std::string& text, const std::map<std::string, std::st
         std::string val;
         try {
             val = fields.at(field);
-        } catch (std::out_of_range) {
+        } catch (std::out_of_range&) {
             val = "";
         }
 

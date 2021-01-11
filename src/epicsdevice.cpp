@@ -438,7 +438,7 @@ void processCb(T* rec, const std::string& link, bool needValue)
         if (PyWrapper::exec(code, (rec->tpro == 1), val) == false) {
             return false;
         }
-        strncpy(rec->val, val.c_str(), sizeof(rec->val));
+        strncpy(rec->val, val.c_str(), sizeof(rec->val)-1);
         rec->val[sizeof(rec->val)-1] = 0;
         return true;
     };
