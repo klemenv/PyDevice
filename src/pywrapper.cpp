@@ -111,15 +111,20 @@ bool PyWrapper::init()
     // communication channel for I/O Intr value exchange
     PyImport_AppendInittab("pydev", &PyInit_pydev);
 
-    Py_Initialize();
-    PyEval_InitThreads();
+    Py_InitializeEx(0);
 
 #if PY_MAJOR_VERSION < 3
+    PyEval_InitThreads();
     auto m = PyImport_AddModule("__main__");
     assert(m);
     globDict = PyModule_GetDict(m);
     locDict = PyDict_New();
 #else /* PY_MAJOR_VERSION < 3 */
+
+#if PY_MINOR_VERSION <= 6
+    PyEval_InitThreads();
+#endif
+
     globDict = PyDict_New();
     locDict = PyDict_New();
     PyDict_SetItemString(globDict, "__builtins__", PyEval_GetBuiltins());
@@ -128,6 +133,7 @@ bool PyWrapper::init()
     assert(globDict);
     assert(locDict);
 
+    // Release GIL, save thread state
     mainThread = PyEval_SaveThread();
 
     // Make `pydev' module appear as built-in module
@@ -147,15 +153,12 @@ bool PyWrapper::init()
 
 void PyWrapper::shutdown()
 {
+    PyEval_RestoreThread(mainThread);
+    mainThread = nullptr;
 
-    PyEval_AcquireThread(mainThread);
-    PyThreadState_Clear(mainThread);
-    PyThreadState_Delete(mainThread);
-
-    // The following will segfault IOC if there are Python-created threads
-//    Py_DecRef(globDict);
-//    Py_DecRef(locDict);
-//    Py_Finalize();
+    Py_DecRef(globDict);
+    Py_DecRef(locDict);
+    Py_Finalize();
 }
 
 void PyWrapper::registerIoIntr(const std::string& name, const Callback& cb)
@@ -166,10 +169,12 @@ void PyWrapper::registerIoIntr(const std::string& name, const Callback& cb)
 
 struct PyGIL {
     PyGIL() {
+        if (mainThread == nullptr)
+            throw std::domain_error("Python interpreter not initialized");
         PyEval_RestoreThread(mainThread);
     }
     ~PyGIL() {
-        PyEval_SaveThread();
+        mainThread = PyEval_SaveThread();
     }
 };
 
