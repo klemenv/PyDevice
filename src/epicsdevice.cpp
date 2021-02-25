@@ -448,6 +448,16 @@ void processCb(T* rec, const std::string& link, bool needValue)
 }
 
 /**
+ * @brief Templated processCb for lsi/lso records.
+ * 
+ * Replaces the following strings with their corresponding field values:
+ * - %VAL%
+ * - %NAME%
+ * - %SIZV%
+ * - %LEN%
+ * 
+ * Furthermore, it escapes any control characters (e.g. newlines) as those would cause syntax errors
+ * when passed to the python interpreter.
  */
 template <typename T, typename std::enable_if<Util::is_any<T, lsiRecord, lsoRecord>::value, T>::type* = nullptr>
 void processCb(T* rec, const std::string& link, bool needValue)
