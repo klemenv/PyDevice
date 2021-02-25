@@ -14,6 +14,8 @@
 #include <mbboRecord.h>
 #include <stringinRecord.h>
 #include <stringoutRecord.h>
+#include <lsoRecord.h>
+#include <lsiRecord.h>
 #include <waveformRecord.h>
 
 #include <alarm.h>
@@ -446,6 +448,26 @@ void processCb(T* rec, const std::string& link, bool needValue)
 }
 
 /**
+ */
+template <typename T, typename std::enable_if<Util::is_any<T, lsiRecord, lsoRecord>::value, T>::type* = nullptr>
+void processCb(T* rec, const std::string& link, bool needValue)
+{
+    auto fields = Util::getReplacables(link);
+    for (auto& keyval: fields) {
+        if (keyval.first == "%VAL%")       keyval.second = rec->val;
+        else if (keyval.first == "%NAME%") keyval.second = rec->name;
+        else if (keyval.first == "%SIZV%") keyval.second = std::to_string(rec->sizv);
+        else if (keyval.first == "%LEN%")  keyval.second = std::to_string(rec->len);
+    }
+    std::string code = Util::replace(link, fields);
+    auto worker = [code, rec]() {
+        std::string val(rec->val);
+        return PyWrapper::exec(code, (rec->tpro == 1), val);
+    };
+    processCb(reinterpret_cast<dbCommon*>(rec), worker, needValue);
+}
+
+/**
  * @brief Templated processCb for ai and ao records prepares Python code string and invokes common processCb().
  *
  * Updates record's link and replaces following strings with corresponding field values from record:
@@ -595,6 +617,17 @@ extern "C"
         long number{5};
         DEVSUPFUN report{nullptr};
         DEVSUPFUN init{nullptr};
+        DEVSUPFUN init_record{(DEVSUPFUN)initInpRecord<lsiRecord>};
+        DEVSUPFUN get_ioint_info{(DEVSUPFUN)getIointInfo<lsiRecord>};
+        DEVSUPFUN write{(DEVSUPFUN)processInpRecord<lsiRecord>};
+    } devPyDevLsi;
+    epicsExportAddress(dset, devPyDevLsi);
+
+    struct
+    {
+        long number{5};
+        DEVSUPFUN report{nullptr};
+        DEVSUPFUN init{nullptr};
         DEVSUPFUN init_record{(DEVSUPFUN)initInpRecord<waveformRecord>};
         DEVSUPFUN get_ioint_info{(DEVSUPFUN)getIointInfo<waveformRecord>};
         DEVSUPFUN write{(DEVSUPFUN)processInpRecord<waveformRecord>};
@@ -657,6 +690,18 @@ extern "C"
         DEVSUPFUN write{(DEVSUPFUN)processOutRecord<stringoutRecord>};
     } devPyDevStringout;
     epicsExportAddress(dset, devPyDevStringout);
+
+    struct 
+    {
+        long number{5};
+        DEVSUPFUN report{nullptr};
+        DEVSUPFUN init{nullptr};
+        DEVSUPFUN init_record{(DEVSUPFUN)initOutRecord<lsoRecord>};
+        DEVSUPFUN get_ioint_info{(DEVSUPFUN)getIointInfo<lsoRecord>};
+        DEVSUPFUN write{(DEVSUPFUN)processOutRecord<lsoRecord>};
+    } devPyDevLso;
+    epicsExportAddress(dset, devPyDevLso);
+    
 
 epicsShareFunc int pydev(const char *line)
 {
