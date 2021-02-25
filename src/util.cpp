@@ -48,4 +48,38 @@ std::string replace(const std::string& text, const std::map<std::string, std::st
     return out;
 }
 
+std::string escape_control_characters(const std::string& text) {
+    std::string out = text;
+    unsigned int i = 0;
+
+    while (i < out.length()) {
+        if (iscntrl(out[i])) {
+            std::string repl;
+            switch (out[i]) {
+                case '\n':
+                    repl = "\\n";
+                    break;
+                case '\t':
+                    repl = "\\t";
+                    break;
+                case '\r':
+                    repl = "\\r";
+                    break;
+                case '\'':
+                    repl = "\\'";
+                    break;
+                case '\"':
+                    repl = "\\\"";
+                    break;
+            }
+
+            out.replace(i, 1, repl);
+            i++;
+        }
+        i++;
+    }
+
+    return out;
+}
+
 }; // namespace Util

@@ -462,7 +462,7 @@ void processCb(T* rec, const std::string& link, bool needValue)
     std::string code = Util::replace(link, fields);
     auto worker = [code, rec]() {
         std::string val(rec->val);
-        return PyWrapper::exec(code, (rec->tpro == 1), val);
+        return PyWrapper::exec(Util::escape_control_characters(code), (rec->tpro == 1), val);
     };
     processCb(reinterpret_cast<dbCommon*>(rec), worker, needValue);
 }
