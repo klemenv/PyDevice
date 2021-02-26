@@ -14,8 +14,10 @@
 #include <mbboRecord.h>
 #include <stringinRecord.h>
 #include <stringoutRecord.h>
+#ifdef HAVE_LSREC
 #include <lsoRecord.h>
 #include <lsiRecord.h>
+#endif
 #include <waveformRecord.h>
 
 #include <alarm.h>
@@ -447,6 +449,7 @@ void processCb(T* rec, const std::string& link, bool needValue)
     processCb(reinterpret_cast<dbCommon*>(rec), worker, needValue);
 }
 
+#ifdef HAVE_LSREC
 /**
  * @brief Templated processCb for lsi/lso records.
  * 
@@ -482,6 +485,7 @@ void processCb(T* rec, const std::string& link, bool needValue)
     };
     processCb(reinterpret_cast<dbCommon*>(rec), worker, needValue);
 }
+#endif // HAVE_LSREC
 
 /**
  * @brief Templated processCb for ai and ao records prepares Python code string and invokes common processCb().
@@ -628,6 +632,7 @@ extern "C"
     } devPyDevStringin;
     epicsExportAddress(dset, devPyDevStringin);
 
+#ifdef HAVE_LSREC
     struct
     {
         long number{5};
@@ -638,6 +643,7 @@ extern "C"
         DEVSUPFUN write{(DEVSUPFUN)processInpRecord<lsiRecord>};
     } devPyDevLsi;
     epicsExportAddress(dset, devPyDevLsi);
+#endif // HAVE_LSREC
 
     struct
     {
@@ -707,6 +713,7 @@ extern "C"
     } devPyDevStringout;
     epicsExportAddress(dset, devPyDevStringout);
 
+#ifdef HAVE_LSREC
     struct 
     {
         long number{5};
@@ -717,7 +724,7 @@ extern "C"
         DEVSUPFUN write{(DEVSUPFUN)processOutRecord<lsoRecord>};
     } devPyDevLso;
     epicsExportAddress(dset, devPyDevLso);
-    
+#endif // HAVE_LSREC
 
 epicsShareFunc int pydev(const char *line)
 {
