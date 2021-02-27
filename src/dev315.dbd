@@ -1,0 +1,2 @@
+device(lsi,INST_IO,devPyDevLsi,"pydev")
+device(lso,INST_IO,devPyDevLso,"pydev")

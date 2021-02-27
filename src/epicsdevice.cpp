@@ -14,6 +14,10 @@
 #include <mbboRecord.h>
 #include <stringinRecord.h>
 #include <stringoutRecord.h>
+#ifdef HAVE_LSREC
+#include <lsoRecord.h>
+#include <lsiRecord.h>
+#endif
 #include <waveformRecord.h>
 
 #include <alarm.h>
@@ -445,6 +449,44 @@ void processCb(T* rec, const std::string& link, bool needValue)
     processCb(reinterpret_cast<dbCommon*>(rec), worker, needValue);
 }
 
+#ifdef HAVE_LSREC
+/**
+ * @brief Templated processCb for lsi/lso records.
+ * 
+ * Replaces the following strings with their corresponding field values:
+ * - %VAL%
+ * - %NAME%
+ * - %SIZV%
+ * - %LEN%
+ * 
+ * Furthermore, it escapes any control characters (e.g. newlines) as those would cause syntax errors
+ * when passed to the python interpreter.
+ */
+template <typename T, typename std::enable_if<Util::is_any<T, lsiRecord, lsoRecord>::value, T>::type* = nullptr>
+void processCb(T* rec, const std::string& link, bool needValue)
+{
+    auto fields = Util::getReplacables(link);
+    for (auto& keyval: fields) {
+        if (keyval.first == "%VAL%")       keyval.second = rec->val;
+        else if (keyval.first == "%NAME%") keyval.second = rec->name;
+        else if (keyval.first == "%SIZV%") keyval.second = std::to_string(rec->sizv);
+        else if (keyval.first == "%LEN%")  keyval.second = std::to_string(rec->len);
+    }
+    std::string code = Util::replace(link, fields);
+    auto worker = [code, rec]() {
+        std::string val(rec->val);
+        if (PyWrapper::exec(code, (rec->tpro == 1), val) == false) {
+            return false;
+        }
+        strncpy(rec->val, val.c_str(), rec->sizv - 1);
+        rec->val[rec->sizv - 1] = 0;
+        rec->len = strlen(rec->val) + 1;
+        return true;
+    };
+    processCb(reinterpret_cast<dbCommon*>(rec), worker, needValue);
+}
+#endif // HAVE_LSREC
+
 /**
  * @brief Templated processCb for ai and ao records prepares Python code string and invokes common processCb().
  *
@@ -590,6 +632,19 @@ extern "C"
     } devPyDevStringin;
     epicsExportAddress(dset, devPyDevStringin);
 
+#ifdef HAVE_LSREC
+    struct
+    {
+        long number{5};
+        DEVSUPFUN report{nullptr};
+        DEVSUPFUN init{nullptr};
+        DEVSUPFUN init_record{(DEVSUPFUN)initInpRecord<lsiRecord>};
+        DEVSUPFUN get_ioint_info{(DEVSUPFUN)getIointInfo<lsiRecord>};
+        DEVSUPFUN write{(DEVSUPFUN)processInpRecord<lsiRecord>};
+    } devPyDevLsi;
+    epicsExportAddress(dset, devPyDevLsi);
+#endif // HAVE_LSREC
+
     struct
     {
         long number{5};
@@ -657,6 +712,19 @@ extern "C"
         DEVSUPFUN write{(DEVSUPFUN)processOutRecord<stringoutRecord>};
     } devPyDevStringout;
     epicsExportAddress(dset, devPyDevStringout);
+
+#ifdef HAVE_LSREC
+    struct 
+    {
+        long number{5};
+        DEVSUPFUN report{nullptr};
+        DEVSUPFUN init{nullptr};
+        DEVSUPFUN init_record{(DEVSUPFUN)initOutRecord<lsoRecord>};
+        DEVSUPFUN get_ioint_info{(DEVSUPFUN)getIointInfo<lsoRecord>};
+        DEVSUPFUN write{(DEVSUPFUN)processOutRecord<lsoRecord>};
+    } devPyDevLso;
+    epicsExportAddress(dset, devPyDevLso);
+#endif // HAVE_LSREC
 
 epicsShareFunc int pydev(const char *line)
 {

@@ -252,6 +252,11 @@ Supported field macros per record:
 * stringin & stringout
   * %VAL%
   * %NAME%
+* lsi & lso
+  * %VAL%
+  * %NAME%
+  * %SIZV%
+  * %LEN%
 * waveform
   * %VAL%
 
