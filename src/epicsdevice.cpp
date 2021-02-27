@@ -475,7 +475,7 @@ void processCb(T* rec, const std::string& link, bool needValue)
     std::string code = Util::replace(link, fields);
     auto worker = [code, rec]() {
         std::string val(rec->val);
-        if (PyWrapper::exec(Util::escape_control_characters(code), (rec->tpro == 1), val) == false) {
+        if (PyWrapper::exec(code, (rec->tpro == 1), val) == false) {
             return false;
         }
         strncpy(rec->val, val.c_str(), rec->sizv - 1);
