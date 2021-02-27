@@ -16,7 +16,7 @@ DBD += pydev.dbd
 # 3.15 and above support lsi, lso and printf records  
 ifdef BASE_3_15
   USR_CXXFLAGS += -DHAVE_LSREC
-  DBD += devLs.dbd
+  DBD += dev315.dbd
 endif
 
 pydev_SRCS += asyncexec.cpp
