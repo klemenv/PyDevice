@@ -31,7 +31,7 @@ std::string replace(const std::string& text, const std::map<std::string, std::st
     for (auto& field: fields) {
         auto pos = out.find(field.first);
         while (pos != out.npos) {
-            out.replace(pos, pos+field.first.size(), field.second);
+            out.replace(pos, field.first.size(), field.second);
             pos = out.find(field.first, pos+field.second.size());
         }
     }

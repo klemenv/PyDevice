@@ -14,6 +14,7 @@ class PyWrapper {
     private:
         template <typename T> static bool convert(void* in, T& out);
         template <typename T> static bool convert(void* in, std::vector<T>& out);
+        static std::string escapeNewLine(const std::string& text);
     public:
         using Callback = std::function<void()>;
         static bool init();

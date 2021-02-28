@@ -87,3 +87,8 @@ record(longin, "PyDev:Google:Rsp:Code") {
   field(INP,  "@pydev.iointr('code')")
   field(SCAN, "I/O Intr")
 }
+
+record(bo, "PyDev:NewLine") {
+  field(DTYP, "pydev")
+  field(OUT,  "@print('Hello\nworld!')")
+}
