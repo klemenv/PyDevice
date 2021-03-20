@@ -83,7 +83,7 @@ static void processRecordCb(lsiRecord* rec)
 
     auto fields = Util::getReplacables(rec->inp.value.instio.string);
     for (auto& keyval: fields) {
-        if (keyval.first == "%VAL%")       keyval.second = rec->val;
+        if (keyval.first == "%VAL%")       keyval.second = Util::escape(rec->val);
         else if (keyval.first == "%NAME%") keyval.second = rec->name;
         else if (keyval.first == "%SIZV%") keyval.second = std::to_string(rec->sizv);
         else if (keyval.first == "%LEN%")  keyval.second = std::to_string(rec->len);

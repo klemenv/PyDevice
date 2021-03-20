@@ -16,6 +16,7 @@ src/pydev_stringout.cpp
 src/pydev_waveform.cpp
 src/pywrapper.cpp
 src/pywrapper.h
+src/unittest/test_util.cpp
 src/util.cpp
 src/util.h
 testApp/src/O.linux-x86_64/pydevioc_registerRecordDeviceDriver.cpp

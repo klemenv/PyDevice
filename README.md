@@ -79,7 +79,7 @@ pydev("from mydevice import MyDevice")
 pydev("device1 = MyDevice('127.0.0.1')")
 ```
 
-*Hint: `pydev()` function allows to execute arbitrary Python code from IOC shell.*
+*Hint: `pydev()` function allows to execute arbitrary single-line Python code from IOC shell.*
 
 
 ### Trigger connect() from database
@@ -111,7 +111,7 @@ record(stringout, "Device1:Send")
 
 PyDevice will replace certain macros in double percent (%) sign with current record's fields right before the Python code is executed. Ie. %VAL% will be automatically replaced with string in VAL field, by default 127.0.0.1. Fields from other records can not be referenced this way.
 
-*Hint: Arbitrary Python code can be executed from any of the supported records.*
+*Hint: Arbitrary single-line Python code can be executed from any of the supported records.*
 
 ### Getting values from Python code to records
 

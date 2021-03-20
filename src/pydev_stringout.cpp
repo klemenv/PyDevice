@@ -83,7 +83,7 @@ static void processRecordCb(stringoutRecord* rec)
 
     auto fields = Util::getReplacables(rec->out.value.instio.string);
     for (auto& keyval: fields) {
-        if      (keyval.first == "%VAL%")  keyval.second = rec->val;
+        if      (keyval.first == "%VAL%")  keyval.second = Util::escape(rec->val);
         else if (keyval.first == "%NAME%") keyval.second = rec->name;
     }
     std::string code = Util::replace(rec->out.value.instio.string, fields);

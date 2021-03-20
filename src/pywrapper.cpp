@@ -17,7 +17,6 @@ static PyObject* locDict = nullptr;
 static PyThreadState* mainThread = nullptr;
 static std::map<std::string, std::pair<PyWrapper::Callback, PyObject*>> params;
 
-
 /**
  * Function for caching parameter value or notifying record of new value.
  *
@@ -344,9 +343,7 @@ void PyWrapper::exec(const std::string& line, bool debug)
 {
     PyGIL gil;
 
-    auto line_escaped = escapeNewLine(line);
-
-    PyObject* r = PyRun_String(line_escaped.c_str(), Py_file_input, globDict, locDict);
+    PyObject* r = PyRun_String(line.c_str(), Py_file_input, globDict, locDict);
     if (r == nullptr) {
         if (debug && PyErr_Occurred()) {
             PyErr_Print();
@@ -362,10 +359,8 @@ bool PyWrapper::exec(const std::string& line, bool debug, T* val)
 {
     PyGIL gil;
 
-    auto line_escaped = escapeNewLine(line);
-
     if (val != nullptr) {
-        PyObject* r = PyRun_String(line_escaped.c_str(), Py_eval_input, globDict, locDict);
+        PyObject* r = PyRun_String(line.c_str(), Py_eval_input, globDict, locDict);
         if (r != nullptr) {
             T value;
             bool converted = convert(r, value);
@@ -383,7 +378,7 @@ bool PyWrapper::exec(const std::string& line, bool debug, T* val)
     }
 
     // Either *val == nullptr or eval failed, let's try executing code instead
-    PyObject* r = PyRun_String(line_escaped.c_str(), Py_single_input, globDict, locDict);
+    PyObject* r = PyRun_String(line.c_str(), Py_single_input, globDict, locDict);
     if (r == nullptr) {
         if (PyErr_Occurred()) {
             PyErr_Print();
@@ -403,9 +398,7 @@ bool PyWrapper::exec(const std::string& line, bool debug, std::string& val)
 {
     PyGIL gil;
 
-    auto line_escaped = escapeNewLine(line);
-
-    PyObject* r = PyRun_String(line_escaped.c_str(), Py_eval_input, globDict, locDict);
+    PyObject* r = PyRun_String(line.c_str(), Py_eval_input, globDict, locDict);
     if (r != nullptr) {
         std::string value;
         bool converted = convert(r, value);
@@ -422,7 +415,7 @@ bool PyWrapper::exec(const std::string& line, bool debug, std::string& val)
     PyErr_Clear();
 
     // Still here, let's try executing code instead
-    r = PyRun_String(line_escaped.c_str(), Py_single_input, globDict, locDict);
+    r = PyRun_String(line.c_str(), Py_single_input, globDict, locDict);
     if (r == nullptr) {
         if (PyErr_Occurred()) {
             PyErr_Print();
@@ -440,9 +433,7 @@ bool PyWrapper::exec(const std::string& line, bool debug, std::vector<T>& arr)
     PyGIL gil;
     arr.clear();
 
-    auto line_escaped = escapeNewLine(line);
-
-    PyObject* r = PyRun_String(line_escaped.c_str(), Py_eval_input, globDict, locDict);
+    PyObject* r = PyRun_String(line.c_str(), Py_eval_input, globDict, locDict);
     if (r != nullptr) {
         bool converted = convert(r, arr);
         Py_DecRef(r);
@@ -457,7 +448,7 @@ bool PyWrapper::exec(const std::string& line, bool debug, std::vector<T>& arr)
     PyErr_Clear();
 
     // Still here, let's try executing code instead
-    r = PyRun_String(line_escaped.c_str(), Py_single_input, globDict, locDict);
+    r = PyRun_String(line.c_str(), Py_single_input, globDict, locDict);
     if (r == nullptr) {
         if (PyErr_Occurred()) {
             PyErr_Print();
@@ -470,12 +461,3 @@ bool PyWrapper::exec(const std::string& line, bool debug, std::vector<T>& arr)
 }
 template bool PyWrapper::exec(const std::string&, bool, std::vector<long>&);
 template bool PyWrapper::exec(const std::string&, bool, std::vector<double>&);
-
-std::string PyWrapper::escapeNewLine(const std::string &text)
-{
-    const static std::map<std::string, std::string> newlines = {
-        { "\n", "\\n" },
-        { "\r", "\\r" },
-    };
-    return Util::replace(text, newlines);
-}

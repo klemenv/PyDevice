@@ -28,15 +28,27 @@ std::string replace(const std::string& text, const std::map<std::string, std::st
 {
     std::string out = text;
 
-    for (auto& field: fields) {
-        auto pos = out.find(field.first);
-        while (pos != out.npos) {
-            out.replace(pos, field.first.size(), field.second);
-            pos = out.find(field.first, pos+field.second.size());
+    for (size_t pos = 0; pos < out.length(); pos++) {
+        for (auto& field: fields) {
+            if (out.compare(pos, field.first.length(), field.first) == 0) {
+                out.replace(pos, field.first.length(), field.second);
+                pos += field.second.length() - 1;
+                break;
+            }
         }
     }
 
     return out;
+}
+
+std::string escape(const std::string& text)
+{
+    const static std::map<std::string, std::string> escapables = {
+        { "\n", "\\n" },
+        { "\r", "\\r" },
+        { "'",  "\\'" },
+    };
+    return Util::replace(text, escapables);
 }
 
 }; // namespace Util
