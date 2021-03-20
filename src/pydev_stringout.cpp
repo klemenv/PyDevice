@@ -87,18 +87,13 @@ static void processRecordCb(stringoutRecord* rec)
         else if (keyval.first == "%NAME%") keyval.second = rec->name;
     }
     std::string code = Util::replace(rec->out.value.instio.string, fields);
-    auto worker = [code, rec]() {
-        std::string val(rec->val);
-        if (PyWrapper::exec(code, (rec->tpro == 1), val) == false) {
-            return false;
-        }
-        strncpy(rec->val, val.c_str(), sizeof(rec->val)-1);
-        rec->val[sizeof(rec->val)-1] = 0;
-        return true;
-    };
 
     try {
-        worker();
+        std::string val(rec->val);
+        if (PyWrapper::exec(code, (rec->tpro == 1), val) == true) {
+            strncpy(rec->val, val.c_str(), sizeof(rec->val)-1);
+            rec->val[sizeof(rec->val)-1] = 0;
+        }
         ctx->processCbStatus = 0;
     } catch (...) {
         recGblSetSevr(rec, epicsAlarmCalc, epicsSevInvalid);

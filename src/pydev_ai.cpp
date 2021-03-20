@@ -96,29 +96,23 @@ static void processRecordCb(aiRecord* rec)
         else if (keyval.first == "%PREC%") keyval.second = std::to_string(rec->prec);
     }
     std::string code = Util::replace(rec->inp.value.instio.string, fields);
-    auto worker = [code, rec]() {
+
+    try {
         epicsFloat64 val;
-        bool ret = PyWrapper::exec(code, (rec->tpro == 1), &val);
-        if (ret == true) {
+        if (PyWrapper::exec(code, (rec->tpro == 1), &val) == true) {
             val = (val * rec->aslo) + rec->aoff;
             if (rec->smoo == 0.0 || rec->udf)
                 rec->val = val;
             else
                 rec->val = (rec->val * rec->smoo) + (val * (1.0 - rec->smoo));
             rec->udf = 0;
-        }
-        return ret;
-    };
-
-    try {
-        if (worker() == false) {
+            ctx->processCbStatus = 0;
+        } else {
             if (rec->tpro == 1) {
-                printf("ERROR: Can't convert returned Python type to record type\n");
+                printf("ERROR: Can't convert returned Python type to double type\n");
             }
             recGblSetSevr(rec, epicsAlarmCalc, epicsSevInvalid);
             ctx->processCbStatus = -1;
-        } else {
-            ctx->processCbStatus = 0;
         }
     } catch (...) {
         recGblSetSevr(rec, epicsAlarmCalc, epicsSevInvalid);

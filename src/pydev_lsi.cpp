@@ -89,26 +89,20 @@ static void processRecordCb(lsiRecord* rec)
         else if (keyval.first == "%LEN%")  keyval.second = std::to_string(rec->len);
     }
     std::string code = Util::replace(rec->inp.value.instio.string, fields);
-    auto worker = [code, rec]() {
-        std::string val(rec->val);
-        if (PyWrapper::exec(code, (rec->tpro == 1), val) == false) {
-            return false;
-        }
-        strncpy(rec->val, val.c_str(), rec->sizv - 1);
-        rec->val[rec->sizv - 1] = 0;
-        rec->len = strlen(rec->val) + 1;
-        return true;
-    };
 
     try {
-        if (worker() == false) {
+        std::string val(rec->val);
+        if (PyWrapper::exec(code, (rec->tpro == 1), val) == true) {
+            strncpy(rec->val, val.c_str(), rec->sizv - 1);
+            rec->val[rec->sizv - 1] = 0;
+            rec->len = strlen(rec->val) + 1;
+            ctx->processCbStatus = 0;
+        } else {
             if (rec->tpro == 1) {
                 printf("ERROR: Can't convert returned Python type to record type\n");
             }
             recGblSetSevr(rec, epicsAlarmCalc, epicsSevInvalid);
             ctx->processCbStatus = -1;
-        } else {
-            ctx->processCbStatus = 0;
         }
     } catch (...) {
         recGblSetSevr(rec, epicsAlarmCalc, epicsSevInvalid);

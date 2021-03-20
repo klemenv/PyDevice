@@ -89,19 +89,14 @@ static void processRecordCb(lsoRecord* rec)
         else if (keyval.first == "%LEN%")  keyval.second = std::to_string(rec->len);
     }
     std::string code = Util::replace(rec->out.value.instio.string, fields);
-    auto worker = [code, rec]() {
-        std::string val(rec->val);
-        if (PyWrapper::exec(code, (rec->tpro == 1), val) == false) {
-            return false;
-        }
-        strncpy(rec->val, val.c_str(), rec->sizv - 1);
-        rec->val[rec->sizv - 1] = 0;
-        rec->len = strlen(rec->val) + 1;
-        return true;
-    };
 
     try {
-        worker();
+        std::string val(rec->val);
+        if (PyWrapper::exec(code, (rec->tpro == 1), val) == true) {
+            strncpy(rec->val, val.c_str(), rec->sizv - 1);
+            rec->val[rec->sizv - 1] = 0;
+            rec->len = strlen(rec->val) + 1;
+        }
         ctx->processCbStatus = 0;
     } catch (...) {
         recGblSetSevr(rec, epicsAlarmCalc, epicsSevInvalid);

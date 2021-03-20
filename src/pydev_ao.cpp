@@ -96,20 +96,15 @@ static void processRecordCb(aoRecord* rec)
         else if (keyval.first == "%PREC%") keyval.second = std::to_string(rec->prec);
     }
     std::string code = Util::replace(rec->out.value.instio.string, fields);
-    auto worker = [code, rec]() {
+
+    try {
         epicsFloat64 val;
-        bool ret = PyWrapper::exec(code, (rec->tpro == 1), &val);
-        if (ret == true) {
+        if (PyWrapper::exec(code, (rec->tpro == 1), &val) == true) {
             rec->val = val;
             if (rec->aslo != 0.0) rec->val *= rec->aslo;
             rec->val += rec->aoff;
             rec->udf = 0;
         }
-        return ret;
-    };
-
-    try {
-        worker();
         ctx->processCbStatus = 0;
     } catch (...) {
         recGblSetSevr(rec, epicsAlarmCalc, epicsSevInvalid);

@@ -120,12 +120,9 @@ static void processRecordCb(mbboRecord* rec)
         else if (keyval.first == "%FFST%") keyval.second = rec->ffst;
     }
     std::string code = Util::replace(rec->out.value.instio.string, fields);
-    auto worker = [code, rec]() {
-        return PyWrapper::exec(code, (rec->tpro == 1), &rec->rval);
-    };
 
     try {
-        worker();
+        PyWrapper::exec(code, (rec->tpro == 1), &rec->rval);
         ctx->processCbStatus = 0;
     } catch (...) {
         recGblSetSevr(rec, epicsAlarmCalc, epicsSevInvalid);

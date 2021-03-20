@@ -188,25 +188,25 @@ static void processRecordCb(waveformRecord* rec)
         }
     }
     std::string code = Util::replace(rec->inp.value.instio.string, fields);
-    auto worker = [code, rec]() {
-        if (rec->ftvl == menuFtypeFLOAT || rec->ftvl == menuFtypeDOUBLE) {
-            std::vector<double> arr;
-            return (PyWrapper::exec(code, (rec->tpro == 1), arr) && toRecArrayVal(rec, arr));
-        } else {
-            std::vector<long> arr;
-            return (PyWrapper::exec(code, (rec->tpro == 1), arr) && toRecArrayVal(rec, arr));
-        }
-    };
 
     try {
-        if (worker() == false) {
+        bool ret;
+        if (rec->ftvl == menuFtypeFLOAT || rec->ftvl == menuFtypeDOUBLE) {
+            std::vector<double> arr;
+            ret = (PyWrapper::exec(code, (rec->tpro == 1), arr) && toRecArrayVal(rec, arr));
+        } else {
+            std::vector<long> arr;
+            ret = (PyWrapper::exec(code, (rec->tpro == 1), arr) && toRecArrayVal(rec, arr));
+        }
+
+        if (ret == true) {
+            ctx->processCbStatus = 0;
+        } else {
             if (rec->tpro == 1) {
                 printf("ERROR: Can't convert returned Python type to record type\n");
             }
             recGblSetSevr(rec, epicsAlarmCalc, epicsSevInvalid);
             ctx->processCbStatus = -1;
-        } else {
-            ctx->processCbStatus = 0;
         }
     } catch (...) {
         recGblSetSevr(rec, epicsAlarmCalc, epicsSevInvalid);

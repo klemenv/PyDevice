@@ -94,12 +94,9 @@ static void processRecordCb(longoutRecord* rec)
         else if (keyval.first == "%LOLO%") keyval.second = std::to_string(rec->lolo);
     }
     std::string code = Util::replace(rec->out.value.instio.string, fields);
-    auto worker = [code, rec]() {
-        return PyWrapper::exec(code, (rec->tpro == 1), &rec->val);
-    };
 
     try {
-        worker();
+        PyWrapper::exec(code, (rec->tpro == 1), &rec->val);
         ctx->processCbStatus = 0;
     } catch (...) {
         recGblSetSevr(rec, epicsAlarmCalc, epicsSevInvalid);

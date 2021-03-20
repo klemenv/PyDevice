@@ -90,12 +90,9 @@ static void processRecordCb(boRecord* rec)
         else if (keyval.first == "%ONAM%") keyval.second = rec->onam;
     }
     std::string code = Util::replace(rec->out.value.instio.string, fields);
-    auto worker = [code, rec]() {
-        return PyWrapper::exec(code, (rec->tpro == 1), &rec->rval);
-    };
 
     try {
-        worker();
+        PyWrapper::exec(code, (rec->tpro == 1), &rec->rval);
         ctx->processCbStatus = 0;
     } catch (...) {
         recGblSetSevr(rec, epicsAlarmCalc, epicsSevInvalid);

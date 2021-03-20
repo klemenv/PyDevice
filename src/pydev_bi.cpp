@@ -90,19 +90,16 @@ static void processRecordCb(biRecord* rec)
         else if (keyval.first == "%ONAM%") keyval.second = rec->onam;
     }
     std::string code = Util::replace(rec->inp.value.instio.string, fields);
-    auto worker = [code, rec]() {
-        return PyWrapper::exec(code, (rec->tpro == 1), &rec->rval);
-    };
 
     try {
-        if (worker() == false) {
+        if (PyWrapper::exec(code, (rec->tpro == 1), &rec->rval) == true) {
+            ctx->processCbStatus = 0;
+        } else {
             if (rec->tpro == 1) {
                 printf("ERROR: Can't convert returned Python type to record type\n");
             }
             recGblSetSevr(rec, epicsAlarmCalc, epicsSevInvalid);
             ctx->processCbStatus = -1;
-        } else {
-            ctx->processCbStatus = 0;
         }
     } catch (...) {
         recGblSetSevr(rec, epicsAlarmCalc, epicsSevInvalid);
