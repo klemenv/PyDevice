@@ -477,6 +477,5 @@ std::string PyWrapper::escapeNewLine(const std::string &text)
         { "\n", "\\n" },
         { "\r", "\\r" },
     };
-    printf("escaped: %s\n", Util::replace(text, newlines).c_str());
     return Util::replace(text, newlines);
 }
