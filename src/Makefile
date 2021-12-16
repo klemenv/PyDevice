@@ -4,7 +4,6 @@ include $(TOP)/configure/CONFIG
 #----------------------------------------
 #  ADD MACRO DEFINITIONS AFTER THIS LINE
 
-USR_LDFLAGS += $(shell $(PYTHON_CONFIG) --ldflags)
 USR_CXXFLAGS += $(subst -Wstrict-prototypes,,$(shell $(PYTHON_CONFIG) --cflags))
 USR_CXXFLAGS += -std=c++11 -O2
 #CXXFLAGS += -g -ggdb -O0

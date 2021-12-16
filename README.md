@@ -288,11 +288,14 @@ Assuming all dependencies are satisfied, project should build linkable library a
 For the existing IOC to receive PyDevice support, a few things need to be added.
 
 * Edit configure/RELEASE and add PYDEVICE variable to point to PyDevice source location
-* Edit Makefile in IOC's App/src folder and add
+* Edit Makefile in IOC's App/src folder and towards the top add
 ```shell
-SYS_PROD_LIBS += $(shell python-config --ldflags | sed 's/-[^l][^ ]*//g' | sed 's/-l//g')
+include $(PYDEVICE)/configure/CONFIG.PyDevice
+```
+* In the same Makefile, add the next two lines at applicable position
+```shell
 <yourioc>_DBD += pydev.dbd
 <yourioc>_LIB += pydev
 ```
 
-Check example IOC provided with PyDevice source. After rebuilding, the IOC should have support for pydev.
+After rebuilding, the IOC should have support for pydev.
