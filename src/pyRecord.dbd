@@ -1,0 +1,126 @@
+recordtype(py) {
+        include "dbCommon.dbd"
+
+        %#define PYREC_NARGS 3
+
+        field(CTX,DBF_NOACCESS) {
+                prompt("Record Private")
+                special(SPC_NOMOD)
+                interest(4)
+                extra("struct PyRecordContext *ctx")
+        }
+
+        field(INPA,DBF_INLINK) {
+                prompt("Input Link A")
+                promptgroup("41 - Input A-G")
+                interest(1)
+        }
+        field(INPB,DBF_INLINK) {
+                prompt("Input Link B")
+                promptgroup("41 - Input A-G")
+                interest(1)
+        }
+        field(INPC,DBF_INLINK) {
+                prompt("Input Link C")
+                promptgroup("41 - Input A-G")
+                interest(1)
+        }
+
+        field(A,DBF_NOACCESS) {
+                prompt("Input value A")
+                asl(ASL0)
+                special(SPC_DBADDR)
+                interest(2)
+                extra("void *a")
+                #=read Yes
+                #=write Yes
+                #=type Set by FTA
+        }
+        field(B,DBF_NOACCESS) {
+                prompt("Input value B")
+                asl(ASL0)
+                special(SPC_DBADDR)
+                interest(2)
+                extra("void *b")
+                #=read Yes
+                #=write Yes
+                #=type Set by FTB
+        }
+        field(C,DBF_NOACCESS) {
+                prompt("Input value C")
+                asl(ASL0)
+                special(SPC_DBADDR)
+                interest(2)
+                extra("void *c")
+                #=read Yes
+                #=write Yes
+                #=type Set by FTC
+        }
+
+        field(FTA,DBF_MENU) {
+                prompt("Type of A")
+                promptgroup("41 - Input A-G")
+                special(SPC_NOMOD)
+                interest(1)
+                initial("DOUBLE")
+                menu(menuFtype)
+        }
+        field(FTB,DBF_MENU) {
+                prompt("Type of B")
+                promptgroup("41 - Input A-G")
+                special(SPC_NOMOD)
+                interest(1)
+                initial("DOUBLE")
+                menu(menuFtype)
+        }
+        field(FTC,DBF_MENU) {
+                prompt("Type of C")
+                promptgroup("41 - Input A-G")
+                special(SPC_NOMOD)
+                interest(1)
+                initial("DOUBLE")
+                menu(menuFtype)
+        }
+
+        field(NOA,DBF_ULONG) {
+                prompt("Max. elements in A")
+                promptgroup("41 - Input A-G")
+                special(SPC_NOMOD)
+                interest(1)
+                initial("1")
+        }
+        field(NOB,DBF_ULONG) {
+                prompt("Max. elements in B")
+                promptgroup("41 - Input A-G")
+                special(SPC_NOMOD)
+                interest(1)
+                initial("1")
+        }
+        field(NOC,DBF_ULONG) {
+                prompt("Max. elements in C")
+                promptgroup("41 - Input A-G")
+                special(SPC_NOMOD)
+                interest(1)
+                initial("1")
+        }
+
+        field(NEA,DBF_ULONG) {
+                prompt("Num. elements in A")
+                special(SPC_NOMOD)
+                interest(3)
+                initial("1")
+        }
+        field(NEB,DBF_ULONG) {
+                prompt("Num. elements in B")
+                special(SPC_NOMOD)
+                interest(3)
+                initial("1")
+        }
+        field(NEC,DBF_ULONG) {
+                prompt("Num. elements in C")
+                special(SPC_NOMOD)
+                interest(3)
+                initial("1")
+        }
+
+}
