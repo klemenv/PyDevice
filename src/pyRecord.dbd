@@ -9,6 +9,11 @@ recordtype(py) {
                 interest(4)
                 extra("struct PyRecordContext *ctx")
         }
+        field(EXEC,DBF_STRING) {
+                prompt("Python code to execute")
+                initial("")
+                size(255)
+        }
 
         field(INPA,DBF_INLINK) {
                 prompt("Input Link A")

@@ -18,10 +18,12 @@
 // #include "devSup.h"
 // #include "epicsTime.h"
 #include "epicsVersion.h"
-// #include "errlog.h"
+#include "errlog.h"
 // #include "menuYesNo.h"
 #include "recSup.h"
 #include "recGbl.h"
+
+#include <string>
 
 #include "asyncexec.h"
 #include "pywrapper.h"
@@ -47,6 +49,8 @@
 static long initRecord(dbCommon *, int);
 static long processRecord(dbCommon *);
 static long updateRecordField(DBADDR *addr, int after);
+static long convertDbAddr(DBADDR *addr);
+static long getArrayInfo(DBADDR *paddr, long *no_elements, long *offset);
 //static void checkLinksCallback(epicsCallback *arg);
 //static void checkLinks(pyRecord *rec);
 static long fetchValues(pyRecord *rec);
@@ -66,8 +70,8 @@ rset pyRSET = {
 //    .special = RECSUPFUN_CAST updateRecordField,
     .special = NULL,
     .get_value = NULL,
-    .cvt_dbaddr = NULL,
-    .get_array_info = NULL,
+    .cvt_dbaddr = RECSUPFUN_CAST convertDbAddr,
+    .get_array_info = RECSUPFUN_CAST getArrayInfo,
     .put_array_info = NULL,
     .get_units = NULL,
     .get_precision = NULL,
@@ -96,7 +100,7 @@ static long initRecord(dbCommon *common, int pass)
             auto val = &rec->a +  i;
             auto ne = &rec->nea + i;
 
-            if (*ft > DBF_ENUM) {
+            if (*ft >= DBF_ENUM) {
                 *ft = DBF_CHAR;
             }
             if (*no == 0) {
@@ -117,7 +121,7 @@ static long initRecord(dbCommon *common, int pass)
         auto val = &rec->a    + i;
         long no  = *(&rec->noa  + i);
 
-        dbLoadLinkArray(inp, *dbr, val, &no);
+        dbLoadLinkArray(inp, *dbr, *val, &no);
         if (no > 0) {
             auto ne = &rec->nea + i;
             *ne = no;
@@ -129,13 +133,34 @@ static long initRecord(dbCommon *common, int pass)
 
 static void processRecordCb(pyRecord* rec)
 {
-//    auto fields = Util::getReplacables(rec->out.value.instio.string);
-//    for (auto& keyval: fields) {
-//        if      (keyval.first == "%VAL%")  keyval.second = std::to_string(rec->val);
-//        else if (keyval.first == "%RVAL%") keyval.second = std::to_string(rec->rval);
-//    }
-//    std::string code = Util::replace(rec->out.value.instio.string, fields);
-    std::string code = "print('hello world pyRecord')";
+    auto fields = Util::getReplacables(rec->exec);
+    for (auto& keyval: fields) {
+        if      (keyval.first == "%NAME%") keyval.second = rec->name;
+        else {
+            for (auto i = 0; i < PYREC_NARGS; i++) {
+                std::string field = "%" + std::string(1,'A'+i) + "%";
+                if (keyval.first == field) {
+                    auto val = &rec->a + i;
+                    auto ft  = &rec->fta + i;
+                    auto no  = &rec->noa + i;
+                    if (*no == 1) {
+                        if      (*ft == DBR_CHAR)   keyval.second = std::to_string((reinterpret_cast<   epicsInt8*>(*val))[0]);
+                        else if (*ft == DBR_UCHAR)  keyval.second = std::to_string((reinterpret_cast<  epicsUInt8*>(*val))[0]);
+                        else if (*ft == DBR_SHORT)  keyval.second = std::to_string((reinterpret_cast<  epicsInt16*>(*val))[0]);
+                        else if (*ft == DBR_USHORT) keyval.second = std::to_string((reinterpret_cast< epicsUInt16*>(*val))[0]);
+                        else if (*ft == DBR_LONG)   keyval.second = std::to_string((reinterpret_cast<  epicsInt32*>(*val))[0]);
+                        else if (*ft == DBR_ULONG)  keyval.second = std::to_string((reinterpret_cast< epicsUInt32*>(*val))[0]);
+                        else if (*ft == DBR_INT64)  keyval.second = std::to_string((reinterpret_cast<  epicsInt64*>(*val))[0]);
+                        else if (*ft == DBR_UINT64) keyval.second = std::to_string((reinterpret_cast< epicsUInt64*>(*val))[0]);
+                        else if (*ft == DBR_FLOAT)  keyval.second = std::to_string((reinterpret_cast<epicsFloat32*>(*val))[0]);
+                        else if (*ft == DBR_DOUBLE) keyval.second = std::to_string((reinterpret_cast<epicsFloat64*>(*val))[0]);
+                        else if (*ft == DBR_STRING) keyval.second = ((char*)val)[0];
+                    }
+                }
+            }
+        }
+    }
+    std::string code = Util::replace(rec->exec, fields);
 
     try {
         PyWrapper::exec(code, (rec->tpro == 1));
@@ -187,11 +212,51 @@ static long fetchValues(pyRecord *rec)
         auto ne  = &rec->nea + i;
         auto val = &rec->a + i;
         long n = *no;
-        auto status = dbGetLink(inp, *fta, val, 0, &n);
-        if (status) {
-            return status;
+        if (!dbLinkIsConstant(inp)) {
+            auto status = dbGetLink(inp, *fta, *val, 0, &n);
+            if (status) {
+                return status;
+            }
         }
         *ne = n;
     }
+    return 0;
+}
+
+static long convertDbAddr(DBADDR *paddr)
+{
+    auto rec = reinterpret_cast<pyRecord *>(paddr->precord);
+    int field = dbGetFieldIndex(paddr);
+
+    if (field >= pyRecordA && field < (pyRecordA + PYREC_NARGS)) {
+        int offset = field - pyRecordA;
+
+        paddr->pfield      = *(&rec->a   + offset);
+        paddr->no_elements = *(&rec->noa + offset);
+        paddr->field_type  = *(&rec->fta + offset);
+    } else {
+        errlogPrintf("pyRecord::convertDbAddr called for %s.%s\n", rec->name, paddr->pfldDes->name);
+        return 0;
+    }
+    paddr->dbr_field_type = paddr->field_type;
+    paddr->field_size     = dbValueSize(paddr->field_type);
+    return 0;
+}
+
+static long getArrayInfo(DBADDR *paddr, long *no_elements, long *offset)
+{
+    auto rec = reinterpret_cast<pyRecord *>(paddr->precord);
+    int field = dbGetFieldIndex(paddr);
+
+    if (field >= pyRecordA && field < (pyRecordA + PYREC_NARGS)) {
+        int off = field - pyRecordA;
+        *no_elements = *(&rec->nea + off);
+    } else if (field == pyRecordVAL) {
+        *no_elements = (rec->ftvl == DBR_STRING ? 127 : 1);
+    } else {
+        errlogPrintf("pyRecord::getArrayInfo called for %s.%s\n", rec->name, paddr->pfldDes->name);
+    }
+    *offset = 0;
+
     return 0;
 }
