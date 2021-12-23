@@ -2,6 +2,7 @@ recordtype(py) {
         include "dbCommon.dbd"
 
         %#define PYREC_NARGS 3
+        %#define PYREC_RETSTRMAXLEN 1024
 
         field(CTX,DBF_NOACCESS) {
                 prompt("Record Private")
@@ -13,6 +14,23 @@ recordtype(py) {
                 prompt("Python code to execute")
                 initial("")
                 size(255)
+        }
+        field(VAL,DBF_NOACCESS) {
+                prompt("Result of Python code")
+                asl(ASL0)
+                special(SPC_DBADDR)
+                interest(2)
+                extra("void *val")
+                #=read Yes
+                #=write Yes
+                #=type Set by FTVL
+        }
+        field(FTVL,DBF_MENU) {
+                prompt("Type of VAL")
+                special(SPC_NOMOD)
+                interest(1)
+                initial("DOUBLE")
+                menu(menuFtype)
         }
 
         field(INPA,DBF_INLINK) {

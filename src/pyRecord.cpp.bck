@@ -12,7 +12,7 @@
 #include "alarm.h"
 // #include "alarmString.h"
 #include "callback.h"
-#include "cantProceed.h"
+// #include "cantProceed.h"
 #include "dbAccess.h"
 // #include "dbEvent.h"
 // #include "devSup.h"
@@ -24,7 +24,6 @@
 #include "recGbl.h"
 
 #include <string>
-#include <cstring>
 
 #include "asyncexec.h"
 #include "pywrapper.h"
@@ -58,6 +57,7 @@ static long fetchValues(pyRecord *rec);
 
 struct PyRecordContext {
     CALLBACK callback;
+    IOSCANPVT scan;
     int processCbStatus;
 };
 
@@ -117,12 +117,8 @@ static long initRecord(dbCommon *common, int pass)
             rec->ftvl = DBF_CHAR;
         }
         auto size = dbValueSize(rec->ftvl);
-        if (rec->ftvl == DBF_STRING) {
-            rec->val = callocMustSucceed(PYREC_RETSTRMAXLEN, size, "pyRecord::initRecord");
-            reinterpret_cast<char*>(rec->val)[0] = 0;
-        } else {
-            rec->val = callocMustSucceed(1, size, "pyRecord::initRecord");
-        }
+        long n = (rec->ftvl == DBF_STRING ? 127 : 1);
+        rec->val = callocMustSucceed(n, size, "pyRecord::initRecord");
         return 0;
     }
 
@@ -166,7 +162,7 @@ static void processRecordCb(pyRecord* rec)
                         else if (*ft == DBR_UINT64) keyval.second = std::to_string((reinterpret_cast< epicsUInt64*>(*val))[0]);
                         else if (*ft == DBR_FLOAT)  keyval.second = std::to_string((reinterpret_cast<epicsFloat32*>(*val))[0]);
                         else if (*ft == DBR_DOUBLE) keyval.second = std::to_string((reinterpret_cast<epicsFloat64*>(*val))[0]);
-                        else if (*ft == DBR_STRING) keyval.second = reinterpret_cast<char*>(val)[0];
+                        else if (*ft == DBR_STRING) keyval.second = ((char*)val)[0];
                     }
                 }
             }
@@ -175,24 +171,17 @@ static void processRecordCb(pyRecord* rec)
     std::string code = Util::replace(rec->exec, fields);
 
     try {
-        bool ret = false;
-        if      (rec->ftvl == DBR_CHAR)   ret = PyWrapper::exec(code, (rec->tpro == 1), reinterpret_cast<   epicsInt8*>(rec->val));
-        else if (rec->ftvl == DBR_UCHAR)  ret = PyWrapper::exec(code, (rec->tpro == 1), reinterpret_cast<  epicsUInt8*>(rec->val));
-        else if (rec->ftvl == DBR_SHORT)  ret = PyWrapper::exec(code, (rec->tpro == 1), reinterpret_cast<  epicsInt16*>(rec->val));
-        else if (rec->ftvl == DBR_USHORT) ret = PyWrapper::exec(code, (rec->tpro == 1), reinterpret_cast< epicsUInt16*>(rec->val));
-        else if (rec->ftvl == DBR_LONG)   ret = PyWrapper::exec(code, (rec->tpro == 1), reinterpret_cast<  epicsInt32*>(rec->val));
-        else if (rec->ftvl == DBR_ULONG)  ret = PyWrapper::exec(code, (rec->tpro == 1), reinterpret_cast< epicsUInt32*>(rec->val));
-        else if (rec->ftvl == DBR_INT64)  ret = PyWrapper::exec(code, (rec->tpro == 1), reinterpret_cast<  epicsInt64*>(rec->val));
-        else if (rec->ftvl == DBR_UINT64) ret = PyWrapper::exec(code, (rec->tpro == 1), reinterpret_cast< epicsUInt64*>(rec->val));
-        else if (rec->ftvl == DBR_FLOAT)  ret = PyWrapper::exec(code, (rec->tpro == 1), reinterpret_cast<epicsFloat32*>(rec->val));
-        else if (rec->ftvl == DBR_DOUBLE) ret = PyWrapper::exec(code, (rec->tpro == 1), reinterpret_cast<epicsFloat64*>(rec->val));
-        else if (rec->ftvl == DBR_STRING) {
+        if (rec->ftvl == DBR_STRING) {
             std::string ret;
             PyWrapper::exec(code, (rec->tpro == 1), ret);
-            strncpy(reinterpret_cast<char*>(rec->val), ret.c_str(), PYREC_RETSTRMAXLEN);
-            reinterpret_cast<char*>(rec->val)[PYREC_RETSTRMAXLEN-1] = 0;
+        } else if (rec->ftvl == DBR_DOUBLE || rec->ftvl == DBR_FLOAT) {
+            double *ret = reinterpret_cast<double *>(rec->val);
+            PyWrapper::exec(code, (rec->tpro == 1), ret);
+        } else {
+            int32_t *ret = reinterpret_cast<int32_t *>(rec->val);
+            PyWrapper::exec(code, (rec->tpro == 1), ret);
         }
-        rec->ctx->processCbStatus = (ret ? 0 : -1);
+        rec->ctx->processCbStatus = 0;
     } catch (...) {
         rec->ctx->processCbStatus = -1;
     }
@@ -223,11 +212,11 @@ static long processRecord(dbCommon *common)
         return -1;
     }
 
+    auto monitor_mask = recGblResetAlarms(rec);
+    monitor_mask |= DBE_VALUE;
+    db_post_events(rec, &rec->val, monitor_mask);
+
     recGblGetTimeStamp(rec);
-
-    auto monitor_mask = recGblResetAlarms(rec) | DBE_VALUE | DBE_LOG;
-    db_post_events(rec, rec->val, monitor_mask);
-
     recGblFwdLink(rec);
     rec->pact = 0;
 
@@ -267,7 +256,7 @@ static long convertDbAddr(DBADDR *paddr)
         paddr->field_type  = *(&rec->fta + offset);
     } else if (field == pyRecordVAL) {
         paddr->pfield = rec->val;
-        paddr->no_elements = (rec->ftvl == DBR_STRING ? strlen(reinterpret_cast<char*>(rec->val))+1 : 1);
+        paddr->no_elements = (rec->ftvl == DBR_STRING ? 127 : 1);
         paddr->field_type = rec->ftvl;
     } else {
         errlogPrintf("pyRecord::convertDbAddr called for %s.%s\n", rec->name, paddr->pfldDes->name);
@@ -287,11 +276,12 @@ static long getArrayInfo(DBADDR *paddr, long *no_elements, long *offset)
         int off = field - pyRecordA;
         *no_elements = *(&rec->nea + off);
     } else if (field == pyRecordVAL) {
-        *no_elements = (rec->ftvl == DBR_STRING ? strlen(reinterpret_cast<char*>(rec->val))+1 : 1);
+        *no_elements = (rec->ftvl == DBR_STRING ? 127 : 1);
     } else {
         errlogPrintf("pyRecord::getArrayInfo called for %s.%s\n", rec->name, paddr->pfldDes->name);
     }
     *offset = 0;
+fprintf(stderr, "no_elements=%d, offset=%d\n", *no_elements, *offset);
 
     return 0;
 }

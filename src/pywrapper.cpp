@@ -219,10 +219,6 @@ bool PyWrapper::convert(void* in_, T& out)
     }
     return false;
 }
-template bool PyWrapper::convert(void* in_, int32_t& out);
-template bool PyWrapper::convert(void* in_, uint16_t& out);
-template bool PyWrapper::convert(void* in_, uint32_t& out);
-template bool PyWrapper::convert(void* in_, double& out);
 
 template <>
 bool PyWrapper::convert(void* in_, std::string& out)
@@ -389,10 +385,21 @@ bool PyWrapper::exec(const std::string& line, bool debug, T* val)
     Py_DecRef(r);
     return false;
 }
-template bool PyWrapper::exec(const std::string&, bool, int32_t*);
+template bool PyWrapper::exec(const std::string&, bool, char*);
+template bool PyWrapper::exec(const std::string&, bool, int8_t*);
+template bool PyWrapper::exec(const std::string&, bool, uint8_t*);
+template bool PyWrapper::exec(const std::string&, bool, int16_t*);
 template bool PyWrapper::exec(const std::string&, bool, uint16_t*);
-template bool PyWrapper::exec(const std::string&, bool, unsigned int*);
+template bool PyWrapper::exec(const std::string&, bool, int32_t*);
+template bool PyWrapper::exec(const std::string&, bool, uint32_t*);
+template bool PyWrapper::exec(const std::string&, bool, int64_t*);
+template bool PyWrapper::exec(const std::string&, bool, uint64_t*);
+template bool PyWrapper::exec(const std::string&, bool, float*);
 template bool PyWrapper::exec(const std::string&, bool, double*);
+// These are needed on 64-bit GNU system that defines int64_t as long instead of long long
+// Unfortunately this makes the code here not very portable.
+template bool PyWrapper::exec(const std::string&, bool, long long*);
+template bool PyWrapper::exec(const std::string&, bool, unsigned long long*);
 
 bool PyWrapper::exec(const std::string& line, bool debug, std::string& val)
 {
