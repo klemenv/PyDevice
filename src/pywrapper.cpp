@@ -363,7 +363,9 @@ bool PyWrapper::exec(const std::string& line, bool debug, T* val)
             Py_DecRef(r);
 
             if (!converted) {
-                PyErr_Print();
+                if (debug) {
+                    PyErr_Print();
+                }
                 PyErr_Clear();
                 return false;
             }
@@ -376,7 +378,7 @@ bool PyWrapper::exec(const std::string& line, bool debug, T* val)
     // Either *val == nullptr or eval failed, let's try executing code instead
     PyObject* r = PyRun_String(line.c_str(), Py_single_input, globDict, locDict);
     if (r == nullptr) {
-        if (PyErr_Occurred()) {
+        if (debug && PyErr_Occurred()) {
             PyErr_Print();
         }
         PyErr_Clear();
@@ -412,7 +414,9 @@ bool PyWrapper::exec(const std::string& line, bool debug, std::string& val)
         Py_DecRef(r);
 
         if (!converted) {
-            PyErr_Print();
+            if (debug) {
+                PyErr_Print();
+            }
             PyErr_Clear();
             return false;
         }
@@ -424,7 +428,7 @@ bool PyWrapper::exec(const std::string& line, bool debug, std::string& val)
     // Still here, let's try executing code instead
     r = PyRun_String(line.c_str(), Py_single_input, globDict, locDict);
     if (r == nullptr) {
-        if (PyErr_Occurred()) {
+        if (debug && PyErr_Occurred()) {
             PyErr_Print();
         }
         PyErr_Clear();
@@ -446,7 +450,9 @@ bool PyWrapper::exec(const std::string& line, bool debug, std::vector<T>& arr)
         Py_DecRef(r);
 
         if (!converted) {
-            PyErr_Print();
+            if (debug) {
+                PyErr_Print();
+            }
             PyErr_Clear();
             return false;
         }
@@ -457,7 +463,7 @@ bool PyWrapper::exec(const std::string& line, bool debug, std::vector<T>& arr)
     // Still here, let's try executing code instead
     r = PyRun_String(line.c_str(), Py_single_input, globDict, locDict);
     if (r == nullptr) {
-        if (PyErr_Occurred()) {
+        if (debug && PyErr_Occurred()) {
             PyErr_Print();
         }
         PyErr_Clear();

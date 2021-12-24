@@ -208,7 +208,7 @@ static long processRecord(dbCommon *common)
         if (fetchValues(rec) != 0) {
             recGblSetSevr(rec, epicsAlarmCalc, epicsSevInvalid);
             rec->pact = 0;
-            return -1;
+            return S_dev_badInpType;
         }
 
         auto scheduled = AsyncExec::schedule([rec]() {
@@ -219,13 +219,16 @@ static long processRecord(dbCommon *common)
 
     if (rec->ctx->processCbStatus == -1) {
         recGblSetSevr(rec, epicsAlarmCalc, epicsSevInvalid);
-        rec->pact = 0;
-        return -1;
     }
 
     recGblGetTimeStamp(rec);
 
-    auto monitor_mask = recGblResetAlarms(rec) | DBE_VALUE | DBE_LOG;
+    auto monitor_mask = recGblResetAlarms(rec);
+    if (rec->ctx->processCbStatus == -1) {
+        monitor_mask |= DBE_ALARM;
+    } else {
+        monitor_mask |= DBE_VALUE | DBE_LOG;
+    }
     db_post_events(rec, rec->val, monitor_mask);
 
     recGblFwdLink(rec);
