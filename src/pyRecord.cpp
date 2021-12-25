@@ -129,9 +129,12 @@ static long initRecord(dbCommon *common, int pass)
     // Initialize input links
     for (int i = 0; i < PYREC_NARGS; i++) {
         auto inp = &rec->inpa + i;
+        auto ft  = &rec->fta  + i;
         auto dbr = &rec->fta  + i;
         auto val = &rec->a    + i;
         long no  = *(&rec->noa  + i);
+
+        recGblInitConstantLink(inp, *ft, *val);
 
         dbLoadLinkArray(inp, *dbr, *val, &no);
         if (no > 0) {
@@ -166,7 +169,8 @@ static void processRecordCb(pyRecord* rec)
                         else if (*ft == DBR_UINT64) keyval.second = std::to_string((reinterpret_cast< epicsUInt64*>(*val))[0]);
                         else if (*ft == DBR_FLOAT)  keyval.second = std::to_string((reinterpret_cast<epicsFloat32*>(*val))[0]);
                         else if (*ft == DBR_DOUBLE) keyval.second = std::to_string((reinterpret_cast<epicsFloat64*>(*val))[0]);
-                        else if (*ft == DBR_STRING) keyval.second = reinterpret_cast<char*>(val)[0];
+                    } else {
+                        if (*ft == DBR_STRING) keyval.second = std::string(reinterpret_cast<const char*>(*val));
                     }
                 }
             }
@@ -241,13 +245,13 @@ static long fetchValues(pyRecord *rec)
 {
     for (auto i = 0; i < PYREC_NARGS; i++) {
         auto inp = &rec->inpa + i;
-        auto fta = &rec->fta  + i;
+        auto ft  = &rec->fta  + i;
         auto no  = &rec->noa + i;
         auto ne  = &rec->nea + i;
         auto val = &rec->a + i;
         long n = *no;
         if (!dbLinkIsConstant(inp)) {
-            auto status = dbGetLink(inp, *fta, *val, 0, &n);
+            auto status = dbGetLink(inp, *ft, *val, 0, &n);
             if (status) {
                 return status;
             }
@@ -264,9 +268,11 @@ static long convertDbAddr(DBADDR *paddr)
 
     if (field >= pyRecordA && field < (pyRecordA + PYREC_NARGS)) {
         int offset = field - pyRecordA;
+        auto ft  = &rec->fta  + offset;
+        auto val = &rec->a + offset;
 
         paddr->pfield      = *(&rec->a   + offset);
-        paddr->no_elements = *(&rec->noa + offset);
+        paddr->no_elements = (*ft == DBR_STRING ? strlen(reinterpret_cast<char*>(*val))+1 : 1);
         paddr->field_type  = *(&rec->fta + offset);
     } else if (field == pyRecordVAL) {
         paddr->pfield = rec->val;
@@ -288,7 +294,9 @@ static long getArrayInfo(DBADDR *paddr, long *no_elements, long *offset)
 
     if (field >= pyRecordA && field < (pyRecordA + PYREC_NARGS)) {
         int off = field - pyRecordA;
-        *no_elements = *(&rec->nea + off);
+        auto ft  = &rec->fta  + off;
+        auto val = &rec->a + off;
+        *no_elements = (*ft == DBR_STRING ? strlen(reinterpret_cast<char*>(*val))+1 : 1);
     } else if (field == pyRecordVAL) {
         *no_elements = (rec->ftvl == DBR_STRING ? strlen(reinterpret_cast<char*>(rec->val))+1 : 1);
     } else {

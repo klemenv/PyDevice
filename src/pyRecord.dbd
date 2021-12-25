@@ -50,7 +50,7 @@ recordtype(py) {
         }
 
         field(A,DBF_NOACCESS) {
-                prompt("Input value A")
+                prompt("Value A")
                 asl(ASL0)
                 special(SPC_DBADDR)
                 interest(2)
@@ -60,7 +60,7 @@ recordtype(py) {
                 #=type Set by FTA
         }
         field(B,DBF_NOACCESS) {
-                prompt("Input value B")
+                prompt("Value B")
                 asl(ASL0)
                 special(SPC_DBADDR)
                 interest(2)
@@ -70,7 +70,7 @@ recordtype(py) {
                 #=type Set by FTB
         }
         field(C,DBF_NOACCESS) {
-                prompt("Input value C")
+                prompt("Value C")
                 asl(ASL0)
                 special(SPC_DBADDR)
                 interest(2)
