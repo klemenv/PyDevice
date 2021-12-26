@@ -1,13 +1,12 @@
 # PyRecord
 
-PyRecord is a custom record that allows passing up to 10 parameters to
+PyRecord is a custom record that allows passing multiple parameters to
 Python code and returning result of executed code as record value.
 Most common use case is to invoke Python function and using it's return
 value. But any Python expression can be evaluated the same way, including
 numerical expressions. While PyDevice itself provides similar functionality
-through EPICS built-in records, it only allows to pass a single parameter
-to Python code at a time. PyRecord extends that functionality and allows
-multiple parameters.
+through EPICS built-in records, the EPICS built-in records only allow to
+pass a single parameter to Python code at a time.
 
 ## Parameter fields
 
@@ -22,55 +21,35 @@ according to [Channel Access Links](https://wiki-ext.aps.anl.gov/epics/index.php
 
 ### Input fields
 INPx fields are used to pass parameters to Python code to be executed.
-They can be constant values specified at boot time or changed
-during the runtime. Alternatively the fields can be links to other
-records including external PVs. INPx values are obtained every time 
-this record processes.
+The fields can be database links, channel access links or constants.
+If they're links, they must specify another record's field. If they're
+constants, they will be initialized with the value they are configured
+with and can be changed vid dbPuts.
 
 Each INPx field has a corresponding FTx field that specifies the type
-of the field. This is needed to convert parameters to Python types
-before executing Python code. Supported types include:
-* CHAR
-* UCHAR
-* SHORT
-* USHORT
-* LONG
-* ULONG
-* INT64
-* UINT64
-* FLOAT
-* DOUBLE
-* ~~STRING~~
+of the field. Only scalar type are supported as of now: CHAR, UCHAR,
+SHORT, USHOR, LONG, ULONG, INT64, UINT64, FLOAT, DOUBLE, STRING.
+Setting a corresponding FTx field is required for constant
+values, but optional for links as they automatically determine the
+scalar type from the connected link.
 
 ### Output fields
-The result of executed Python code is put to VAL field every time
+The result of executed Python code is pushed to VAL field every time
 record processes. Record should specify the returned value type in
 FTVL field and should match the return type from the executed Python
 code. For example, result of `17+3` is a long integer and the FTVL
-should specify LONG.
-
-Supported types include:
-* CHAR
-* UCHAR
-* SHORT
-* USHORT
-* LONG
-* ULONG
-* INT64
-* UINT64
-* FLOAT
-* DOUBLE
-* STRING
+should specify LONG. Supported types include: CHAR, UCHAR, SHORT,
+USHORT, LONG, ULONG, INT64, UINT64, FLOAT, DOUBLE, STRING.
 
 ### Python expression
 The purpose of this record is to be able to execute arbitrary Python code
 by passing multiple parameters from EPICS PVs. The actual code to be executed
-is specified in EXEC field. The field is evaluated every time the record
+is specified in CALC field. The field is evaluated every time the record
 processes, and so it can be changed at runtime. 
 
 When record processes, it first obtains latest values for the the INPx fields.
 Input parameters can be specified as %A%, %B%, etc. Input paramaters values
-are then replaced in the EXEC string and the string is then executed through
+are then replaced in the CALC string and the string is then executed through
 Python interpreter. The result (expression, function return value, etc.) is
 transfered to VAL field and the monitor is posted. In case Python code can
 not be executed or throws an exception, the record alarm is set to
@@ -84,7 +63,7 @@ epicsAlarmCalc and severity is epicsSevInvalid.
 record(py, "PyRecTest:MathExp") {
     field(INPA, "17")
     field(INPB, "3")
-    field(EXEC, "%A%*%B%")
+    field(CALC, "%A%*%B%")
 }
 ```
 
@@ -100,7 +79,7 @@ record(py, "PyRecTest:FloatExp") {
     field(INPB, "Test:Input2 CP")
     field(FTA,  "FLOAT")
     field(FTB,  "FLOAT")
-    field(EXEC, "pow(max([%A%, %B%]), 2)")
+    field(CALC, "pow(max([%A%, %B%]), 2)")
     field(FTVL, "LONG")
 }
 ```
@@ -114,10 +93,10 @@ return value.
 ### Mixing parameter types and automatic casting
 
 ```
-record(py, "Test:CastToStr") {
+record(py, "PyRecTest:CastToStr") {
     field(INPA, "Test:Input1")
     field(FTA,  "FLOAT")
-    field(EXEC, "'invalid value' if %A% < 0 else %A%")
+    field(CALC, "'invalid value' if %A% < 0 else %A%")
     field(FTVL, "STRING")
 }
 ```
@@ -130,8 +109,8 @@ the parameter is converted to string because of FTVL field.
 ### Trigger record alarm
 
 ```
-record(py, "Test:InvalidAlarm") {
-    field(EXEC, "unknown_function()")
+record(py, "PyRecTest:InvalidAlarm") {
+    field(CALC, "unknown_function()")
     field(FTVL, "STRING")
 }
 ```

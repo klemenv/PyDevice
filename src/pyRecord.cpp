@@ -49,11 +49,9 @@
 
 static long initRecord(dbCommon *, int);
 static long processRecord(dbCommon *);
-static long updateRecordField(DBADDR *addr, int after);
+//static long updateRecordField(DBADDR *addr, int after);
 static long convertDbAddr(DBADDR *addr);
 static long getArrayInfo(DBADDR *paddr, long *no_elements, long *offset);
-//static void checkLinksCallback(epicsCallback *arg);
-//static void checkLinks(pyRecord *rec);
 static long fetchValues(pyRecord *rec);
 
 struct PyRecordContext {
@@ -95,21 +93,16 @@ static long initRecord(dbCommon *common, int pass)
 
         // Allocate value fields
         for (int i = 0; i < PYREC_NARGS; i++) {
-            auto ft = &rec->fta + i;
-            auto no = &rec->noa + i;
-            auto val = &rec->a +  i;
-            auto ne = &rec->nea + i;
+            auto ft  = &rec->fta  + i;
+            auto val = &rec->a    + i;
+            auto siz = &rec->siza + i;
 
             if (*ft >= DBF_ENUM) {
                 *ft = DBF_CHAR;
             }
-            if (*no == 0) {
-                *no = 1;
-            }
 
-            auto size = dbValueSize(*ft);
-            *val = callocMustSucceed(*no, size, "pyRecord::initRecord");
-            *ne = *no;
+            *siz = dbValueSize(*ft);
+            *val = callocMustSucceed(1, *siz, "pyRecord::initRecord");
         }
 
         // Allocate output VAL field
@@ -118,7 +111,7 @@ static long initRecord(dbCommon *common, int pass)
         }
         auto size = dbValueSize(rec->ftvl);
         if (rec->ftvl == DBF_STRING) {
-            rec->val = callocMustSucceed(PYREC_RETSTRMAXLEN, size, "pyRecord::initRecord");
+            rec->val = callocMustSucceed(1, size, "pyRecord::initRecord");
             reinterpret_cast<char*>(rec->val)[0] = 0;
         } else {
             rec->val = callocMustSucceed(1, size, "pyRecord::initRecord");
@@ -130,16 +123,11 @@ static long initRecord(dbCommon *common, int pass)
     for (int i = 0; i < PYREC_NARGS; i++) {
         auto inp = &rec->inpa + i;
         auto ft  = &rec->fta  + i;
-        auto dbr = &rec->fta  + i;
         auto val = &rec->a    + i;
-        long no  = *(&rec->noa  + i);
 
-        recGblInitConstantLink(inp, *ft, *val);
-
-        dbLoadLinkArray(inp, *dbr, *val, &no);
-        if (no > 0) {
-            auto ne = &rec->nea + i;
-            *ne = no;
+        // Only initialize constants, we fetch link values every time the record processes
+        if (dbLinkIsConstant(inp)) {
+            recGblInitConstantLink(inp, *ft, *val);
         }
     }
 
@@ -148,7 +136,7 @@ static long initRecord(dbCommon *common, int pass)
 
 static void processRecordCb(pyRecord* rec)
 {
-    auto fields = Util::getReplacables(rec->exec);
+    auto fields = Util::getReplacables(rec->calc);
     for (auto& keyval: fields) {
         if      (keyval.first == "%NAME%") keyval.second = rec->name;
         else {
@@ -157,26 +145,23 @@ static void processRecordCb(pyRecord* rec)
                 if (keyval.first == field) {
                     auto val = &rec->a + i;
                     auto ft  = &rec->fta + i;
-                    auto no  = &rec->noa + i;
-                    if (*no == 1) {
-                        if      (*ft == DBR_CHAR)   keyval.second = std::to_string((reinterpret_cast<   epicsInt8*>(*val))[0]);
-                        else if (*ft == DBR_UCHAR)  keyval.second = std::to_string((reinterpret_cast<  epicsUInt8*>(*val))[0]);
-                        else if (*ft == DBR_SHORT)  keyval.second = std::to_string((reinterpret_cast<  epicsInt16*>(*val))[0]);
-                        else if (*ft == DBR_USHORT) keyval.second = std::to_string((reinterpret_cast< epicsUInt16*>(*val))[0]);
-                        else if (*ft == DBR_LONG)   keyval.second = std::to_string((reinterpret_cast<  epicsInt32*>(*val))[0]);
-                        else if (*ft == DBR_ULONG)  keyval.second = std::to_string((reinterpret_cast< epicsUInt32*>(*val))[0]);
-                        else if (*ft == DBR_INT64)  keyval.second = std::to_string((reinterpret_cast<  epicsInt64*>(*val))[0]);
-                        else if (*ft == DBR_UINT64) keyval.second = std::to_string((reinterpret_cast< epicsUInt64*>(*val))[0]);
-                        else if (*ft == DBR_FLOAT)  keyval.second = std::to_string((reinterpret_cast<epicsFloat32*>(*val))[0]);
-                        else if (*ft == DBR_DOUBLE) keyval.second = std::to_string((reinterpret_cast<epicsFloat64*>(*val))[0]);
-                    } else {
-                        if (*ft == DBR_STRING) keyval.second = std::string(reinterpret_cast<const char*>(*val));
-                    }
+
+                    if      (*ft == DBR_CHAR)   keyval.second = std::to_string(*reinterpret_cast<   epicsInt8*>(*val));
+                    else if (*ft == DBR_UCHAR)  keyval.second = std::to_string(*reinterpret_cast<  epicsUInt8*>(*val));
+                    else if (*ft == DBR_SHORT)  keyval.second = std::to_string(*reinterpret_cast<  epicsInt16*>(*val));
+                    else if (*ft == DBR_USHORT) keyval.second = std::to_string(*reinterpret_cast< epicsUInt16*>(*val));
+                    else if (*ft == DBR_LONG)   keyval.second = std::to_string(*reinterpret_cast<  epicsInt32*>(*val));
+                    else if (*ft == DBR_ULONG)  keyval.second = std::to_string(*reinterpret_cast< epicsUInt32*>(*val));
+                    else if (*ft == DBR_INT64)  keyval.second = std::to_string(*reinterpret_cast<  epicsInt64*>(*val));
+                    else if (*ft == DBR_UINT64) keyval.second = std::to_string(*reinterpret_cast< epicsUInt64*>(*val));
+                    else if (*ft == DBR_FLOAT)  keyval.second = std::to_string(*reinterpret_cast<epicsFloat32*>(*val));
+                    else if (*ft == DBR_DOUBLE) keyval.second = std::to_string(*reinterpret_cast<epicsFloat64*>(*val));
+                    else if (*ft == DBR_STRING) keyval.second = std::string(reinterpret_cast<const char*>(*val));
                 }
             }
         }
     }
-    std::string code = Util::replace(rec->exec, fields);
+    std::string code = Util::replace(rec->calc, fields);
 
     try {
         bool ret = false;
@@ -193,8 +178,8 @@ static void processRecordCb(pyRecord* rec)
         else if (rec->ftvl == DBR_STRING) {
             std::string ret;
             PyWrapper::exec(code, (rec->tpro == 1), ret);
-            strncpy(reinterpret_cast<char*>(rec->val), ret.c_str(), PYREC_RETSTRMAXLEN);
-            reinterpret_cast<char*>(rec->val)[PYREC_RETSTRMAXLEN-1] = 0;
+            strncpy(reinterpret_cast<char*>(rec->val), ret.c_str(), dbValueSize(DBR_STRING));
+            reinterpret_cast<char*>(rec->val)[dbValueSize(DBR_STRING)-1] = 0;
         }
         rec->ctx->processCbStatus = (ret ? 0 : -1);
     } catch (...) {
@@ -246,17 +231,24 @@ static long fetchValues(pyRecord *rec)
     for (auto i = 0; i < PYREC_NARGS; i++) {
         auto inp = &rec->inpa + i;
         auto ft  = &rec->fta  + i;
-        auto no  = &rec->noa + i;
-        auto ne  = &rec->nea + i;
-        auto val = &rec->a + i;
-        long n = *no;
-        if (!dbLinkIsConstant(inp)) {
-            auto status = dbGetLink(inp, *ft, *val, 0, &n);
-            if (status) {
-                return status;
+        auto val = &rec->a    + i;
+        auto siz = &rec->siza + i;
+
+        if (!dbLinkIsConstant(inp) && dbIsLinkConnected(inp)) {
+            long nElements;
+            auto ftype = dbGetLinkDBFtype(inp);
+            auto ret = dbGetNelements(inp, &nElements);
+            if (ftype >= 0 && ret == 0 && nElements == 1) {
+                if (*siz < dbValueSize(ftype)) {
+                    free(*val);
+                    *siz = dbValueSize(ftype);
+                    *val = callocMustSucceed(1, *siz, "pyRecord::initRecord");
+                }
+                *ft = ftype;
+
+                dbGetLink(inp, *ft, *val, 0, &nElements);
             }
         }
-        *ne = n;
     }
     return 0;
 }

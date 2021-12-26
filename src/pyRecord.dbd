@@ -2,7 +2,6 @@ recordtype(py) {
         include "dbCommon.dbd"
 
         %#define PYREC_NARGS 3
-        %#define PYREC_RETSTRMAXLEN 1024
 
         field(CTX,DBF_NOACCESS) {
                 prompt("Record Private")
@@ -10,7 +9,7 @@ recordtype(py) {
                 interest(4)
                 extra("struct PyRecordContext *ctx")
         }
-        field(EXEC,DBF_STRING) {
+        field(CALC,DBF_STRING) {
                 prompt("Python code to execute")
                 initial("")
                 size(255)
@@ -104,46 +103,20 @@ recordtype(py) {
                 initial("DOUBLE")
                 menu(menuFtype)
         }
-
-        field(NOA,DBF_ULONG) {
-                prompt("Max. elements in A")
-                promptgroup("41 - Input A-G")
+        field(SIZA,DBF_ULONG) {
+                prompt("Size of buffer for A")
                 special(SPC_NOMOD)
-                interest(1)
-                initial("1")
+                interest(6)
         }
-        field(NOB,DBF_ULONG) {
-                prompt("Max. elements in B")
-                promptgroup("41 - Input A-G")
+        field(SIZB,DBF_ULONG) {
+                prompt("Size of buffer for B")
                 special(SPC_NOMOD)
-                interest(1)
-                initial("1")
+                interest(6)
         }
-        field(NOC,DBF_ULONG) {
-                prompt("Max. elements in C")
-                promptgroup("41 - Input A-G")
+        field(SIZC,DBF_ULONG) {
+                prompt("Size of buffer for C")
                 special(SPC_NOMOD)
-                interest(1)
-                initial("1")
-        }
-
-        field(NEA,DBF_ULONG) {
-                prompt("Num. elements in A")
-                special(SPC_NOMOD)
-                interest(3)
-                initial("1")
-        }
-        field(NEB,DBF_ULONG) {
-                prompt("Num. elements in B")
-                special(SPC_NOMOD)
-                interest(3)
-                initial("1")
-        }
-        field(NEC,DBF_ULONG) {
-                prompt("Num. elements in C")
-                special(SPC_NOMOD)
-                interest(3)
-                initial("1")
+                interest(6)
         }
 
 }

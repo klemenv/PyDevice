@@ -339,6 +339,10 @@ void PyWrapper::exec(const std::string& line, bool debug)
 {
     PyGIL gil;
 
+    if (debug) {
+        printf("Executing Python code: %s\n", line.c_str());
+    }
+
     PyObject* r = PyRun_String(line.c_str(), Py_file_input, globDict, locDict);
     if (r == nullptr) {
         if (debug && PyErr_Occurred()) {
@@ -354,6 +358,10 @@ template <typename T>
 bool PyWrapper::exec(const std::string& line, bool debug, T* val)
 {
     PyGIL gil;
+
+    if (debug) {
+        printf("Executing Python code: %s\n", line.c_str());
+    }
 
     if (val != nullptr) {
         PyObject* r = PyRun_String(line.c_str(), Py_eval_input, globDict, locDict);
@@ -407,6 +415,10 @@ bool PyWrapper::exec(const std::string& line, bool debug, std::string& val)
 {
     PyGIL gil;
 
+    if (debug) {
+        printf("Executing Python code: %s\n", line.c_str());
+    }
+
     PyObject* r = PyRun_String(line.c_str(), Py_eval_input, globDict, locDict);
     if (r != nullptr) {
         std::string value;
@@ -443,6 +455,10 @@ bool PyWrapper::exec(const std::string& line, bool debug, std::vector<T>& arr)
 {
     PyGIL gil;
     arr.clear();
+
+    if (debug) {
+        printf("Executing Python code: %s\n", line.c_str());
+    }
 
     PyObject* r = PyRun_String(line.c_str(), Py_eval_input, globDict, locDict);
     if (r != nullptr) {
