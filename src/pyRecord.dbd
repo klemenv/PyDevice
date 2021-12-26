@@ -1,7 +1,7 @@
 recordtype(py) {
         include "dbCommon.dbd"
 
-        %#define PYREC_NARGS 3
+        %#define PYREC_NARGS 10
 
         field(CTX,DBF_NOACCESS) {
                 prompt("Record Private")
@@ -13,6 +13,7 @@ recordtype(py) {
                 prompt("Python code to execute")
                 initial("")
                 size(255)
+                pp(TRUE)
         }
         field(VAL,DBF_NOACCESS) {
                 prompt("Result of Python code")
@@ -34,17 +35,52 @@ recordtype(py) {
 
         field(INPA,DBF_INLINK) {
                 prompt("Input Link A")
-                promptgroup("41 - Input A-G")
+                promptgroup("41 - Input A-J")
                 interest(1)
         }
         field(INPB,DBF_INLINK) {
                 prompt("Input Link B")
-                promptgroup("41 - Input A-G")
+                promptgroup("41 - Input A-J")
                 interest(1)
         }
         field(INPC,DBF_INLINK) {
                 prompt("Input Link C")
-                promptgroup("41 - Input A-G")
+                promptgroup("41 - Input A-J")
+                interest(1)
+        }
+        field(INPD,DBF_INLINK) {
+                prompt("Input Link D")
+                promptgroup("41 - Input A-J")
+                interest(1)
+        }
+        field(INPE,DBF_INLINK) {
+                prompt("Input Link E")
+                promptgroup("41 - Input A-J")
+                interest(1)
+        }
+        field(INPF,DBF_INLINK) {
+                prompt("Input Link F")
+                promptgroup("41 - Input A-J")
+                interest(1)
+        }
+        field(INPG,DBF_INLINK) {
+                prompt("Input Link G")
+                promptgroup("41 - Input A-J")
+                interest(1)
+        }
+        field(INPH,DBF_INLINK) {
+                prompt("Input Link H")
+                promptgroup("41 - Input A-J")
+                interest(1)
+        }
+        field(INPI,DBF_INLINK) {
+                prompt("Input Link I")
+                promptgroup("41 - Input A-J")
+                interest(1)
+        }
+        field(INPJ,DBF_INLINK) {
+                prompt("Input Link J")
+                promptgroup("41 - Input A-J")
                 interest(1)
         }
 
@@ -52,8 +88,8 @@ recordtype(py) {
                 prompt("Value A")
                 asl(ASL0)
                 special(SPC_DBADDR)
-                interest(2)
                 extra("void *a")
+                pp(TRUE)
                 #=read Yes
                 #=write Yes
                 #=type Set by FTA
@@ -62,8 +98,8 @@ recordtype(py) {
                 prompt("Value B")
                 asl(ASL0)
                 special(SPC_DBADDR)
-                interest(2)
                 extra("void *b")
+                pp(TRUE)
                 #=read Yes
                 #=write Yes
                 #=type Set by FTB
@@ -72,51 +108,213 @@ recordtype(py) {
                 prompt("Value C")
                 asl(ASL0)
                 special(SPC_DBADDR)
-                interest(2)
                 extra("void *c")
+                pp(TRUE)
+                #=read Yes
+                #=write Yes
+                #=type Set by FTC
+        }
+        field(D,DBF_NOACCESS) {
+                prompt("Value D")
+                asl(ASL0)
+                special(SPC_DBADDR)
+                extra("void *d")
+                pp(TRUE)
+                #=read Yes
+                #=write Yes
+                #=type Set by FTC
+        }
+        field(E,DBF_NOACCESS) {
+                prompt("Value E")
+                asl(ASL0)
+                special(SPC_DBADDR)
+                extra("void *e")
+                pp(TRUE)
+                #=read Yes
+                #=write Yes
+                #=type Set by FTC
+        }
+        field(F,DBF_NOACCESS) {
+                prompt("Value F")
+                asl(ASL0)
+                special(SPC_DBADDR)
+                extra("void *f")
+                pp(TRUE)
+                #=read Yes
+                #=write Yes
+                #=type Set by FTC
+        }
+        field(G,DBF_NOACCESS) {
+                prompt("Value G")
+                asl(ASL0)
+                special(SPC_DBADDR)
+                extra("void *g")
+                pp(TRUE)
+                #=read Yes
+                #=write Yes
+                #=type Set by FTC
+        }
+        field(H,DBF_NOACCESS) {
+                prompt("Value H")
+                asl(ASL0)
+                special(SPC_DBADDR)
+                extra("void *h")
+                pp(TRUE)
+                #=read Yes
+                #=write Yes
+                #=type Set by FTC
+        }
+        field(I,DBF_NOACCESS) {
+                prompt("Value I")
+                asl(ASL0)
+                special(SPC_DBADDR)
+                extra("void *i")
+                pp(TRUE)
+                #=read Yes
+                #=write Yes
+                #=type Set by FTC
+        }
+        field(J,DBF_NOACCESS) {
+                prompt("Value J")
+                asl(ASL0)
+                special(SPC_DBADDR)
+                extra("void *j")
+                pp(TRUE)
                 #=read Yes
                 #=write Yes
                 #=type Set by FTC
         }
 
         field(FTA,DBF_MENU) {
-                prompt("Type of A")
-                promptgroup("41 - Input A-G")
+                prompt("Type of value A")
+                promptgroup("41 - Input A-J")
                 special(SPC_NOMOD)
                 interest(1)
-                initial("DOUBLE")
+                initial("LONG")
                 menu(menuFtype)
         }
         field(FTB,DBF_MENU) {
-                prompt("Type of B")
-                promptgroup("41 - Input A-G")
+                prompt("Type of value B")
+                promptgroup("41 - Input A-J")
                 special(SPC_NOMOD)
                 interest(1)
-                initial("DOUBLE")
+                initial("LONG")
                 menu(menuFtype)
         }
         field(FTC,DBF_MENU) {
-                prompt("Type of C")
-                promptgroup("41 - Input A-G")
+                prompt("Type of value C")
+                promptgroup("41 - Input A-J")
                 special(SPC_NOMOD)
                 interest(1)
-                initial("DOUBLE")
+                initial("LONG")
                 menu(menuFtype)
         }
-        field(SIZA,DBF_ULONG) {
-                prompt("Size of buffer for A")
+        field(FTD,DBF_MENU) {
+                prompt("Type of value D")
+                promptgroup("41 - Input A-J")
                 special(SPC_NOMOD)
-                interest(6)
+                interest(1)
+                initial("LONG")
+                menu(menuFtype)
+        }
+        field(FTE,DBF_MENU) {
+                prompt("Type of value E")
+                promptgroup("41 - Input A-J")
+                special(SPC_NOMOD)
+                interest(1)
+                initial("LONG")
+                menu(menuFtype)
+        }
+        field(FTF,DBF_MENU) {
+                prompt("Type of value F")
+                promptgroup("41 - Input A-J")
+                special(SPC_NOMOD)
+                interest(1)
+                initial("LONG")
+                menu(menuFtype)
+        }
+        field(FTG,DBF_MENU) {
+                prompt("Type of value G")
+                promptgroup("41 - Input A-J")
+                special(SPC_NOMOD)
+                interest(1)
+                initial("LONG")
+                menu(menuFtype)
+        }
+        field(FTH,DBF_MENU) {
+                prompt("Type of value H")
+                promptgroup("41 - Input A-J")
+                special(SPC_NOMOD)
+                interest(1)
+                initial("LONG")
+                menu(menuFtype)
+        }
+        field(FTI,DBF_MENU) {
+                prompt("Type of value I")
+                promptgroup("41 - Input A-J")
+                special(SPC_NOMOD)
+                interest(1)
+                initial("LONG")
+                menu(menuFtype)
+        }
+        field(FTJ,DBF_MENU) {
+                prompt("Type of value J")
+                promptgroup("41 - Input A-J")
+                special(SPC_NOMOD)
+                interest(1)
+                initial("LONG")
+                menu(menuFtype)
+        }
+
+        field(SIZA,DBF_ULONG) {
+                prompt("Size of buffer for value A")
+                special(SPC_NOMOD)
+                interest(2)
         }
         field(SIZB,DBF_ULONG) {
-                prompt("Size of buffer for B")
+                prompt("Size of buffer for value B")
                 special(SPC_NOMOD)
-                interest(6)
+                interest(2)
         }
         field(SIZC,DBF_ULONG) {
-                prompt("Size of buffer for C")
+                prompt("Size of buffer for value C")
                 special(SPC_NOMOD)
-                interest(6)
+                interest(2)
+        }
+        field(SIZD,DBF_ULONG) {
+                prompt("Size of buffer for value D")
+                special(SPC_NOMOD)
+                interest(2)
+        }
+        field(SIZE,DBF_ULONG) {
+                prompt("Size of buffer for value E")
+                special(SPC_NOMOD)
+                interest(2)
+        }
+        field(SIZF,DBF_ULONG) {
+                prompt("Size of buffer for value F")
+                special(SPC_NOMOD)
+                interest(2)
+        }
+        field(SIZG,DBF_ULONG) {
+                prompt("Size of buffer for value G")
+                special(SPC_NOMOD)
+                interest(2)
+        }
+        field(SIZH,DBF_ULONG) {
+                prompt("Size of buffer for value H")
+                special(SPC_NOMOD)
+                interest(2)
+        }
+        field(SIZI,DBF_ULONG) {
+                prompt("Size of buffer for value I")
+                special(SPC_NOMOD)
+                interest(2)
+        }
+        field(SIZJ,DBF_ULONG) {
+                prompt("Size of buffer for value J")
+                special(SPC_NOMOD)
+                interest(2)
         }
 
 }
