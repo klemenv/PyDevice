@@ -105,17 +105,9 @@ static long initRecord(dbCommon *common, int pass)
             *val = callocMustSucceed(1, *siz, "pyRecord::initRecord");
         }
 
-        // Allocate output VAL field
-        if (rec->ftvl >= DBF_ENUM) {
-            rec->ftvl = DBF_CHAR;
-        }
-        auto size = dbValueSize(rec->ftvl);
-        if (rec->ftvl == DBF_STRING) {
-            rec->val = callocMustSucceed(1, size, "pyRecord::initRecord");
-            reinterpret_cast<char*>(rec->val)[0] = 0;
-        } else {
-            rec->val = callocMustSucceed(1, size, "pyRecord::initRecord");
-        }
+        // Allocate output VAL field for longest possible value
+        rec->val = callocMustSucceed(1, dbValueSize(DBR_STRING), "pyRecord::initRecord");
+        reinterpret_cast<char*>(rec->val)[0] = 0;
         return 0;
     }
 
@@ -164,24 +156,31 @@ static void processRecordCb(pyRecord* rec)
     std::string code = Util::replace(rec->calc, fields);
 
     try {
-        bool ret = false;
-        if      (rec->ftvl == DBR_CHAR)   ret = PyWrapper::exec(code, (rec->tpro == 1), reinterpret_cast<   epicsInt8*>(rec->val));
-        else if (rec->ftvl == DBR_UCHAR)  ret = PyWrapper::exec(code, (rec->tpro == 1), reinterpret_cast<  epicsUInt8*>(rec->val));
-        else if (rec->ftvl == DBR_SHORT)  ret = PyWrapper::exec(code, (rec->tpro == 1), reinterpret_cast<  epicsInt16*>(rec->val));
-        else if (rec->ftvl == DBR_USHORT) ret = PyWrapper::exec(code, (rec->tpro == 1), reinterpret_cast< epicsUInt16*>(rec->val));
-        else if (rec->ftvl == DBR_LONG)   ret = PyWrapper::exec(code, (rec->tpro == 1), reinterpret_cast<  epicsInt32*>(rec->val));
-        else if (rec->ftvl == DBR_ULONG)  ret = PyWrapper::exec(code, (rec->tpro == 1), reinterpret_cast< epicsUInt32*>(rec->val));
-        else if (rec->ftvl == DBR_INT64)  ret = PyWrapper::exec(code, (rec->tpro == 1), reinterpret_cast<  epicsInt64*>(rec->val));
-        else if (rec->ftvl == DBR_UINT64) ret = PyWrapper::exec(code, (rec->tpro == 1), reinterpret_cast< epicsUInt64*>(rec->val));
-        else if (rec->ftvl == DBR_FLOAT)  ret = PyWrapper::exec(code, (rec->tpro == 1), reinterpret_cast<epicsFloat32*>(rec->val));
-        else if (rec->ftvl == DBR_DOUBLE) ret = PyWrapper::exec(code, (rec->tpro == 1), reinterpret_cast<epicsFloat64*>(rec->val));
-        else if (rec->ftvl == DBR_STRING) {
-            std::string ret;
-            PyWrapper::exec(code, (rec->tpro == 1), ret);
-            strncpy(reinterpret_cast<char*>(rec->val), ret.c_str(), dbValueSize(DBR_STRING));
+        auto out = PyWrapper::exec(code, (rec->tpro == 1));
+        switch (out.type) {
+        case PyWrapper::MultiTypeValue::Type::BOOL:
+            rec->ftvl = DBR_LONG;
+            *reinterpret_cast<epicsInt32*>(rec->val) = out.b;
+            break;
+        case PyWrapper::MultiTypeValue::Type::INTEGER:
+            rec->ftvl = DBR_LONG;
+            *reinterpret_cast<epicsInt32*>(rec->val) = out.i;
+            break;
+        case PyWrapper::MultiTypeValue::Type::FLOAT:
+            rec->ftvl = DBR_DOUBLE;
+            *reinterpret_cast<epicsFloat64*>(rec->val) = out.f;
+            break;
+        case PyWrapper::MultiTypeValue::Type::STRING:
+            rec->ftvl = DBR_STRING;
+            strncpy(reinterpret_cast<char*>(rec->val), out.s.c_str(), dbValueSize(DBR_STRING));
             reinterpret_cast<char*>(rec->val)[dbValueSize(DBR_STRING)-1] = 0;
+            break;
+        default:
+            rec->ftvl = DBR_STRING;
+            reinterpret_cast<char*>(rec->val)[0] = 0;
+            break;
         }
-        rec->ctx->processCbStatus = (ret ? 0 : -1);
+        rec->ctx->processCbStatus = 0;
     } catch (...) {
         rec->ctx->processCbStatus = -1;
     }
@@ -264,11 +263,11 @@ static long convertDbAddr(DBADDR *paddr)
         auto val = &rec->a + offset;
 
         paddr->pfield      = *(&rec->a   + offset);
-        paddr->no_elements = (*ft == DBR_STRING ? strlen(reinterpret_cast<char*>(*val))+1 : 1);
+        paddr->no_elements = 1;
         paddr->field_type  = *(&rec->fta + offset);
     } else if (field == pyRecordVAL) {
         paddr->pfield = rec->val;
-        paddr->no_elements = (rec->ftvl == DBR_STRING ? strlen(reinterpret_cast<char*>(rec->val))+1 : 1);
+        paddr->no_elements = 1;
         paddr->field_type = rec->ftvl;
     } else {
         errlogPrintf("pyRecord::convertDbAddr called for %s.%s\n", rec->name, paddr->pfldDes->name);
@@ -288,9 +287,9 @@ static long getArrayInfo(DBADDR *paddr, long *no_elements, long *offset)
         int off = field - pyRecordA;
         auto ft  = &rec->fta  + off;
         auto val = &rec->a + off;
-        *no_elements = (*ft == DBR_STRING ? strlen(reinterpret_cast<char*>(*val))+1 : 1);
+        *no_elements = 1;
     } else if (field == pyRecordVAL) {
-        *no_elements = (rec->ftvl == DBR_STRING ? strlen(reinterpret_cast<char*>(rec->val))+1 : 1);
+        *no_elements = 1;
     } else {
         errlogPrintf("pyRecord::getArrayInfo called for %s.%s\n", rec->name, paddr->pfldDes->name);
     }

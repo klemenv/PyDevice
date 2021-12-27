@@ -178,50 +178,7 @@ struct PyGIL {
     }
 };
 
-template <typename T>
-bool PyWrapper::convert(void* in_, T& out)
-{
-    PyObject* in = reinterpret_cast<PyObject*>(in_);
-
-
-#if PY_MAJOR_VERSION < 3
-    if (PyInt_Check(in)) {
-        long o = PyInt_AsLong(in);
-        if (o == -1 && PyErr_Occurred()) {
-            PyErr_Clear();
-            return false;
-        }
-        out = o;
-        return true;
-    }
-#endif
-    if (PyLong_Check(in)) {
-        long o = PyLong_AsLong(in);
-        if (o == -1 && PyErr_Occurred()) {
-            PyErr_Clear();
-            return false;
-        }
-        out = o;
-        return true;
-    }
-    if (PyBool_Check(in)) {
-        out = (PyObject_IsTrue(in) ? 1 : 0);
-        return true;
-    }
-    if (PyFloat_Check(in)) {
-        double o = PyFloat_AsDouble(in);
-        if (o == -1.0 && PyErr_Occurred()) {
-            PyErr_Clear();
-            return false;
-        }
-        out = o;
-        return true;
-    }
-    return false;
-}
-
-template <>
-bool PyWrapper::convert(void* in_, std::string& out)
+bool PyWrapper::convert(void* in_, MultiTypeValue& out)
 {
     PyObject* in = reinterpret_cast<PyObject*>(in_);
 
@@ -232,7 +189,8 @@ bool PyWrapper::convert(void* in_, std::string& out)
             PyErr_Clear();
             return false;
         }
-        out = o;
+        out.s = o;
+        out.type = MultiTypeValue::Type::STRING;
         return true;
     }
 #endif
@@ -248,7 +206,8 @@ bool PyWrapper::convert(void* in_, std::string& out)
             PyErr_Clear();
             return false;
         }
-        out = o;
+        out.s = o;
+        out.type = MultiTypeValue::Type::STRING;
         Py_XDECREF(tmp);
         return true;
     }
@@ -259,7 +218,8 @@ bool PyWrapper::convert(void* in_, std::string& out)
             PyErr_Clear();
             return false;
         }
-        out = std::to_string(o);
+        out.i = o;
+        out.type = MultiTypeValue::Type::INTEGER;
         return true;
     }
 #endif
@@ -269,11 +229,13 @@ bool PyWrapper::convert(void* in_, std::string& out)
             PyErr_Clear();
             return false;
         }
-        out = std::to_string(o);
+        out.i = o;
+        out.type = MultiTypeValue::Type::INTEGER;
         return true;
     }
     if (PyBool_Check(in)) {
-        out = (PyObject_IsTrue(in) ? "true" : "false");
+        out.b = PyObject_IsTrue(in);
+        out.type = MultiTypeValue::Type::BOOL;
         return true;
     }
     if (PyFloat_Check(in)) {
@@ -282,118 +244,81 @@ bool PyWrapper::convert(void* in_, std::string& out)
             PyErr_Clear();
             return false;
         }
-        out = std::to_string(o);
+        out.f = o;
+        out.type = MultiTypeValue::Type::FLOAT;
         return true;
     }
-    return false;
-}
 
-template <typename T>
-bool PyWrapper::convert(void* in_, std::vector<T>& out)
-{
-    PyObject* in = reinterpret_cast<PyObject*>(in_);
-    if (!PyList_Check(in)) {
-        return false;
-    }
+    if (PyList_Check(in)) {
+        out.type = MultiTypeValue::Type::NONE;
+        out.vi.clear();
+        out.vf.clear();
 
-    out.clear();
-    for (Py_ssize_t i = 0; i < PyList_Size(in); i++) {
-        PyObject* el = PyList_GetItem(in, i);
+        for (Py_ssize_t i = 0; i < PyList_Size(in); i++) {
+            PyObject* el = PyList_GetItem(in, i);
 #if PY_MAJOR_VERSION < 3
-        if (PyInt_Check(el)) {
-            T elval = PyInt_AsLong(el);
-            if (elval == -1.0 && PyErr_Occurred()) {
-                PyErr_Clear();
-                return false;
+            if (PyInt_Check(el) && (out.type == MultiTypeValue::Type::NONE || out.type == MultiTypeValue::Type::VECTOR_INTEGER)) {
+                long val = PyInt_AsLong(el);
+                if (val == 1 && PyErr_Occurred()) {
+                    PyErr_Clear();
+                    return false;
+                }
+                out.vi.push_back(val);
+                out.type = MultiTypeValue::Type::VECTOR_INTEGER;
             }
-            out.push_back(elval);
-        }
 #endif
-        if (PyLong_Check(el)) {
-            T elval = PyLong_AsLong(el);
-            if (elval == -1.0 && PyErr_Occurred()) {
-                PyErr_Clear();
-                return false;
+            if (PyLong_Check(el) && (out.type == MultiTypeValue::Type::NONE || out.type == MultiTypeValue::Type::VECTOR_INTEGER)) {
+                long val = PyLong_AsLong(el);
+                if (val == -1 && PyErr_Occurred()) {
+                    PyErr_Clear();
+                    return false;
+                }
+                out.vi.push_back(val);
+                out.type = MultiTypeValue::Type::VECTOR_INTEGER;
             }
-            out.push_back(elval);
-        }
-        if (PyBool_Check(el)) {
-            T elval = (PyObject_IsTrue(el) ? 1 : 0);
-            out.push_back(elval);
-        }
-        if (PyFloat_Check(el)) {
-            T elval = PyFloat_AsDouble(el);
-            if (elval == -1.0 && PyErr_Occurred()) {
-                PyErr_Clear();
-                return false;
+            if (PyBool_Check(el) && (out.type == MultiTypeValue::Type::NONE || out.type == MultiTypeValue::Type::VECTOR_INTEGER)) {
+                long val = (PyObject_IsTrue(el) ? 1 : 0);
+                out.vi.push_back(val);
+                out.type = MultiTypeValue::Type::VECTOR_INTEGER;
             }
-            out.push_back(elval);
+            if (PyFloat_Check(el) && (out.type == MultiTypeValue::Type::NONE || out.type == MultiTypeValue::Type::VECTOR_FLOAT)) {
+                double val = PyFloat_AsDouble(el);
+                if (val == -1.0 && PyErr_Occurred()) {
+                    PyErr_Clear();
+                    return false;
+                }
+                out.vf.push_back(val);
+                out.type = MultiTypeValue::Type::VECTOR_FLOAT;
+            }
         }
-    }
-    return true;
-}
-template bool PyWrapper::convert(void* in_, std::vector<long>& out);
-template bool PyWrapper::convert(void* in_, std::vector<double>& out);
 
-void PyWrapper::exec(const std::string& line, bool debug)
-{
-    PyGIL gil;
-
-    if (debug) {
-        printf("Executing Python code: %s\n", line.c_str());
-    }
-
-    PyObject* r = PyRun_String(line.c_str(), Py_file_input, globDict, locDict);
-    if (r == nullptr) {
-        if (debug && PyErr_Occurred()) {
-            PyErr_Print();
+        if (out.type == MultiTypeValue::Type::NONE) {
+            out.type = MultiTypeValue::Type::VECTOR_INTEGER;
         }
-        PyErr_Clear();
-        throw std::runtime_error("Failed to execute Python code");
+        return true;
     }
-    Py_DecRef(r);
+
+    // We don't support this type
+    return false;
 }
 
 template <typename T>
 bool PyWrapper::exec(const std::string& line, bool debug, T* val)
 {
-    PyGIL gil;
-
-    if (debug) {
-        printf("Executing Python code: %s\n", line.c_str());
+    auto out = exec(line, debug);
+    switch (out.type) {
+    case MultiTypeValue::Type::INTEGER:
+        *val = out.i;
+        return true;
+    case MultiTypeValue::Type::FLOAT:
+        *val = out.f;
+        return true;
+    case MultiTypeValue::Type::BOOL:
+        *val = out.b;
+        return true;
+    default:
+        return false;
     }
-
-    if (val != nullptr) {
-        PyObject* r = PyRun_String(line.c_str(), Py_eval_input, globDict, locDict);
-        if (r != nullptr) {
-            T value;
-            bool converted = convert(r, value);
-            Py_DecRef(r);
-
-            if (!converted) {
-                if (debug) {
-                    PyErr_Print();
-                }
-                PyErr_Clear();
-                return false;
-            }
-            *val = value;
-            return true;
-        }
-        PyErr_Clear();
-    }
-
-    // Either *val == nullptr or eval failed, let's try executing code instead
-    PyObject* r = PyRun_String(line.c_str(), Py_single_input, globDict, locDict);
-    if (r == nullptr) {
-        if (debug && PyErr_Occurred()) {
-            PyErr_Print();
-        }
-        PyErr_Clear();
-        throw std::runtime_error("Failed to execute Python code");
-    }
-    Py_DecRef(r);
-    return false;
 }
 template bool PyWrapper::exec(const std::string&, bool, char*);
 template bool PyWrapper::exec(const std::string&, bool, int8_t*);
@@ -413,56 +338,65 @@ template bool PyWrapper::exec(const std::string&, bool, unsigned long long*);
 
 bool PyWrapper::exec(const std::string& line, bool debug, std::string& val)
 {
-    PyGIL gil;
-
-    if (debug) {
-        printf("Executing Python code: %s\n", line.c_str());
-    }
-
-    PyObject* r = PyRun_String(line.c_str(), Py_eval_input, globDict, locDict);
-    if (r != nullptr) {
-        std::string value;
-        bool converted = convert(r, value);
-        Py_DecRef(r);
-
-        if (!converted) {
-            if (debug) {
-                PyErr_Print();
-            }
-            PyErr_Clear();
-            return false;
-        }
-        val = value;
+    auto out = exec(line, debug);
+    switch (out.type) {
+    case MultiTypeValue::Type::STRING:
+        val = out.s;
         return true;
+    case MultiTypeValue::Type::INTEGER:
+        val = std::to_string(out.i);
+        return true;
+    case MultiTypeValue::Type::FLOAT:
+        val = std::to_string(out.f);
+        return true;
+    case MultiTypeValue::Type::BOOL:
+        val = std::to_string(out.b);
+        return true;
+    default:
+        return false;
     }
-    PyErr_Clear();
-
-    // Still here, let's try executing code instead
-    r = PyRun_String(line.c_str(), Py_single_input, globDict, locDict);
-    if (r == nullptr) {
-        if (debug && PyErr_Occurred()) {
-            PyErr_Print();
-        }
-        PyErr_Clear();
-        throw std::runtime_error("Failed to execute Python code");
-    }
-    Py_DecRef(r);
-    return false;
 }
 
-template <typename T>
-bool PyWrapper::exec(const std::string& line, bool debug, std::vector<T>& arr)
+template <>
+bool PyWrapper::exec(const std::string& line, bool debug, std::vector<double>& arr)
 {
+    auto out = exec(line, debug);
+    if (out.type == MultiTypeValue::Type::VECTOR_FLOAT) {
+        arr = out.vf;
+        return true;
+    } else if (out.type == MultiTypeValue::Type::VECTOR_INTEGER) {
+        arr = std::vector<double>(out.vi.begin(), out.vi.end());
+        return true;
+    }
+    return false;
+}
+template <>
+bool PyWrapper::exec(const std::string& line, bool debug, std::vector<long>& arr)
+{
+    auto out = exec(line, debug);
+    if (out.type == MultiTypeValue::Type::VECTOR_INTEGER) {
+        arr = out.vi;
+        return true;
+    } else if (out.type == MultiTypeValue::Type::VECTOR_FLOAT) {
+        arr = std::vector<long>(out.vf.begin(), out.vf.end());
+        return true;
+    }
+    return false;
+}
+
+PyWrapper::MultiTypeValue PyWrapper::exec(const std::string& line, bool debug)
+{
+    MultiTypeValue val;
     PyGIL gil;
-    arr.clear();
 
     if (debug) {
         printf("Executing Python code: %s\n", line.c_str());
     }
 
+    // Evaluating Python produces a return value
     PyObject* r = PyRun_String(line.c_str(), Py_eval_input, globDict, locDict);
     if (r != nullptr) {
-        bool converted = convert(r, arr);
+        bool converted = convert(r, val);
         Py_DecRef(r);
 
         if (!converted) {
@@ -470,13 +404,12 @@ bool PyWrapper::exec(const std::string& line, bool debug, std::vector<T>& arr)
                 PyErr_Print();
             }
             PyErr_Clear();
-            return false;
         }
-        return true;
+        return val;
     }
     PyErr_Clear();
 
-    // Still here, let's try executing code instead
+    // Still here, let's try executing code instead, no return value
     r = PyRun_String(line.c_str(), Py_single_input, globDict, locDict);
     if (r == nullptr) {
         if (debug && PyErr_Occurred()) {
@@ -486,7 +419,6 @@ bool PyWrapper::exec(const std::string& line, bool debug, std::vector<T>& arr)
         throw std::runtime_error("Failed to execute Python code");
     }
     Py_DecRef(r);
-    return false;
+    val.type = MultiTypeValue::Type::NONE;
+    return val;
 }
-template bool PyWrapper::exec(const std::string&, bool, std::vector<long>&);
-template bool PyWrapper::exec(const std::string&, bool, std::vector<double>&);

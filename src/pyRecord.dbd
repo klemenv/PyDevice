@@ -190,7 +190,7 @@ recordtype(py) {
                 promptgroup("41 - Input A-J")
                 special(SPC_NOMOD)
                 interest(1)
-                initial("LONG")
+                initial("DOUBLE")
                 menu(menuFtype)
         }
         field(FTB,DBF_MENU) {
@@ -198,7 +198,7 @@ recordtype(py) {
                 promptgroup("41 - Input A-J")
                 special(SPC_NOMOD)
                 interest(1)
-                initial("LONG")
+                initial("DOUBLE")
                 menu(menuFtype)
         }
         field(FTC,DBF_MENU) {
@@ -206,7 +206,7 @@ recordtype(py) {
                 promptgroup("41 - Input A-J")
                 special(SPC_NOMOD)
                 interest(1)
-                initial("LONG")
+                initial("DOUBLE")
                 menu(menuFtype)
         }
         field(FTD,DBF_MENU) {
@@ -214,7 +214,7 @@ recordtype(py) {
                 promptgroup("41 - Input A-J")
                 special(SPC_NOMOD)
                 interest(1)
-                initial("LONG")
+                initial("DOUBLE")
                 menu(menuFtype)
         }
         field(FTE,DBF_MENU) {
@@ -222,7 +222,7 @@ recordtype(py) {
                 promptgroup("41 - Input A-J")
                 special(SPC_NOMOD)
                 interest(1)
-                initial("LONG")
+                initial("DOUBLE")
                 menu(menuFtype)
         }
         field(FTF,DBF_MENU) {
@@ -230,7 +230,7 @@ recordtype(py) {
                 promptgroup("41 - Input A-J")
                 special(SPC_NOMOD)
                 interest(1)
-                initial("LONG")
+                initial("DOUBLE")
                 menu(menuFtype)
         }
         field(FTG,DBF_MENU) {
@@ -238,7 +238,7 @@ recordtype(py) {
                 promptgroup("41 - Input A-J")
                 special(SPC_NOMOD)
                 interest(1)
-                initial("LONG")
+                initial("DOUBLE")
                 menu(menuFtype)
         }
         field(FTH,DBF_MENU) {
@@ -246,7 +246,7 @@ recordtype(py) {
                 promptgroup("41 - Input A-J")
                 special(SPC_NOMOD)
                 interest(1)
-                initial("LONG")
+                initial("DOUBLE")
                 menu(menuFtype)
         }
         field(FTI,DBF_MENU) {
@@ -254,7 +254,7 @@ recordtype(py) {
                 promptgroup("41 - Input A-J")
                 special(SPC_NOMOD)
                 interest(1)
-                initial("LONG")
+                initial("DOUBLE")
                 menu(menuFtype)
         }
         field(FTJ,DBF_MENU) {
@@ -262,7 +262,7 @@ recordtype(py) {
                 promptgroup("41 - Input A-J")
                 special(SPC_NOMOD)
                 interest(1)
-                initial("LONG")
+                initial("DOUBLE")
                 menu(menuFtype)
         }
 
