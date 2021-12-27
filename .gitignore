@@ -7,3 +7,4 @@ lib/
 db/
 dbd/
 *.pyc
+include/pyRecord.h
