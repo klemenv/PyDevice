@@ -35,52 +35,42 @@ recordtype(py) {
 
         field(INPA,DBF_INLINK) {
                 prompt("Input Link A")
-                promptgroup("41 - Input A-J")
                 interest(1)
         }
         field(INPB,DBF_INLINK) {
                 prompt("Input Link B")
-                promptgroup("41 - Input A-J")
                 interest(1)
         }
         field(INPC,DBF_INLINK) {
                 prompt("Input Link C")
-                promptgroup("41 - Input A-J")
                 interest(1)
         }
         field(INPD,DBF_INLINK) {
                 prompt("Input Link D")
-                promptgroup("41 - Input A-J")
                 interest(1)
         }
         field(INPE,DBF_INLINK) {
                 prompt("Input Link E")
-                promptgroup("41 - Input A-J")
                 interest(1)
         }
         field(INPF,DBF_INLINK) {
                 prompt("Input Link F")
-                promptgroup("41 - Input A-J")
                 interest(1)
         }
         field(INPG,DBF_INLINK) {
                 prompt("Input Link G")
-                promptgroup("41 - Input A-J")
                 interest(1)
         }
         field(INPH,DBF_INLINK) {
                 prompt("Input Link H")
-                promptgroup("41 - Input A-J")
                 interest(1)
         }
         field(INPI,DBF_INLINK) {
                 prompt("Input Link I")
-                promptgroup("41 - Input A-J")
                 interest(1)
         }
         field(INPJ,DBF_INLINK) {
                 prompt("Input Link J")
-                promptgroup("41 - Input A-J")
                 interest(1)
         }
 
@@ -187,7 +177,6 @@ recordtype(py) {
 
         field(FTA,DBF_MENU) {
                 prompt("Type of value A")
-                promptgroup("41 - Input A-J")
                 special(SPC_NOMOD)
                 interest(1)
                 initial("DOUBLE")
@@ -195,7 +184,6 @@ recordtype(py) {
         }
         field(FTB,DBF_MENU) {
                 prompt("Type of value B")
-                promptgroup("41 - Input A-J")
                 special(SPC_NOMOD)
                 interest(1)
                 initial("DOUBLE")
@@ -203,7 +191,6 @@ recordtype(py) {
         }
         field(FTC,DBF_MENU) {
                 prompt("Type of value C")
-                promptgroup("41 - Input A-J")
                 special(SPC_NOMOD)
                 interest(1)
                 initial("DOUBLE")
@@ -211,7 +198,6 @@ recordtype(py) {
         }
         field(FTD,DBF_MENU) {
                 prompt("Type of value D")
-                promptgroup("41 - Input A-J")
                 special(SPC_NOMOD)
                 interest(1)
                 initial("DOUBLE")
@@ -219,7 +205,6 @@ recordtype(py) {
         }
         field(FTE,DBF_MENU) {
                 prompt("Type of value E")
-                promptgroup("41 - Input A-J")
                 special(SPC_NOMOD)
                 interest(1)
                 initial("DOUBLE")
@@ -227,7 +212,6 @@ recordtype(py) {
         }
         field(FTF,DBF_MENU) {
                 prompt("Type of value F")
-                promptgroup("41 - Input A-J")
                 special(SPC_NOMOD)
                 interest(1)
                 initial("DOUBLE")
@@ -235,7 +219,6 @@ recordtype(py) {
         }
         field(FTG,DBF_MENU) {
                 prompt("Type of value G")
-                promptgroup("41 - Input A-J")
                 special(SPC_NOMOD)
                 interest(1)
                 initial("DOUBLE")
@@ -243,7 +226,6 @@ recordtype(py) {
         }
         field(FTH,DBF_MENU) {
                 prompt("Type of value H")
-                promptgroup("41 - Input A-J")
                 special(SPC_NOMOD)
                 interest(1)
                 initial("DOUBLE")
@@ -251,7 +233,6 @@ recordtype(py) {
         }
         field(FTI,DBF_MENU) {
                 prompt("Type of value I")
-                promptgroup("41 - Input A-J")
                 special(SPC_NOMOD)
                 interest(1)
                 initial("DOUBLE")
@@ -259,7 +240,6 @@ recordtype(py) {
         }
         field(FTJ,DBF_MENU) {
                 prompt("Type of value J")
-                promptgroup("41 - Input A-J")
                 special(SPC_NOMOD)
                 interest(1)
                 initial("DOUBLE")

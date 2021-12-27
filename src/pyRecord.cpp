@@ -10,16 +10,13 @@
  */
 
 #include "alarm.h"
-// #include "alarmString.h"
 #include "callback.h"
 #include "cantProceed.h"
 #include "dbAccess.h"
-// #include "dbEvent.h"
-// #include "devSup.h"
-// #include "epicsTime.h"
+#include "dbEvent.h"
+#include "devSup.h"
 #include "epicsVersion.h"
 #include "errlog.h"
-// #include "menuYesNo.h"
 #include "recSup.h"
 #include "recGbl.h"
 
@@ -39,6 +36,7 @@
 #  if EPICS_VERSION_INT < VERSION_INT(3,16,0,2)
 #    define dbLinkIsConstant(lnk) ((lnk)->type == CONSTANT)
 #    define RECSUPFUN_CAST (RECSUPFUN)
+#    define HAVE_EPICS_INT64
 #  else
 #    define RECSUPFUN_CAST
 #  endif
@@ -144,8 +142,10 @@ static void processRecordCb(pyRecord* rec)
                     else if (*ft == DBR_USHORT) keyval.second = std::to_string(*reinterpret_cast< epicsUInt16*>(*val));
                     else if (*ft == DBR_LONG)   keyval.second = std::to_string(*reinterpret_cast<  epicsInt32*>(*val));
                     else if (*ft == DBR_ULONG)  keyval.second = std::to_string(*reinterpret_cast< epicsUInt32*>(*val));
+#ifdef HAVE_EPICS_INT64
                     else if (*ft == DBR_INT64)  keyval.second = std::to_string(*reinterpret_cast<  epicsInt64*>(*val));
                     else if (*ft == DBR_UINT64) keyval.second = std::to_string(*reinterpret_cast< epicsUInt64*>(*val));
+#endif
                     else if (*ft == DBR_FLOAT)  keyval.second = std::to_string(*reinterpret_cast<epicsFloat32*>(*val));
                     else if (*ft == DBR_DOUBLE) keyval.second = std::to_string(*reinterpret_cast<epicsFloat64*>(*val));
                     else if (*ft == DBR_STRING) keyval.second = std::string(reinterpret_cast<const char*>(*val));
@@ -258,13 +258,10 @@ static long convertDbAddr(DBADDR *paddr)
     int field = dbGetFieldIndex(paddr);
 
     if (field >= pyRecordA && field < (pyRecordA + PYREC_NARGS)) {
-        int offset = field - pyRecordA;
-        auto ft  = &rec->fta  + offset;
-        auto val = &rec->a + offset;
-
-        paddr->pfield      = *(&rec->a   + offset);
+        int off = field - pyRecordA;
+        paddr->pfield      = *(&rec->a   + off);
         paddr->no_elements = 1;
-        paddr->field_type  = *(&rec->fta + offset);
+        paddr->field_type  = *(&rec->fta + off);
     } else if (field == pyRecordVAL) {
         paddr->pfield = rec->val;
         paddr->no_elements = 1;
@@ -284,9 +281,6 @@ static long getArrayInfo(DBADDR *paddr, long *no_elements, long *offset)
     int field = dbGetFieldIndex(paddr);
 
     if (field >= pyRecordA && field < (pyRecordA + PYREC_NARGS)) {
-        int off = field - pyRecordA;
-        auto ft  = &rec->fta  + off;
-        auto val = &rec->a + off;
         *no_elements = 1;
     } else if (field == pyRecordVAL) {
         *no_elements = 1;
