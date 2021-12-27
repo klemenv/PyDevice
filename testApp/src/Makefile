@@ -18,6 +18,7 @@ DBD += pydevioc.dbd
 # pydev.dbd will be made up from these files:
 pydevioc_DBD += base.dbd
 pydevioc_DBD += pydev.dbd
+pydevioc_DBD += pyRecord.dbd
 
 # Include dbd files from all support applications:
 #pydevioc_DBD += xxx.dbd

@@ -1,0 +1,300 @@
+recordtype(py) {
+        include "dbCommon.dbd"
+
+        %#define PYREC_NARGS 10
+
+        field(CTX,DBF_NOACCESS) {
+                prompt("Record Private")
+                special(SPC_NOMOD)
+                interest(4)
+                extra("struct PyRecordContext *ctx")
+        }
+        field(CALC,DBF_STRING) {
+                prompt("Python code to execute")
+                initial("")
+                size(255)
+                pp(TRUE)
+        }
+        field(VAL,DBF_NOACCESS) {
+                prompt("Result of Python code")
+                asl(ASL0)
+                special(SPC_DBADDR)
+                interest(2)
+                extra("void *val")
+                #=read Yes
+                #=write Yes
+                #=type Set by FTVL
+        }
+        field(FTVL,DBF_MENU) {
+                prompt("Type of VAL")
+                special(SPC_NOMOD)
+                interest(1)
+                initial("DOUBLE")
+                menu(menuFtype)
+        }
+
+        field(INPA,DBF_INLINK) {
+                prompt("Input Link A")
+                interest(1)
+        }
+        field(INPB,DBF_INLINK) {
+                prompt("Input Link B")
+                interest(1)
+        }
+        field(INPC,DBF_INLINK) {
+                prompt("Input Link C")
+                interest(1)
+        }
+        field(INPD,DBF_INLINK) {
+                prompt("Input Link D")
+                interest(1)
+        }
+        field(INPE,DBF_INLINK) {
+                prompt("Input Link E")
+                interest(1)
+        }
+        field(INPF,DBF_INLINK) {
+                prompt("Input Link F")
+                interest(1)
+        }
+        field(INPG,DBF_INLINK) {
+                prompt("Input Link G")
+                interest(1)
+        }
+        field(INPH,DBF_INLINK) {
+                prompt("Input Link H")
+                interest(1)
+        }
+        field(INPI,DBF_INLINK) {
+                prompt("Input Link I")
+                interest(1)
+        }
+        field(INPJ,DBF_INLINK) {
+                prompt("Input Link J")
+                interest(1)
+        }
+
+        field(A,DBF_NOACCESS) {
+                prompt("Value A")
+                asl(ASL0)
+                special(SPC_DBADDR)
+                extra("void *a")
+                pp(TRUE)
+                #=read Yes
+                #=write Yes
+                #=type Set by FTA
+        }
+        field(B,DBF_NOACCESS) {
+                prompt("Value B")
+                asl(ASL0)
+                special(SPC_DBADDR)
+                extra("void *b")
+                pp(TRUE)
+                #=read Yes
+                #=write Yes
+                #=type Set by FTB
+        }
+        field(C,DBF_NOACCESS) {
+                prompt("Value C")
+                asl(ASL0)
+                special(SPC_DBADDR)
+                extra("void *c")
+                pp(TRUE)
+                #=read Yes
+                #=write Yes
+                #=type Set by FTC
+        }
+        field(D,DBF_NOACCESS) {
+                prompt("Value D")
+                asl(ASL0)
+                special(SPC_DBADDR)
+                extra("void *d")
+                pp(TRUE)
+                #=read Yes
+                #=write Yes
+                #=type Set by FTC
+        }
+        field(E,DBF_NOACCESS) {
+                prompt("Value E")
+                asl(ASL0)
+                special(SPC_DBADDR)
+                extra("void *e")
+                pp(TRUE)
+                #=read Yes
+                #=write Yes
+                #=type Set by FTC
+        }
+        field(F,DBF_NOACCESS) {
+                prompt("Value F")
+                asl(ASL0)
+                special(SPC_DBADDR)
+                extra("void *f")
+                pp(TRUE)
+                #=read Yes
+                #=write Yes
+                #=type Set by FTC
+        }
+        field(G,DBF_NOACCESS) {
+                prompt("Value G")
+                asl(ASL0)
+                special(SPC_DBADDR)
+                extra("void *g")
+                pp(TRUE)
+                #=read Yes
+                #=write Yes
+                #=type Set by FTC
+        }
+        field(H,DBF_NOACCESS) {
+                prompt("Value H")
+                asl(ASL0)
+                special(SPC_DBADDR)
+                extra("void *h")
+                pp(TRUE)
+                #=read Yes
+                #=write Yes
+                #=type Set by FTC
+        }
+        field(I,DBF_NOACCESS) {
+                prompt("Value I")
+                asl(ASL0)
+                special(SPC_DBADDR)
+                extra("void *i")
+                pp(TRUE)
+                #=read Yes
+                #=write Yes
+                #=type Set by FTC
+        }
+        field(J,DBF_NOACCESS) {
+                prompt("Value J")
+                asl(ASL0)
+                special(SPC_DBADDR)
+                extra("void *j")
+                pp(TRUE)
+                #=read Yes
+                #=write Yes
+                #=type Set by FTC
+        }
+
+        field(FTA,DBF_MENU) {
+                prompt("Type of value A")
+                special(SPC_NOMOD)
+                interest(1)
+                initial("DOUBLE")
+                menu(menuFtype)
+        }
+        field(FTB,DBF_MENU) {
+                prompt("Type of value B")
+                special(SPC_NOMOD)
+                interest(1)
+                initial("DOUBLE")
+                menu(menuFtype)
+        }
+        field(FTC,DBF_MENU) {
+                prompt("Type of value C")
+                special(SPC_NOMOD)
+                interest(1)
+                initial("DOUBLE")
+                menu(menuFtype)
+        }
+        field(FTD,DBF_MENU) {
+                prompt("Type of value D")
+                special(SPC_NOMOD)
+                interest(1)
+                initial("DOUBLE")
+                menu(menuFtype)
+        }
+        field(FTE,DBF_MENU) {
+                prompt("Type of value E")
+                special(SPC_NOMOD)
+                interest(1)
+                initial("DOUBLE")
+                menu(menuFtype)
+        }
+        field(FTF,DBF_MENU) {
+                prompt("Type of value F")
+                special(SPC_NOMOD)
+                interest(1)
+                initial("DOUBLE")
+                menu(menuFtype)
+        }
+        field(FTG,DBF_MENU) {
+                prompt("Type of value G")
+                special(SPC_NOMOD)
+                interest(1)
+                initial("DOUBLE")
+                menu(menuFtype)
+        }
+        field(FTH,DBF_MENU) {
+                prompt("Type of value H")
+                special(SPC_NOMOD)
+                interest(1)
+                initial("DOUBLE")
+                menu(menuFtype)
+        }
+        field(FTI,DBF_MENU) {
+                prompt("Type of value I")
+                special(SPC_NOMOD)
+                interest(1)
+                initial("DOUBLE")
+                menu(menuFtype)
+        }
+        field(FTJ,DBF_MENU) {
+                prompt("Type of value J")
+                special(SPC_NOMOD)
+                interest(1)
+                initial("DOUBLE")
+                menu(menuFtype)
+        }
+
+        field(SIZA,DBF_ULONG) {
+                prompt("Size of buffer for value A")
+                special(SPC_NOMOD)
+                interest(2)
+        }
+        field(SIZB,DBF_ULONG) {
+                prompt("Size of buffer for value B")
+                special(SPC_NOMOD)
+                interest(2)
+        }
+        field(SIZC,DBF_ULONG) {
+                prompt("Size of buffer for value C")
+                special(SPC_NOMOD)
+                interest(2)
+        }
+        field(SIZD,DBF_ULONG) {
+                prompt("Size of buffer for value D")
+                special(SPC_NOMOD)
+                interest(2)
+        }
+        field(SIZE,DBF_ULONG) {
+                prompt("Size of buffer for value E")
+                special(SPC_NOMOD)
+                interest(2)
+        }
+        field(SIZF,DBF_ULONG) {
+                prompt("Size of buffer for value F")
+                special(SPC_NOMOD)
+                interest(2)
+        }
+        field(SIZG,DBF_ULONG) {
+                prompt("Size of buffer for value G")
+                special(SPC_NOMOD)
+                interest(2)
+        }
+        field(SIZH,DBF_ULONG) {
+                prompt("Size of buffer for value H")
+                special(SPC_NOMOD)
+                interest(2)
+        }
+        field(SIZI,DBF_ULONG) {
+                prompt("Size of buffer for value I")
+                special(SPC_NOMOD)
+                interest(2)
+        }
+        field(SIZJ,DBF_ULONG) {
+                prompt("Size of buffer for value J")
+                special(SPC_NOMOD)
+                interest(2)
+        }
+
+}

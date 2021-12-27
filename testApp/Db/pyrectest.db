@@ -1,0 +1,19 @@
+record(ai, "PyRecTest:Input1") {
+    field(INP,  "1")
+}
+record(ai, "PyRecTest:Input2") {
+    field(INP,  "6.4")
+}
+record(py, "PyRecTest:MathExpr") {
+    field(INPA, "17")
+    field(INPB, "3")
+    field(CALC, "%A%*%B%")
+}
+record(py, "PyRecTest:AdaptiveTypes") {
+    field(INPA, "Test:Input1 CP")
+    field(INPB, "Test:Input2 CP")
+    field(CALC, "pow(max([%A%, %B%]), 2)")
+}
+record(py, "PyRecTest:InvalidAlarm") {
+    field(CALC, "unknown_function()")
+}

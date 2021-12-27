@@ -13,6 +13,7 @@ pydevioc_registerRecordDeviceDriver pdbbase
 
 ## Load record instances
 dbLoadRecords("${TOP}/db/pydevtest.db")
+dbLoadRecords("${TOP}/db/pyrectest.db")
 
 cd ${TOP}/iocBoot/${IOC}
 

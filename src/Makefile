@@ -5,12 +5,15 @@ include $(TOP)/configure/CONFIG
 #  ADD MACRO DEFINITIONS AFTER THIS LINE
 
 USR_CXXFLAGS += $(subst -Wstrict-prototypes,,$(shell $(PYTHON_CONFIG) --cflags))
-USR_CXXFLAGS += -std=c++11 -O2
-#CXXFLAGS += -g -ggdb -O0
+USR_CXXFLAGS += -std=c++11 -O2 -DUSE_TYPED_RSET
+CXXFLAGS += -g -ggdb -O0
 
 LIBRARY_IOC += pydev
 
 DBD += pydev.dbd
+DBDINC += pyRecord
+
+pydev_DBD += pyRecord.dbd
 
 pydev_SRCS += asyncexec.cpp
 pydev_SRCS += epicsdevice.cpp
@@ -27,6 +30,7 @@ pydev_SRCS += pydev_longout.cpp
 pydev_SRCS += pydev_stringin.cpp
 pydev_SRCS += pydev_stringout.cpp
 pydev_SRCS += pydev_waveform.cpp
+pydev_SRCS += pyRecord.cpp
 
 # 3.15 and above support lsi, lso and printf records  
 ifdef BASE_3_15
