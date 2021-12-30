@@ -104,12 +104,12 @@ This example will use `stringout` record to send simple ASCII text to the device
 record(stringout, "Device1:Send")
 {
     field(DTYP, "pydev")
-    field(OUT,  "@device1.send('%VAL%')
+    field(OUT,  "@device1.send('VAL')
     field(VAL,  "127.0.0.1")
 }
 ```
 
-PyDevice will replace certain macros in double percent (%) sign with current record's fields right before the Python code is executed. Ie. %VAL% will be automatically replaced with string in VAL field, by default 127.0.0.1. Fields from other records can not be referenced this way.
+PyDevice will recognize common record fields and replace them with actual field value right before the Python code is executed. Field names must be stand-alone upper-case words, and need to be a valid record field. When field is part of the string, it should be enclosed by % sign, ie. RecordNameIs%NAME%.
 
 *Hint: Arbitrary single-line Python code can be executed from any of the supported records.*
 
@@ -172,93 +172,37 @@ if __name__ == "__main__":
 
 ### Field macros
 
-When record processes, PyDevice will search INP or OUT field for field macros and replace them with actual fields' values from record. Field macros are simply field names surrounded with *%* character, for example *%VAL%*. Only a subset of fields is supported. Field macro try to preserve value types. %VAL% field macro of waveform record is converted into a Python list.
+When record processes, PyDevice will search INP or OUT field for field macros and replace them with actual fields' values from record. Field macros are simply field names in all capital letters, for example *VAL*. They need to be standalone words and not surrounded by other alpha-numeric characters, in that case they should be enclosed in %-sign. Only a subset of fields is supported depending on the record. VAL field macro of waveform record is converted into a Python list.
 
 Note: Depeding how string fields are used, you may need to surround them with quotes. Consider these two working examples:
 
 ```
 record(stringout, "PyDev:Log") {
   field(DTYP, "pydev")
-  field(OUT,  "@print('%VAL%')")
+  field(OUT,  "@print('VAL')")
 }
 record(stringout, "PyDev:Exec") {
   field(DTYP, "pydev")
-  field(OUT,  "@%VAL%")
+  field(OUT,  "@VAL")
   # caput PyDev:Exec "print('hello')"
 }
 ```
 
 Supported field macros per record:
 * longin & longout
-  * %VAL%
-  * %NAME%
-  * %EGU%
-  * %HOPR%
-  * %LOPR%
-  * %HIGH%
-  * %HIHI%
-  * %LOW%
-  * %LOLO%
+  * VAL, NAME, EGU, HOPR, LOPR, HIGH, HIHI, LOW, LOLO
 * bi & bo
-  * %VAL%
-  * %NAME%
-  * %ZNAM%
-  * %ONAM%
+  * VAL, NAME, ZNAM, ONAM
 * mbbi & mbbo
-  * %VAL%
-  * %RVAL%
-  * %NAME%
-  * %ZRVL%
-  * %ONVL%
-  * %TWVL%
-  * %THVL%
-  * %FRVL%
-  * %FVVL%
-  * %SXVL%
-  * %SVVL%
-  * %EIVL%
-  * %NIVL%
-  * %TEVL%
-  * %ELVL%
-  * %TVVL%
-  * %TTVL%
-  * %FTVL%
-  * %FFVL%
-  * %ZRST%
-  * %ONST%
-  * %TWST%
-  * %THST%
-  * %FRST%
-  * %FVST%
-  * %SXST%
-  * %SVST%
-  * %EIST%
-  * %NIST%
-  * %TEST%
-  * %ELST%
-  * %TVST%
-  * %TTST%
-  * %FTST%
-  * %FFST%
+  * VAL, RVAL, NAME, ZRVL, ONVL, TWVL, THVL, FRVL, FVVL, SXVL, SVVL, EIVL, NIVL, TEVL, ELVL, TVVL, TTVL, FTVL, FFVL, ZRST, ONST, TWST, THST, FRST, FVST, SXST, SVST, EIST, NIST, TEST, ELST, TVST, TTST, FTST, FFST
 * ai & ao
-  * %VAL%
-  * %RVAL%
-  * %ORAW%
-  * %NAME%
-  * %EGU%
-  * %HOPR%
-  * %LOPR%
-  * %PREC%
+  * VAL, RVAL, ORAW, NAME, EGU, HOPR, LOPR, PREC
 * stringin & stringout
-  * %VAL%
-  * %NAME%
+  * VAL, NAME
 * lsi & lso
-  * %VAL%
-  * %NAME%
-  * %SIZV%
-  * %LEN%
+  * VAL, NAME, SIZV, LEN
 * waveform
-  * %VAL%
+  * VAL
 
 ### Serialized record processing
 

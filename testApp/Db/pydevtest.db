@@ -1,17 +1,17 @@
 # longin/longout PVs
 record(longout, "PyDev:Long:PrintVal") {
   field(DTYP, "pydev")
-  field(OUT,  "@print(%name% + ': val=%VAL%')")
+  field(OUT,  "@print('NAME: val=VAL')")
   field(DESC, "Simply print record value to IOC console")
 }
 record(longout, "PyDev:Sleep") {
   field(DTYP, "pydev")
-  field(OUT,  "@time.sleep(%VAL%)")
+  field(OUT,  "@time.sleep(VAL)")
   field(FLNK, "PyDev:Long:PrintVal")
 }
 record(longout, "PyDev:Long:SetB") {
   field(DTYP, "pydev")
-  field(OUT,  "@b=%VAL%")
+  field(OUT,  "@b=VAL")
   field(VAL,  "1")
   field(FLNK, "PyDev:Long:ReadB")
 }
@@ -24,18 +24,23 @@ record(longin, "PyDev:Long:ReadB") {
 record(stringout, "PyDev:Log") {
   field(DTYP, "pydev")
   # Single quotes are needed around string based fields
-  field(OUT,  "@print('%VAL%')")
+  field(OUT,  "@print('VAL')")
 }
 record(stringout, "PyDev:Exec") {
   field(DTYP, "pydev")
   # Write Python code to be executed dirctly to record
-  field(OUT,  "@%VAL%")
+  field(OUT,  "@VAL")
+}
+record(stringin, "PyDev:EscapeField") {
+  field(DTYP, "pydev")
+  # Use % sign when field to be replaced is part of the string
+  field(INP,  "@ThisIsRecord%VAL%")
 }
 
 # bi/bo PVs
 record(longin, "PyDev:Equal") {
   field(DTYP, "pydev")
-  field(INP,  "@cmp(%VAL%, 10)==0")
+  field(INP,  "@cmp(VAL, 10)==0")
   field(LOW,  "0")
   field(LSV,  "MAJOR")
 }
@@ -43,7 +48,7 @@ record(longin, "PyDev:Equal") {
 # mbbi/mbbo PVs
 record(mbbo, "PyDev:Enum:PrintVal") {
   field(DTYP, "pydev")
-  field(OUT,  "@print('val=%VAL% rval=%RVAL%')")
+  field(OUT,  "@print('val=VAL rval=RVAL')")
   field(ZRVL, "0")
   field(ONVL, "10")
   field(TWVL, "20")
@@ -55,19 +60,19 @@ record(mbbo, "PyDev:Enum:PrintVal") {
 # ai/ao PVs
 record(ai, "PyDev:Double:Pow2") {
   field(DTYP, "pydev")
-  field(INP,  "@%VAL%**2")
+  field(INP,  "@VAL**2")
 }
 
 # waveform array PVs
 record(waveform, "PyDev:Array:Pow2") {
   field(DTYP, "pydev")
-  field(INP,  "@map(lambda x: x**2, %VAL%)")
+  field(INP,  "@map(lambda x: x**2, VAL)")
   field(NELM, "5")
   field(FTVL, "LONG")
 }
 record(waveform, "PyDev:Array:Stat") {
   field(DTYP, "pydev")
-  field(INP,  "@[min(%VAL%),max(%VAL%),sum(%VAL%)/len(%VAL%)]")
+  field(INP,  "@[min(VAL),max(VAL),sum(VAL)/len(VAL)]")
   field(NELM, "5")
   field(FTVL, "DOUBLE")
 }

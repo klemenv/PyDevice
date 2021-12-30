@@ -81,45 +81,45 @@ static void processRecordCb(mbbiRecord* rec)
 {
     auto ctx = reinterpret_cast<PyDevContext*>(rec->dpvt);
 
-    auto fields = Util::getReplacables(rec->inp.value.instio.string);
+    auto fields = Util::getFields(rec->inp.value.instio.string);
     for (auto& keyval: fields) {
-        if      (keyval.first == "%VAL%")  keyval.second = std::to_string(rec->val);
-        else if (keyval.first == "%RVAL%") keyval.second = std::to_string(rec->rval);
-        else if (keyval.first == "%NAME%") keyval.second = rec->name;
-        else if (keyval.first == "%ZRVL%") keyval.second = std::to_string(rec->zrvl);
-        else if (keyval.first == "%ONVL%") keyval.second = std::to_string(rec->onvl);
-        else if (keyval.first == "%TWVL%") keyval.second = std::to_string(rec->twvl);
-        else if (keyval.first == "%THVL%") keyval.second = std::to_string(rec->thvl);
-        else if (keyval.first == "%FRVL%") keyval.second = std::to_string(rec->frvl);
-        else if (keyval.first == "%FVVL%") keyval.second = std::to_string(rec->fvvl);
-        else if (keyval.first == "%SXVL%") keyval.second = std::to_string(rec->sxvl);
-        else if (keyval.first == "%SVVL%") keyval.second = std::to_string(rec->svvl);
-        else if (keyval.first == "%EIVL%") keyval.second = std::to_string(rec->eivl);
-        else if (keyval.first == "%NIVL%") keyval.second = std::to_string(rec->nivl);
-        else if (keyval.first == "%TEVL%") keyval.second = std::to_string(rec->tevl);
-        else if (keyval.first == "%ELVL%") keyval.second = std::to_string(rec->elvl);
-        else if (keyval.first == "%TVVL%") keyval.second = std::to_string(rec->tvvl);
-        else if (keyval.first == "%TTVL%") keyval.second = std::to_string(rec->ttvl);
-        else if (keyval.first == "%FTVL%") keyval.second = std::to_string(rec->ftvl);
-        else if (keyval.first == "%FFVL%") keyval.second = std::to_string(rec->ffvl);
-        else if (keyval.first == "%ZRST%") keyval.second = rec->zrst;
-        else if (keyval.first == "%ONST%") keyval.second = rec->onst;
-        else if (keyval.first == "%TWST%") keyval.second = rec->twst;
-        else if (keyval.first == "%THST%") keyval.second = rec->thst;
-        else if (keyval.first == "%FRST%") keyval.second = rec->frst;
-        else if (keyval.first == "%FVST%") keyval.second = rec->fvst;
-        else if (keyval.first == "%SXST%") keyval.second = rec->sxst;
-        else if (keyval.first == "%SVST%") keyval.second = rec->svst;
-        else if (keyval.first == "%EIST%") keyval.second = rec->eist;
-        else if (keyval.first == "%NIST%") keyval.second = rec->nist;
-        else if (keyval.first == "%TEST%") keyval.second = rec->test;
-        else if (keyval.first == "%ELST%") keyval.second = rec->elst;
-        else if (keyval.first == "%TVST%") keyval.second = rec->tvst;
-        else if (keyval.first == "%TTST%") keyval.second = rec->ttst;
-        else if (keyval.first == "%FTST%") keyval.second = rec->ftst;
-        else if (keyval.first == "%FFST%") keyval.second = rec->ffst;
+        if      (keyval.first == "VAL")  keyval.second = std::to_string(rec->val);
+        else if (keyval.first == "RVAL") keyval.second = std::to_string(rec->rval);
+        else if (keyval.first == "NAME") keyval.second = rec->name;
+        else if (keyval.first == "ZRVL") keyval.second = std::to_string(rec->zrvl);
+        else if (keyval.first == "ONVL") keyval.second = std::to_string(rec->onvl);
+        else if (keyval.first == "TWVL") keyval.second = std::to_string(rec->twvl);
+        else if (keyval.first == "THVL") keyval.second = std::to_string(rec->thvl);
+        else if (keyval.first == "FRVL") keyval.second = std::to_string(rec->frvl);
+        else if (keyval.first == "FVVL") keyval.second = std::to_string(rec->fvvl);
+        else if (keyval.first == "SXVL") keyval.second = std::to_string(rec->sxvl);
+        else if (keyval.first == "SVVL") keyval.second = std::to_string(rec->svvl);
+        else if (keyval.first == "EIVL") keyval.second = std::to_string(rec->eivl);
+        else if (keyval.first == "NIVL") keyval.second = std::to_string(rec->nivl);
+        else if (keyval.first == "TEVL") keyval.second = std::to_string(rec->tevl);
+        else if (keyval.first == "ELVL") keyval.second = std::to_string(rec->elvl);
+        else if (keyval.first == "TVVL") keyval.second = std::to_string(rec->tvvl);
+        else if (keyval.first == "TTVL") keyval.second = std::to_string(rec->ttvl);
+        else if (keyval.first == "FTVL") keyval.second = std::to_string(rec->ftvl);
+        else if (keyval.first == "FFVL") keyval.second = std::to_string(rec->ffvl);
+        else if (keyval.first == "ZRST") keyval.second = rec->zrst;
+        else if (keyval.first == "ONST") keyval.second = rec->onst;
+        else if (keyval.first == "TWST") keyval.second = rec->twst;
+        else if (keyval.first == "THST") keyval.second = rec->thst;
+        else if (keyval.first == "FRST") keyval.second = rec->frst;
+        else if (keyval.first == "FVST") keyval.second = rec->fvst;
+        else if (keyval.first == "SXST") keyval.second = rec->sxst;
+        else if (keyval.first == "SVST") keyval.second = rec->svst;
+        else if (keyval.first == "EIST") keyval.second = rec->eist;
+        else if (keyval.first == "NIST") keyval.second = rec->nist;
+        else if (keyval.first == "TEST") keyval.second = rec->test;
+        else if (keyval.first == "ELST") keyval.second = rec->elst;
+        else if (keyval.first == "TVST") keyval.second = rec->tvst;
+        else if (keyval.first == "TTST") keyval.second = rec->ttst;
+        else if (keyval.first == "FTST") keyval.second = rec->ftst;
+        else if (keyval.first == "FFST") keyval.second = rec->ffst;
     }
-    std::string code = Util::replace(rec->inp.value.instio.string, fields);
+    std::string code = Util::replaceFields(rec->inp.value.instio.string, fields);
 
     try {
         if (PyWrapper::exec(code, (rec->tpro == 1), &rec->rval) == true) {

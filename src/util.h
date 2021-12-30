@@ -12,8 +12,8 @@
 
 namespace Util {
 
-std::map<std::string, std::string> getReplacables(const std::string& text);
-std::string replace(const std::string& text, const std::map<std::string, std::string>& fields);
+std::map<std::string, std::string> getFields(const std::string& text);
+std::string replaceFields(const std::string& text, const std::map<std::string, std::string>& fields);
 std::string escape(const std::string& text);
 
 template <typename T>

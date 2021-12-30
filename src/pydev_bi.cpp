@@ -81,15 +81,15 @@ static void processRecordCb(biRecord* rec)
 {
     auto ctx = reinterpret_cast<PyDevContext*>(rec->dpvt);
 
-    auto fields = Util::getReplacables(rec->inp.value.instio.string);
+    auto fields = Util::getFields(rec->inp.value.instio.string);
     for (auto& keyval: fields) {
-        if      (keyval.first == "%VAL%")  keyval.second = std::to_string(rec->val);
-        else if (keyval.first == "%RVAL%") keyval.second = std::to_string(rec->rval);
-        else if (keyval.first == "%NAME%") keyval.second = rec->name;
-        else if (keyval.first == "%ZNAM%") keyval.second = rec->znam;
-        else if (keyval.first == "%ONAM%") keyval.second = rec->onam;
+        if      (keyval.first == "VAL")  keyval.second = std::to_string(rec->val);
+        else if (keyval.first == "RVAL") keyval.second = std::to_string(rec->rval);
+        else if (keyval.first == "NAME") keyval.second = rec->name;
+        else if (keyval.first == "ZNAM") keyval.second = rec->znam;
+        else if (keyval.first == "ONAM") keyval.second = rec->onam;
     }
-    std::string code = Util::replace(rec->inp.value.instio.string, fields);
+    std::string code = Util::replaceFields(rec->inp.value.instio.string, fields);
 
     try {
         if (PyWrapper::exec(code, (rec->tpro == 1), &rec->rval) == true) {

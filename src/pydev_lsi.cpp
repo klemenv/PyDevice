@@ -81,14 +81,14 @@ static void processRecordCb(lsiRecord* rec)
 {
     auto ctx = reinterpret_cast<PyDevContext*>(rec->dpvt);
 
-    auto fields = Util::getReplacables(rec->inp.value.instio.string);
+    auto fields = Util::getFields(rec->inp.value.instio.string);
     for (auto& keyval: fields) {
-        if (keyval.first == "%VAL%")       keyval.second = Util::escape(rec->val);
-        else if (keyval.first == "%NAME%") keyval.second = rec->name;
-        else if (keyval.first == "%SIZV%") keyval.second = std::to_string(rec->sizv);
-        else if (keyval.first == "%LEN%")  keyval.second = std::to_string(rec->len);
+        if      (keyval.first == "VAL")  keyval.second = Util::escape(rec->val);
+        else if (keyval.first == "NAME") keyval.second = rec->name;
+        else if (keyval.first == "SIZV") keyval.second = std::to_string(rec->sizv);
+        else if (keyval.first == "LEN")  keyval.second = std::to_string(rec->len);
     }
-    std::string code = Util::replace(rec->inp.value.instio.string, fields);
+    std::string code = Util::replaceFields(rec->inp.value.instio.string, fields);
 
     try {
         std::string val(rec->val);

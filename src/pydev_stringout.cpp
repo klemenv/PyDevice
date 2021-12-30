@@ -81,12 +81,12 @@ static void processRecordCb(stringoutRecord* rec)
 {
     auto ctx = reinterpret_cast<PyDevContext*>(rec->dpvt);
 
-    auto fields = Util::getReplacables(rec->out.value.instio.string);
+    auto fields = Util::getFields(rec->out.value.instio.string);
     for (auto& keyval: fields) {
-        if      (keyval.first == "%VAL%")  keyval.second = Util::escape(rec->val);
-        else if (keyval.first == "%NAME%") keyval.second = rec->name;
+        if      (keyval.first == "VAL")  keyval.second = Util::escape(rec->val);
+        else if (keyval.first == "NAME") keyval.second = rec->name;
     }
-    std::string code = Util::replace(rec->out.value.instio.string, fields);
+    std::string code = Util::replaceFields(rec->out.value.instio.string, fields);
 
     try {
         std::string val(rec->val);

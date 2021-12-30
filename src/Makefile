@@ -1,10 +1,10 @@
 # Makefile
 TOP = ..
 include $(TOP)/configure/CONFIG
+include $(TOP)/configure/CONFIG.PyDevice
 #----------------------------------------
 #  ADD MACRO DEFINITIONS AFTER THIS LINE
 
-USR_CXXFLAGS += $(subst -Wstrict-prototypes,,$(shell $(PYTHON_CONFIG) --cflags))
 USR_CXXFLAGS += -std=c++11 -O2 -DUSE_TYPED_RSET
 CXXFLAGS += -g -ggdb -O0
 

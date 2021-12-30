@@ -169,9 +169,9 @@ static void processRecordCb(waveformRecord* rec)
 {
     auto ctx = reinterpret_cast<PyDevContext*>(rec->dpvt);
 
-    auto fields = Util::getReplacables(rec->inp.value.instio.string);
+    auto fields = Util::getFields(rec->inp.value.instio.string);
     for (auto& keyval: fields) {
-        if (keyval.first == "%VAL%") {
+        if (keyval.first == "VAL") {
             if (rec->ftvl == menuFtypeFLOAT || rec->ftvl == menuFtypeDOUBLE) {
                 std::vector<double> arr;
                 if (fromRecArrayVal(rec, arr) == true) {
@@ -187,7 +187,7 @@ static void processRecordCb(waveformRecord* rec)
 
         }
     }
-    std::string code = Util::replace(rec->inp.value.instio.string, fields);
+    std::string code = Util::replaceFields(rec->inp.value.instio.string, fields);
 
     try {
         bool ret;

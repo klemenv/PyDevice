@@ -126,12 +126,12 @@ static long initRecord(dbCommon *common, int pass)
 
 static void processRecordCb(pyRecord* rec)
 {
-    auto fields = Util::getReplacables(rec->calc);
+    auto fields = Util::getFields(rec->calc);
     for (auto& keyval: fields) {
-        if      (keyval.first == "%NAME%") keyval.second = rec->name;
+        if      (keyval.first == "NAME") keyval.second = rec->name;
         else {
             for (auto i = 0; i < PYREC_NARGS; i++) {
-                std::string field = "%" + std::string(1,'A'+i) + "%";
+                std::string field = std::string(1,'A'+i);
                 if (keyval.first == field) {
                     auto val = &rec->a + i;
                     auto ft  = &rec->fta + i;
@@ -153,7 +153,7 @@ static void processRecordCb(pyRecord* rec)
             }
         }
     }
-    std::string code = Util::replace(rec->calc, fields);
+    std::string code = Util::replaceFields(rec->calc, fields);
 
     try {
         auto out = PyWrapper::exec(code, (rec->tpro == 1));

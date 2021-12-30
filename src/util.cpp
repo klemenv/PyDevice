@@ -4,24 +4,81 @@
 \*************************************************************************/
 
 #include "util.h"
+#include <cctype>
 #include <stdexcept>
+
 namespace Util {
 
-std::map<std::string, std::string> getReplacables(const std::string& text)
+std::map<std::string, std::string> getFields(const std::string& text)
 {
-    auto pos1 = text.find('%');
-    auto pos2 = text.find('%', pos1+1);
-
+    const long MAX_FIELD_LEN = 4;
     std::map<std::string, std::string> fields;
 
-    while (pos1 != text.npos && pos2 != text.npos) {
-        fields[ text.substr(pos1, pos2-pos1+1) ] = "";
-
-        pos1 = text.find('%', pos2+1);
-        pos2 = text.find('%', pos1+1);
+    std::string token;
+    char prevChar = '\0';
+    for (size_t i = 0; i < text.length(); i++) {
+        if (isupper(text.at(i))) {
+            if (!isalpha(prevChar) || !token.empty()) {
+                token += text.at(i);
+            }
+        } else if (islower(text.at(i))) {
+            token.clear();
+        } else {
+            if (!token.empty()) {
+                if (token.length() <= MAX_FIELD_LEN) {
+                    fields[token] = token;
+                }
+                token.clear();
+            }
+        }
+        prevChar = text.at(i);
+    }
+    if (!token.empty()) {
+        if (token.length() <= MAX_FIELD_LEN) {
+            fields[token] = token;
+        }
     }
 
     return fields;
+}
+
+std::string replaceFields(const std::string& text, const std::map<std::string, std::string>& fields)
+{
+    const std::string delimiter = "%";
+    std::string out = text;
+
+    bool replaced = false;
+    for (size_t pos = 0; pos < out.length(); pos++) {
+        for (auto& field: fields) {
+            std::string token;
+
+            // Try exact match first, ie. VAL, but needs to be surrounded by non-alnum characters
+            token = field.first;
+            if (out.compare(pos, token.length(), token) == 0) {
+                char charBefore = (pos == 0 || replaced ? '.' : out.at(pos-1));
+                char charAfter  = (pos+token.length() >= out.length() ? '.' : out.at(pos+token.length()));
+                if (!isalnum(charBefore) && !isalnum(charAfter)) {
+                    out.replace(pos, token.length(), field.second);
+                    pos += field.second.length() - 1;
+                    replaced = true;
+                    break;
+                }
+            }
+
+            // Put % sign around the field name, ie. %VAL%
+            token = delimiter + field.first + delimiter;
+            if (out.compare(pos, token.length(), token) == 0) {
+                out.replace(pos, token.length(), field.second);
+                pos += field.second.length() - 1;
+                replaced = true;
+                break;
+            }
+
+            replaced = false;
+        }
+    }
+
+    return out;
 }
 
 std::string replace(const std::string& text, const std::map<std::string, std::string>& fields)
