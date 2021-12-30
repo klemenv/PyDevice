@@ -1,13 +1,13 @@
-recordtype(py) {
+recordtype(pycalc) {
         include "dbCommon.dbd"
 
-        %#define PYREC_NARGS 10
+        %#define PYCALCREC_NARGS 10
 
         field(CTX,DBF_NOACCESS) {
                 prompt("Record Private")
                 special(SPC_NOMOD)
                 interest(4)
-                extra("struct PyRecordContext *ctx")
+                extra("struct PyCalcRecordContext *ctx")
         }
         field(CALC,DBF_STRING) {
                 prompt("Python code to execute")

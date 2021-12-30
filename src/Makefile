@@ -11,9 +11,9 @@ CXXFLAGS += -g -ggdb -O0
 LIBRARY_IOC += pydev
 
 DBD += pydev.dbd
-DBDINC += pyRecord
+DBDINC += pycalcRecord
 
-pydev_DBD += pyRecord.dbd
+pydev_DBD += pycalcRecord.dbd
 
 pydev_SRCS += asyncexec.cpp
 pydev_SRCS += epicsdevice.cpp
@@ -30,7 +30,7 @@ pydev_SRCS += pydev_longout.cpp
 pydev_SRCS += pydev_stringin.cpp
 pydev_SRCS += pydev_stringout.cpp
 pydev_SRCS += pydev_waveform.cpp
-pydev_SRCS += pyRecord.cpp
+pydev_SRCS += pycalcRecord.cpp
 
 # 3.15 and above support lsi, lso and printf records  
 ifdef BASE_3_15

@@ -3,7 +3,7 @@
 * in file LICENSE that is included with this distribution.
 \*************************************************************************/
 
-/* Record Support Routines for pyRecord */
+/* Record Support Routines for pycalcRecord */
 /*
  *      Author: Klemen Vodopivec
  *      Date:   12-18-2021
@@ -28,7 +28,7 @@
 #include "util.h"
 
 #define GEN_SIZE_OFFSET
-#include "pyRecord.h"
+#include "pycalcRecord.h"
 #undef  GEN_SIZE_OFFSET
 #include "epicsExport.h"
 
@@ -50,14 +50,14 @@ static long processRecord(dbCommon *);
 //static long updateRecordField(DBADDR *addr, int after);
 static long convertDbAddr(DBADDR *addr);
 static long getArrayInfo(DBADDR *paddr, long *no_elements, long *offset);
-static long fetchValues(pyRecord *rec);
+static long fetchValues(pycalcRecord *rec);
 
-struct PyRecordContext {
+struct PyCalcRecordContext {
     CALLBACK callback;
     int processCbStatus;
 };
 
-rset pyRSET = {
+rset pycalcRSET = {
     .number = RSETNUMBER,
     .report = NULL,
     .init = NULL,
@@ -78,19 +78,19 @@ rset pyRSET = {
     .get_control_double = NULL,
     .get_alarm_double = NULL,
 };
-epicsExportAddress(rset, pyRSET);
+epicsExportAddress(rset, pycalcRSET);
 
 static long initRecord(dbCommon *common, int pass)
 {
-    auto rec = reinterpret_cast<struct pyRecord *>(common);
+    auto rec = reinterpret_cast<struct pycalcRecord *>(common);
 
     if (pass == 0) {
         // Allocate record context
-        auto buffer = callocMustSucceed(1, sizeof(struct PyRecordContext), "pyRecord::initRecord");
-        rec->ctx = new (buffer) PyRecordContext;
+        auto buffer = callocMustSucceed(1, sizeof(struct PyCalcRecordContext), "pycalcRecord::initRecord");
+        rec->ctx = new (buffer) PyCalcRecordContext;
 
         // Allocate value fields
-        for (int i = 0; i < PYREC_NARGS; i++) {
+        for (int i = 0; i < PYCALCREC_NARGS; i++) {
             auto ft  = &rec->fta  + i;
             auto val = &rec->a    + i;
             auto siz = &rec->siza + i;
@@ -100,17 +100,17 @@ static long initRecord(dbCommon *common, int pass)
             }
 
             *siz = dbValueSize(*ft);
-            *val = callocMustSucceed(1, *siz, "pyRecord::initRecord");
+            *val = callocMustSucceed(1, *siz, "pycalcRecord::initRecord");
         }
 
         // Allocate output VAL field for longest possible value
-        rec->val = callocMustSucceed(1, dbValueSize(DBR_STRING), "pyRecord::initRecord");
+        rec->val = callocMustSucceed(1, dbValueSize(DBR_STRING), "pycalcRecord::initRecord");
         reinterpret_cast<char*>(rec->val)[0] = 0;
         return 0;
     }
 
     // Initialize input links
-    for (int i = 0; i < PYREC_NARGS; i++) {
+    for (int i = 0; i < PYCALCREC_NARGS; i++) {
         auto inp = &rec->inpa + i;
         auto ft  = &rec->fta  + i;
         auto val = &rec->a    + i;
@@ -124,13 +124,13 @@ static long initRecord(dbCommon *common, int pass)
     return 0;
 }
 
-static void processRecordCb(pyRecord* rec)
+static void processRecordCb(pycalcRecord* rec)
 {
     auto fields = Util::getFields(rec->calc);
     for (auto& keyval: fields) {
         if      (keyval.first == "NAME") keyval.second = rec->name;
         else {
-            for (auto i = 0; i < PYREC_NARGS; i++) {
+            for (auto i = 0; i < PYCALCREC_NARGS; i++) {
                 std::string field = std::string(1,'A'+i);
                 if (keyval.first == field) {
                     auto val = &rec->a + i;
@@ -189,7 +189,7 @@ static void processRecordCb(pyRecord* rec)
 
 static long processRecord(dbCommon *common)
 {
-    auto rec = reinterpret_cast<struct pyRecord *>(common);
+    auto rec = reinterpret_cast<struct pycalcRecord *>(common);
 
     if (rec->pact == 0) {
         rec->pact = 1;
@@ -225,9 +225,9 @@ static long processRecord(dbCommon *common)
     return 0;
 }
 
-static long fetchValues(pyRecord *rec)
+static long fetchValues(pycalcRecord *rec)
 {
-    for (auto i = 0; i < PYREC_NARGS; i++) {
+    for (auto i = 0; i < PYCALCREC_NARGS; i++) {
         auto inp = &rec->inpa + i;
         auto ft  = &rec->fta  + i;
         auto val = &rec->a    + i;
@@ -241,7 +241,7 @@ static long fetchValues(pyRecord *rec)
                 if (*siz < dbValueSize(ftype)) {
                     free(*val);
                     *siz = dbValueSize(ftype);
-                    *val = callocMustSucceed(1, *siz, "pyRecord::initRecord");
+                    *val = callocMustSucceed(1, *siz, "pycalcRecord::initRecord");
                 }
                 *ft = ftype;
 
@@ -254,20 +254,20 @@ static long fetchValues(pyRecord *rec)
 
 static long convertDbAddr(DBADDR *paddr)
 {
-    auto rec = reinterpret_cast<pyRecord *>(paddr->precord);
+    auto rec = reinterpret_cast<pycalcRecord *>(paddr->precord);
     int field = dbGetFieldIndex(paddr);
 
-    if (field >= pyRecordA && field < (pyRecordA + PYREC_NARGS)) {
-        int off = field - pyRecordA;
+    if (field >= pycalcRecordA && field < (pycalcRecordA + PYCALCREC_NARGS)) {
+        int off = field - pycalcRecordA;
         paddr->pfield      = *(&rec->a   + off);
         paddr->no_elements = 1;
         paddr->field_type  = *(&rec->fta + off);
-    } else if (field == pyRecordVAL) {
+    } else if (field == pycalcRecordVAL) {
         paddr->pfield = rec->val;
         paddr->no_elements = 1;
         paddr->field_type = rec->ftvl;
     } else {
-        errlogPrintf("pyRecord::convertDbAddr called for %s.%s\n", rec->name, paddr->pfldDes->name);
+        errlogPrintf("pycalcRecord::convertDbAddr called for %s.%s\n", rec->name, paddr->pfldDes->name);
         return 0;
     }
     paddr->dbr_field_type = paddr->field_type;
@@ -277,15 +277,15 @@ static long convertDbAddr(DBADDR *paddr)
 
 static long getArrayInfo(DBADDR *paddr, long *no_elements, long *offset)
 {
-    auto rec = reinterpret_cast<pyRecord *>(paddr->precord);
+    auto rec = reinterpret_cast<pycalcRecord *>(paddr->precord);
     int field = dbGetFieldIndex(paddr);
 
-    if (field >= pyRecordA && field < (pyRecordA + PYREC_NARGS)) {
+    if (field >= pycalcRecordA && field < (pycalcRecordA + PYCALCREC_NARGS)) {
         *no_elements = 1;
-    } else if (field == pyRecordVAL) {
+    } else if (field == pycalcRecordVAL) {
         *no_elements = 1;
     } else {
-        errlogPrintf("pyRecord::getArrayInfo called for %s.%s\n", rec->name, paddr->pfldDes->name);
+        errlogPrintf("pycalcRecord::getArrayInfo called for %s.%s\n", rec->name, paddr->pfldDes->name);
     }
     *offset = 0;
 

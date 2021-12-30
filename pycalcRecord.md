@@ -1,6 +1,6 @@
-# PyRecord
+# pycalcRecord
 
-PyRecord is a custom record that allows passing multiple parameters to
+pycalcRecord is a custom record that allows passing multiple parameters to
 Python code and returning result of executed code as record value.
 Most common use case is to invoke Python function and using it's return
 value. But any Python expression can be evaluated the same way, including
@@ -11,12 +11,12 @@ pass a single parameter to Python code at a time.
 ## Parameter fields
 
 ### Processing
-PyRecord has the standard fields for specifying under what 
+pycalcRecord has the standard fields for specifying under what 
 curcuimstances the record will process. Refer to EPICS record commond 
 [Scan Fields](https://wiki-ext.aps.anl.gov/epics/index.php?title=RRM_3-14_dbCommon#Scan_Fields) 
 documentation for their description, ie. SCAN, PINI and other 
 processing fields. When INPx field contains a link and uses CP or CPP 
-subscription, the PyRecord will process when link's monitor is posted 
+subscription, the pycalcRecord will process when link's monitor is posted 
 according to [Channel Access Links](https://wiki-ext.aps.anl.gov/epics/index.php?title=RRM_3-14_Concepts#Channel_Access_Links) specification.
 
 ### Input fields
@@ -54,14 +54,14 @@ transfered to VAL field and the monitor is posted. In case Python code can
 not be executed or throws an exception, the record alarm is set to
 epicsAlarmCalc and severity is epicsSevInvalid.
 
-### Including PyRecord support in the IOC
+### Including pycalcRecord support in the IOC
 
 In addition to linking against pydev library as explained in 
 [README.md](README.md#adding-pydevice-support-to-ioc), one must also include
-pyRecord.dbd in the IOC as
+pycalcRecord.dbd in the IOC as
 
 ```
-<yourioc>_DBD += pyRecord.dbd
+<yourioc>_DBD += pycalcRecord.dbd
 ```
 
 ## Examples
@@ -69,7 +69,7 @@ pyRecord.dbd in the IOC as
 ### Simple expression
 
 ```
-record(py, "PyRecTest:MathExpr") {
+record(py, "PyCalcTest:MathExpr") {
     field(INPA, "17")
     field(INPB, "3")
     field(CALC, "%A%*%B%")
@@ -86,7 +86,7 @@ FTVL field.
 ### Adaptive parameter and return value types
 
 ```
-record(py, "PyRecTest:AdaptiveTypes") {
+record(py, "PyCalcTest:AdaptiveTypes") {
     field(INPA, "Test:Input1 CP")
     field(INPB, "Test:Input2 CP")
     field(CALC, "pow(max([%A%, %B%]), 2)")
@@ -104,7 +104,7 @@ float() functions surrounding the expression.
 ### Trigger record alarm
 
 ```
-record(py, "PyRecTest:InvalidAlarm") {
+record(py, "PyCalcTest:InvalidAlarm") {
     field(CALC, "unknown_function()")
 }
 ```
