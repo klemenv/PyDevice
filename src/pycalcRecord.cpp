@@ -95,7 +95,7 @@ static long initRecord(dbCommon *common, int pass)
             auto val = &rec->a    + i;
             auto siz = &rec->siza + i;
 
-            if (*ft >= DBF_ENUM) {
+            if (*ft > DBF_ENUM) {
                 *ft = DBF_CHAR;
             }
 
@@ -239,6 +239,9 @@ static long fetchValues(pycalcRecord *rec)
             auto ftype = dbGetLinkDBFtype(inp);
             auto ret = dbGetNelements(inp, &nElements);
             if (ftype >= 0 && ret == 0 && nElements == 1) {
+                if (ftype == DBF_ENUM) {
+                    ftype = DBF_STRING;
+                }
                 if (*siz < dbValueSize(ftype)) {
                     free(*val);
                     *siz = dbValueSize(ftype);
