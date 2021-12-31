@@ -29,16 +29,13 @@ with and can be changed vid dbPuts.
 Each INPx field has a corresponding FTx field that specifies the type
 of the field. Only scalar type are supported as of now: CHAR, UCHAR,
 SHORT, USHOR, LONG, ULONG, INT64, UINT64, FLOAT, DOUBLE, STRING.
-Setting a corresponding FTx field is required for constant
-values, but optional for links as they automatically determine the
-scalar type from the connected link. Default value is DOUBLE.
+Default value is DOUBLE.
 
 ### Output fields
 The result of executed Python code is pushed to VAL field every time
-record processes unless Python code could not be executed. The returned
-type depends on the return type of evaluated Python code and can be
-one of the following: LONG, DOUBLE, STRING. The type of return code
-from lastly executed Python code can be found in FTVL field.
+record processes unless Python code could not be executed. The result
+value is converted to the type specified in FTVL which can be one of the
+following: LONG, DOUBLE, STRING. 
 
 ### Python expression
 The purpose of this record is to be able to execute arbitrary Python code
@@ -72,7 +69,7 @@ pycalcRecord.dbd in the IOC as
 record(py, "PyCalcTest:MathExpr") {
     field(INPA, "17")
     field(INPB, "3")
-    field(CALC, "%A%*%B%")
+    field(CALC, "A*B")
 }
 ```
 
@@ -80,26 +77,27 @@ Processing this record will result in its value being 51.0. This may come as
 a bit of surprise since both parameters are integers. The constants needs the
 FTx field populated which defaults to DOUBLE. When the above record executes,
 the 2 integer values are converted to double values before passing to Python
-code. The result of the expression is DOUBLE value and can be verified with
-FTVL field.
+code. The result of the expression is DOUBLE value which happens to be default
+value for FTVL.
 
 ### Adaptive parameter and return value types
 
 ```
 record(py, "PyCalcTest:AdaptiveTypes") {
-    field(INPA, "Test:Input1 CP")
-    field(INPB, "Test:Input2 CP")
-    field(CALC, "pow(max([%A%, %B%]), 2)")
+    field(INPA, "PyCalcTest:Input1 CP")
+    field(INPB, "PyCalcTest:Input2 CP")
+    field(FTA,  "LONG")
+    field(FTB,  "DOUBLE")
+    field(CALC, "pow(max([A, B]), 2)")
+    field(FTVL, "LONG")
 }
 ```
 
-When using links (local PVs on same IOC or external ones), their value type
-defines the corresponding parameter type. In the above record, both PVs can
-be any numerical value and the Python code will calculate a square of the
-largest of the 2 parameters and the return value will be LONG if both
-parameters are integer values, or DOUBLE otherwise. If particular return
-type is required, it can be casted through Python code by using int() or
-float() functions surrounding the expression.
+The FTx fields define the parameter type regarless of what the link's type
+might be. When types don't match, values are converted and precision may be
+lost. In the example above, the PyCalcTest:Input1 PV is ai but the pycalc
+definition forces conversion to LONG. Similarly, the result of Python code
+is a double value, but we're only intersted in integer precision.
 
 ### Trigger record alarm
 

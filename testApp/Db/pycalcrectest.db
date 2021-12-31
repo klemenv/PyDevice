@@ -12,7 +12,10 @@ record(pycalc, "PyCalcTest:MathExpr") {
 record(pycalc, "PyCalcTest:AdaptiveTypes") {
     field(INPA, "PyCalcTest:Input1 CP")
     field(INPB, "PyCalcTest:Input2 CP")
+    field(FTA,  "LONG")
+    field(FTB,  "DOUBLE")
     field(CALC, "pow(max([A, B]), 2)")
+    field(FTVL, "LONG")
 }
 record(pycalc, "PyCalcTest:InvalidAlarm") {
     field(CALC, "unknown_function()")

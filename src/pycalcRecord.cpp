@@ -13,6 +13,7 @@
 #include "callback.h"
 #include "cantProceed.h"
 #include "dbAccess.h"
+#include "dbConvertFast.h"
 #include "dbEvent.h"
 #include "devSup.h"
 #include "epicsVersion.h"
@@ -156,35 +157,40 @@ static void processRecordCb(pycalcRecord* rec)
     }
     std::string code = Util::replaceFields(rec->calc, fields);
 
+    PyWrapper::MultiTypeValue ret;
+    long status = 0;
     try {
-        auto out = PyWrapper::exec(code, (rec->tpro == 1));
-        switch (out.type) {
-        case PyWrapper::MultiTypeValue::Type::BOOL:
-            rec->ftvl = DBR_LONG;
-            *reinterpret_cast<epicsInt32*>(rec->val) = out.b;
-            break;
-        case PyWrapper::MultiTypeValue::Type::INTEGER:
-            rec->ftvl = DBR_LONG;
-            *reinterpret_cast<epicsInt32*>(rec->val) = out.i;
-            break;
-        case PyWrapper::MultiTypeValue::Type::FLOAT:
-            rec->ftvl = DBR_DOUBLE;
-            *reinterpret_cast<epicsFloat64*>(rec->val) = out.f;
-            break;
-        case PyWrapper::MultiTypeValue::Type::STRING:
-            rec->ftvl = DBR_STRING;
-            strncpy(reinterpret_cast<char*>(rec->val), out.s.c_str(), dbValueSize(DBR_STRING));
-            reinterpret_cast<char*>(rec->val)[dbValueSize(DBR_STRING)-1] = 0;
-            break;
-        default:
-            rec->ftvl = DBR_STRING;
-            reinterpret_cast<char*>(rec->val)[0] = 0;
-            break;
-        }
-        rec->ctx->processCbStatus = 0;
+        ret = PyWrapper::exec(code, (rec->tpro == 1));
     } catch (...) {
-        rec->ctx->processCbStatus = -1;
+        status = -1;
     }
+
+    if (status == 0) {
+        typedef long (*convertRoutineCast)(void*, void*, void*);
+        if (ret.type == PyWrapper::MultiTypeValue::Type::BOOL) {
+            epicsInt32 l = ret.b;
+            auto convert = reinterpret_cast<convertRoutineCast>(dbFastPutConvertRoutine[DBF_LONG][rec->ftvl]);
+            status = convert(&l, rec->val, 0);
+        } else if (ret.type == PyWrapper::MultiTypeValue::Type::INTEGER) {
+            auto convert = reinterpret_cast<convertRoutineCast>(dbFastPutConvertRoutine[DBF_LONG][rec->ftvl]);
+            status = convert(&ret.i, rec->val, 0);
+        } else if (ret.type == PyWrapper::MultiTypeValue::Type::FLOAT) {
+            auto convert = reinterpret_cast<convertRoutineCast>(dbFastPutConvertRoutine[DBF_DOUBLE][rec->ftvl]);
+            status = convert(&ret.f, rec->val, 0);
+        } else if (ret.type == PyWrapper::MultiTypeValue::Type::STRING) {
+            char s[MAX_STRING_SIZE];
+            strncpy(s, ret.s.c_str(), MAX_STRING_SIZE);
+            s[MAX_STRING_SIZE-1] = 0;
+            auto convert = reinterpret_cast<convertRoutineCast>(dbFastPutConvertRoutine[DBF_STRING][rec->ftvl]);
+            status = convert(s, rec->val, 0);
+        } else {
+            char s[MAX_STRING_SIZE] = {};
+            auto convert = reinterpret_cast<convertRoutineCast>(dbFastPutConvertRoutine[DBF_STRING][rec->ftvl]);
+            status = convert(s, rec->val, 0);
+        }
+    }
+
+    rec->ctx->processCbStatus = (status == 0 ? 0 : -1);
     callbackRequestProcessCallback(&rec->ctx->callback, rec->prio, rec);
 }
 
@@ -232,23 +238,11 @@ static long fetchValues(pycalcRecord *rec)
         auto inp = &rec->inpa + i;
         auto ft  = &rec->fta  + i;
         auto val = &rec->a    + i;
-        auto siz = &rec->siza + i;
 
         if (!dbLinkIsConstant(inp) && dbIsLinkConnected(inp)) {
             long nElements;
-            auto ftype = dbGetLinkDBFtype(inp);
             auto ret = dbGetNelements(inp, &nElements);
-            if (ftype >= 0 && ret == 0 && nElements == 1) {
-                if (ftype == DBF_ENUM) {
-                    ftype = DBF_STRING;
-                }
-                if (*siz < dbValueSize(ftype)) {
-                    free(*val);
-                    *siz = dbValueSize(ftype);
-                    *val = callocMustSucceed(1, *siz, "pycalcRecord::initRecord");
-                }
-                *ft = ftype;
-
+            if (ret == 0 && nElements == 1) {
                 dbGetLink(inp, *ft, *val, 0, &nElements);
             }
         }
