@@ -118,6 +118,7 @@ static void processRecordCb(mbboRecord* rec)
         else if (keyval.first == "TTST") keyval.second = rec->ttst;
         else if (keyval.first == "FTST") keyval.second = rec->ftst;
         else if (keyval.first == "FFST") keyval.second = rec->ffst;
+        else if (keyval.first == "TPRO") keyval.second = std::to_string(rec->tpro);
     }
     std::string code = Util::replaceFields(rec->out.value.instio.string, fields);
 

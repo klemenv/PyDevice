@@ -183,9 +183,8 @@ static void processRecordCb(waveformRecord* rec)
                     keyval.second = Util::arrayToStr(arr);
                 }
             }
-
-
         }
+        else if (keyval.first == "TPRO") keyval.second = std::to_string(rec->tpro);
     }
     std::string code = Util::replaceFields(rec->inp.value.instio.string, fields);
 

@@ -88,6 +88,7 @@ static void processRecordCb(boRecord* rec)
         else if (keyval.first == "NAME") keyval.second = rec->name;
         else if (keyval.first == "ZNAM") keyval.second = rec->znam;
         else if (keyval.first == "ONAM") keyval.second = rec->onam;
+        else if (keyval.first == "TPRO") keyval.second = std::to_string(rec->tpro);
     }
     std::string code = Util::replaceFields(rec->out.value.instio.string, fields);
 

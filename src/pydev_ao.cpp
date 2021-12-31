@@ -94,6 +94,7 @@ static void processRecordCb(aoRecord* rec)
         else if (keyval.first == "HOPR") keyval.second = std::to_string(rec->hopr);
         else if (keyval.first == "LOPR") keyval.second = std::to_string(rec->lopr);
         else if (keyval.first == "PREC") keyval.second = std::to_string(rec->prec);
+        else if (keyval.first == "TPRO") keyval.second = std::to_string(rec->tpro);
     }
     std::string code = Util::replaceFields(rec->out.value.instio.string, fields);
 

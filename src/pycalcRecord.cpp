@@ -129,6 +129,7 @@ static void processRecordCb(pycalcRecord* rec)
     auto fields = Util::getFields(rec->calc);
     for (auto& keyval: fields) {
         if      (keyval.first == "NAME") keyval.second = rec->name;
+        else if (keyval.first == "TPRO") keyval.second = std::to_string(rec->tpro);
         else {
             for (auto i = 0; i < PYCALCREC_NARGS; i++) {
                 std::string field = std::string(1,'A'+i);

@@ -87,6 +87,7 @@ static void processRecordCb(lsiRecord* rec)
         else if (keyval.first == "NAME") keyval.second = rec->name;
         else if (keyval.first == "SIZV") keyval.second = std::to_string(rec->sizv);
         else if (keyval.first == "LEN")  keyval.second = std::to_string(rec->len);
+        else if (keyval.first == "TPRO") keyval.second = std::to_string(rec->tpro);
     }
     std::string code = Util::replaceFields(rec->inp.value.instio.string, fields);
 

@@ -92,6 +92,7 @@ static void processRecordCb(longoutRecord* rec)
         else if (keyval.first == "HIHI") keyval.second = std::to_string(rec->hihi);
         else if (keyval.first == "LOW")  keyval.second = std::to_string(rec->low);
         else if (keyval.first == "LOLO") keyval.second = std::to_string(rec->lolo);
+        else if (keyval.first == "TPRO") keyval.second = std::to_string(rec->tpro);
     }
     std::string code = Util::replaceFields(rec->out.value.instio.string, fields);
 
