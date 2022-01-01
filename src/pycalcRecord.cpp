@@ -217,6 +217,7 @@ static long processRecord(dbCommon *common)
     }
 
     recGblGetTimeStamp(rec);
+    dbPutLink(&rec->out, rec->ftvl, rec->val, 1);
 
     auto monitor_mask = recGblResetAlarms(rec);
     if (rec->ctx->processCbStatus == -1) {

@@ -37,6 +37,9 @@ record processes unless Python code could not be executed. The result
 value is converted to the type specified in FTVL which can be one of the
 following: LONG, DOUBLE, STRING. 
 
+If an output link is specified in OUT field, the same value from VAL is
+sent to the output link.
+
 ### Python expression
 The purpose of this record is to be able to execute arbitrary Python code
 by passing multiple parameters from EPICS PVs. The actual code to be executed

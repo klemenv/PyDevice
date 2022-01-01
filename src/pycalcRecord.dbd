@@ -32,6 +32,10 @@ recordtype(pycalc) {
                 initial("DOUBLE")
                 menu(menuFtype)
         }
+        field(OUT,DBF_OUTLINK) {
+                prompt("Output Specification")
+                interest(1)
+        }
 
         field(INPA,DBF_INLINK) {
                 prompt("Input Link A")

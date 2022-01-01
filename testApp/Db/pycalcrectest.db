@@ -4,6 +4,9 @@ record(ai, "PyCalcTest:Input1") {
 record(ai, "PyCalcTest:Input2") {
     field(INP,  "6.4")
 }
+record(longin, "PyCalcTest:Output") {
+    field(VAL,  "-1")
+}
 record(pycalc, "PyCalcTest:MathExpr") {
     field(INPA, "17")
     field(INPB, "3")
@@ -16,6 +19,7 @@ record(pycalc, "PyCalcTest:AdaptiveTypes") {
     field(FTB,  "DOUBLE")
     field(CALC, "pow(max([A, B]), 2)")
     field(FTVL, "LONG")
+    field(OUT,  "PyCalcTest:Output PP")
 }
 record(pycalc, "PyCalcTest:InvalidAlarm") {
     field(CALC, "unknown_function()")
