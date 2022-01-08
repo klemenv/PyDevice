@@ -37,9 +37,9 @@
 #  if EPICS_VERSION_INT < VERSION_INT(3,16,0,2)
 #    define dbLinkIsConstant(lnk) ((lnk)->type == CONSTANT)
 #    define RECSUPFUN_CAST (RECSUPFUN)
-#    define HAVE_EPICS_INT64
 #  else
 #    define RECSUPFUN_CAST
+#    define HAVE_EPICS_INT64
 #  endif
 #else
 #  define dbLinkIsConstant(lnk) ((lnk)->type == CONSTANT)
