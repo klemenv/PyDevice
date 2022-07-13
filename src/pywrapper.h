@@ -1,6 +1,6 @@
 /*************************************************************************\
 * PyDevice is distributed subject to a Software License Agreement found
-* in file LICENSE that is included with this distribution. 
+* in file LICENSE that is included with this distribution.
 \*************************************************************************/
 
 #ifndef PYWRAPPER_H
@@ -19,6 +19,7 @@ class PyWrapper {
             long i;
             std::vector<long> vi;
             std::vector<double> vf;
+            std::vector<std::string> vs;
             enum class Type {
                 NONE,
                 BOOL,
@@ -27,6 +28,7 @@ class PyWrapper {
                 INTEGER,
                 VECTOR_FLOAT,
                 VECTOR_INTEGER,
+                VECTOR_STRING,
             } type{Type::NONE};
         };
         using Callback = std::function<void()>;

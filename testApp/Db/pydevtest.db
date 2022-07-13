@@ -77,6 +77,15 @@ record(waveform, "PyDev:Array:Stat") {
   field(FTVL, "DOUBLE")
 }
 
+record(waveform, "PyDev:Array:Strings") {
+  field(DTYP, "pydev")
+  field(INP,  "@[b'q3m2d1r', b'd05l2d1r', b'bm2d1r11', b'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', b'm_beamport_22']")
+  field(NELM, "20")
+  field(FTVL, "STRING")
+  field(PINI, "YES")
+  field(TPRO, 1)
+}
+
 # Custom Python code from python/pydevtest.py
 record(stringin, "PyDev:Google:Refresh") {
   field(DTYP, "pydev")

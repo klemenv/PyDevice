@@ -16,6 +16,7 @@
 
 #include <map>
 #include <string.h>
+#include <iostream>
 
 #include "asyncexec.h"
 #include "pywrapper.h"
@@ -28,6 +29,39 @@ struct PyDevContext {
 };
 
 static std::map<std::string, IOSCANPVT> ioScanPvts;
+
+static bool toRecArrayValString(waveformRecord* rec, const std::vector<std::string>& arr)
+{
+    /* should be defined somewhee in epics headers */
+    const int epics_string_length = 40;
+
+    if (!rec->ftvl == menuFtypeSTRING) {
+        std::cerr << "Not prepared for rec->ftvl" << rec->ftvl << "\n";
+        return false;
+    }
+    //assert (rec->ftvl == menuFtypeSTRING);
+
+
+    rec->nord = std::min(arr.size(), (size_t)rec->nelm);
+    std::cerr << "Requesting copying array of strings with " << arr.size() << " elements"
+	      << " maximum allowed " <<  rec->nelm <<  "\n";
+    std::cerr << "Writing vals ";
+
+    auto val = reinterpret_cast<char*>(rec->bptr);
+    for(size_t i = 0; i < rec->nord; ++i){
+        char *cptr = &val[i * epics_string_length];
+	// need to foresee space for last 0 ...
+	std::string cval = arr[i].substr(0, epics_string_length-1);
+	if(cval.size() < epics_string_length){
+	    std::cerr << "'" << cval <<  "' ";
+	    std::copy(cval.begin(), cval.end(), cptr);
+	} else {
+	    std::cerr << "String " << cval << "too long ";
+	}
+	cptr[epics_string_length - 1] = '\0'; /* sentinel */
+    }
+    return true;
+}
 
 template <typename T>
 static bool toRecArrayVal(waveformRecord* rec, const std::vector<T>& arr)
@@ -72,6 +106,8 @@ static bool toRecArrayVal(waveformRecord* rec, const std::vector<T>& arr)
         rec->nord = std::min(arr.size(), (size_t)rec->nelm);
         std::copy(arr.begin(), arr.begin()+rec->nord, val);
         return true;
+    } else {
+      std::cerr << "Not prepared for rec->ftvl" << rec->ftvl << "\n";
     }
     return false;
 }
@@ -189,10 +225,22 @@ static void processRecordCb(waveformRecord* rec)
     std::string code = Util::replaceFields(rec->inp.value.instio.string, fields);
 
     try {
-        bool ret;
+        bool ret = false;
         if (rec->ftvl == menuFtypeFLOAT || rec->ftvl == menuFtypeDOUBLE) {
             std::vector<double> arr;
             ret = (PyWrapper::exec(code, (rec->tpro == 1), arr) && toRecArrayVal(rec, arr));
+	} else if (rec->ftvl == menuFtypeSTRING) {
+	    std::vector<std::string> arr;
+	    std::cerr << "String array: calling exec" << "\n";
+	    auto ret1 = PyWrapper::exec(code, (rec->tpro == 1), arr);
+
+	    if(ret1){
+	      std::cerr << "String array: calling toRecArrayValString" << "\n";
+	      auto ret2 = toRecArrayValString(rec, arr);
+	      ret =  ret1 && ret2;
+	   }
+	    std::cerr << "String processing ... " << ret << "\n";
+            // ret = () && toRecArrayVal(rec, arr));
         } else {
             std::vector<long> arr;
             ret = (PyWrapper::exec(code, (rec->tpro == 1), arr) && toRecArrayVal(rec, arr));

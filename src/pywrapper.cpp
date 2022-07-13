@@ -253,6 +253,7 @@ bool PyWrapper::convert(void* in_, MultiTypeValue& out)
         out.type = MultiTypeValue::Type::NONE;
         out.vi.clear();
         out.vf.clear();
+                out.type = MultiTypeValue::Type::VECTOR_FLOAT;
 
         for (Py_ssize_t i = 0; i < PyList_Size(in); i++) {
             PyObject* el = PyList_GetItem(in, i);
@@ -290,6 +291,20 @@ bool PyWrapper::convert(void* in_, MultiTypeValue& out)
                 out.vf.push_back(val);
                 out.type = MultiTypeValue::Type::VECTOR_FLOAT;
             }
+	    std::cerr << "Checking element for bytes " << PyBytes_Check(el) << " out.type " << static_cast<int>(out.type)
+		      << " == VECTOR_FLOAT " <<  (out.type == MultiTypeValue::Type::VECTOR_FLOAT)
+		      << "\n";
+	    if(PyBytes_Check(el) && (out.type == MultiTypeValue::Type::NONE || out.type == MultiTypeValue::Type::VECTOR_STRING ||
+				     out.type == MultiTypeValue::Type::VECTOR_FLOAT /* how not to end here ? */
+				     )) {
+	        const char *cval = PyBytes_AsString(el);
+	        if (!cval && PyErr_Occurred()) {
+                    PyErr_Clear();
+                    return false;
+                }
+	        out.vs.push_back(cval);
+                out.type = MultiTypeValue::Type::VECTOR_STRING;
+	    }
         }
 
         if (out.type == MultiTypeValue::Type::NONE) {
@@ -384,6 +399,19 @@ bool PyWrapper::exec(const std::string& line, bool debug, std::vector<long>& arr
     return false;
 }
 
+
+template <>
+bool PyWrapper::exec(const std::string& line, bool debug, std::vector<std::string>& arr)
+{
+    auto out = exec(line, debug);
+    if (out.type == MultiTypeValue::Type::VECTOR_STRING) {
+        arr = out.vs;
+        return true;
+    }
+    std::cerr << "exec for string array out type ? " << static_cast<int>(out.type) << "\n" ;
+    return false;
+}
+
 PyWrapper::MultiTypeValue PyWrapper::exec(const std::string& line, bool debug)
 {
     MultiTypeValue val;
@@ -396,7 +424,9 @@ PyWrapper::MultiTypeValue PyWrapper::exec(const std::string& line, bool debug)
     // Evaluating Python produces a return value
     PyObject* r = PyRun_String(line.c_str(), Py_eval_input, globDict, locDict);
     if (r != nullptr) {
+      std::cerr << "PyRunString returned " << r << "\n";
         bool converted = convert(r, val);
+	std::cerr << "PyRunString returned " << r << " converted? " << converted <<  "\n";
         Py_DecRef(r);
 
         if (!converted) {
