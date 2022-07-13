@@ -103,8 +103,6 @@ static bool toRecArrayVal(waveformRecord* rec, const std::vector<T>& arr)
         rec->nord = std::min(arr.size(), (size_t)rec->nelm);
         std::copy(arr.begin(), arr.begin()+rec->nord, val);
         return true;
-    } else {
-      std::cerr << "Not prepared for rec->ftvl" << rec->ftvl << "\n";
     }
     return false;
 }
@@ -222,7 +220,7 @@ static void processRecordCb(waveformRecord* rec)
     std::string code = Util::replaceFields(rec->inp.value.instio.string, fields);
 
     try {
-        bool ret = false;
+        bool ret;
         if (rec->ftvl == menuFtypeFLOAT || rec->ftvl == menuFtypeDOUBLE) {
             std::vector<double> arr;
             ret = (PyWrapper::exec(code, (rec->tpro == 1), arr) && toRecArrayVal(rec, arr));

@@ -405,7 +405,9 @@ bool PyWrapper::exec(const std::string& line, bool debug, std::vector<std::strin
         arr = out.vs;
         return true;
     }
-    std::cerr << "exec for string array out type ? " << static_cast<int>(out.type) << "\n" ;
+    if(debug){
+        std::cerr << "exec for string array out type ? " << static_cast<int>(out.type) << "\n" ;
+    }
     return false;
 }
 
