@@ -291,9 +291,6 @@ bool PyWrapper::convert(void* in_, MultiTypeValue& out)
                 out.vf.push_back(val);
                 out.type = MultiTypeValue::Type::VECTOR_FLOAT;
             }
-	    std::cerr << "Checking element for bytes " << PyBytes_Check(el) << " out.type " << static_cast<int>(out.type)
-		      << " == VECTOR_FLOAT " <<  (out.type == MultiTypeValue::Type::VECTOR_FLOAT)
-		      << "\n";
 	    if(PyBytes_Check(el) && (out.type == MultiTypeValue::Type::NONE || out.type == MultiTypeValue::Type::VECTOR_STRING ||
 				     out.type == MultiTypeValue::Type::VECTOR_FLOAT /* how not to end here ? */
 				     )) {
@@ -424,9 +421,7 @@ PyWrapper::MultiTypeValue PyWrapper::exec(const std::string& line, bool debug)
     // Evaluating Python produces a return value
     PyObject* r = PyRun_String(line.c_str(), Py_eval_input, globDict, locDict);
     if (r != nullptr) {
-      std::cerr << "PyRunString returned " << r << "\n";
         bool converted = convert(r, val);
-	std::cerr << "PyRunString returned " << r << " converted? " << converted <<  "\n";
         Py_DecRef(r);
 
         if (!converted) {

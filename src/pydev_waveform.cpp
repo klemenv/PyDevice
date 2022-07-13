@@ -36,28 +36,25 @@ static bool toRecArrayValString(waveformRecord* rec, const std::vector<std::stri
     const int epics_string_length = 40;
 
     if (!rec->ftvl == menuFtypeSTRING) {
-        std::cerr << "Not prepared for rec->ftvl" << rec->ftvl << "\n";
+        if(rec->tpro){
+            std::cerr << "Not prepared for rec->ftvl" << rec->ftvl << "\n";
+	}
         return false;
     }
     //assert (rec->ftvl == menuFtypeSTRING);
 
 
     rec->nord = std::min(arr.size(), (size_t)rec->nelm);
-    std::cerr << "Requesting copying array of strings with " << arr.size() << " elements"
-	      << " maximum allowed " <<  rec->nelm <<  "\n";
-    std::cerr << "Writing vals ";
-
     auto val = reinterpret_cast<char*>(rec->bptr);
     for(size_t i = 0; i < rec->nord; ++i){
         char *cptr = &val[i * epics_string_length];
+	std::string sval = arr[i];
 	// need to foresee space for last 0 ...
-	std::string cval = arr[i].substr(0, epics_string_length-1);
-	if(cval.size() < epics_string_length){
-	    std::cerr << "'" << cval <<  "' ";
-	    std::copy(cval.begin(), cval.end(), cptr);
-	} else {
-	    std::cerr << "String " << cval << "too long ";
+	if(rec->tpro && sval.size() > epics_string_length - 1){
+	    std::cerr << "arr[" << i << "]: '" << sval << "' too long\n";
 	}
+	std::string cval = sval.substr(0, epics_string_length-1);
+	std::copy(cval.begin(), cval.end(), cptr);
 	cptr[epics_string_length - 1] = '\0'; /* sentinel */
     }
     return true;
@@ -231,16 +228,7 @@ static void processRecordCb(waveformRecord* rec)
             ret = (PyWrapper::exec(code, (rec->tpro == 1), arr) && toRecArrayVal(rec, arr));
 	} else if (rec->ftvl == menuFtypeSTRING) {
 	    std::vector<std::string> arr;
-	    std::cerr << "String array: calling exec" << "\n";
-	    auto ret1 = PyWrapper::exec(code, (rec->tpro == 1), arr);
-
-	    if(ret1){
-	      std::cerr << "String array: calling toRecArrayValString" << "\n";
-	      auto ret2 = toRecArrayValString(rec, arr);
-	      ret =  ret1 && ret2;
-	   }
-	    std::cerr << "String processing ... " << ret << "\n";
-            // ret = () && toRecArrayVal(rec, arr));
+	    ret = (PyWrapper::exec(code, (rec->tpro == 1), arr) && toRecArrayValString(rec, arr));
         } else {
             std::vector<long> arr;
             ret = (PyWrapper::exec(code, (rec->tpro == 1), arr) && toRecArrayVal(rec, arr));
