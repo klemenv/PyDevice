@@ -26,5 +26,3 @@ TEMPLATE_TOP=$(EPICS_BASE)/templates/makeBaseApp/top
 # rather than editing this file.
 
 -include $(TOP)/configure/RELEASE.local
-
-

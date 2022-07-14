@@ -17,7 +17,7 @@
 #include <map>
 #include <string.h>
 #include <iostream>
-
+#include <sstream>
 #include "asyncexec.h"
 #include "pywrapper.h"
 #include "util.h"
@@ -41,19 +41,23 @@ static bool toRecArrayValString(waveformRecord* rec, const std::vector<std::stri
 	}
         return false;
     }
-    //assert (rec->ftvl == menuFtypeSTRING);
-
 
     rec->nord = std::min(arr.size(), (size_t)rec->nelm);
     auto val = reinterpret_cast<char*>(rec->bptr);
     for(size_t i = 0; i < rec->nord; ++i){
         char *cptr = &val[i * epics_string_length];
 	std::string sval = arr[i];
-	// need to foresee space for last 0 ...
+	// need to foresee space for last '\0'
 	if(rec->tpro && sval.size() > epics_string_length - 1){
-	    std::cerr << "arr[" << i << "]: '" << sval << "' too long\n";
+	    // Indicate on console which element will be truncated where
+	    std::stringstream strm;
+	    strm << rec->name << "[" << i << "]: '";
+	    const std::string info = strm.str();
+	    std::cerr << info << sval << "' too long\n"
+		      << std::string(info.size() + epics_string_length - 1, ' ')
+		      << "^\n";
 	}
-	std::string cval = sval.substr(0, epics_string_length-1);
+	std::string cval = sval.substr(0, epics_string_length - 1);
 	std::copy(cval.begin(), cval.end(), cptr);
 	cptr[epics_string_length - 1] = '\0'; /* sentinel */
     }
