@@ -293,20 +293,20 @@ bool PyWrapper::convert(void* in_, MultiTypeValue& out)
 	    if (PyBytes_Check(el) && (out.type == MultiTypeValue::Type::NONE || out.type == MultiTypeValue::Type::VECTOR_STRING ||
 				      out.type == MultiTypeValue::Type::VECTOR_FLOAT /* how not to end here ? */
 				     )) {
-	        const char *cval = PyBytes_AsString(el);
-	        if (!cval) {
-		    if (PyErr_Occurred()) {
-			PyErr_Clear();
-		    } else {
-			// according to documentation should not end up here;
-			printf("ERROR: santiy check failed. PyBytes_AsString returned NULL"
-			       ", but no exception was set");
-		    }
+                const char *cval = PyBytes_AsString(el);
+                if (!cval) {
+                    if (PyErr_Occurred()) {
+                        PyErr_Clear();
+                    } else {
+                        // according to documentation should not end up here;
+                        printf("ERROR: santiy check failed. PyBytes_AsString returned NULL"
+                               ", but no exception was set");
+                    }
                     return false;
                 }
 	        out.vs.push_back(cval);
                 out.type = MultiTypeValue::Type::VECTOR_STRING;
-	    }
+            }
         }
 
         if (out.type == MultiTypeValue::Type::NONE) {

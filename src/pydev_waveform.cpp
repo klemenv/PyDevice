@@ -34,9 +34,9 @@ static bool toRecArrayValString(waveformRecord* rec, const std::vector<std::stri
 
     if (!rec->ftvl == menuFtypeSTRING) {
         if (rec->tpro) {
-	    printf("Can not convert strings for record type %d\n", rec->ftvl);
+            printf("Can not convert strings for record type %d\n", rec->ftvl);
         }
-	return false;
+        return false;
     }
 
     rec->nord = std::min(arr.size(), (size_t)rec->nelm);
@@ -50,7 +50,7 @@ static bool toRecArrayValString(waveformRecord* rec, const std::vector<std::stri
 	    if (sval.size() > MAX_STRING_SIZE - 1) {
                 // Indicate on console which element will be truncated where
                 std::stringstream strm;
-		strm << rec->name << "[" << i << "]: '";
+                strm << rec->name << "[" << i << "]: '";
                 const std::string info = strm.str();
                 printf("%s%s' too long\n%s^\n", info.c_str(), sval.c_str(),
 		       std::string(info.size() + MAX_STRING_SIZE - 1, ' ').c_str()
@@ -117,7 +117,7 @@ static bool fromRecArrayStringVal(waveformRecord* rec, std::vector<std::string>&
     arr.resize(rec->nord);
     if (!rec->ftvl == menuFtypeSTRING) {
         if (rec->tpro) {
-	    printf("%s: Can not convert entries to strings for %d\n", rec->name, rec->ftvl);
+            printf("%s: Can not convert entries to strings for %d\n", rec->name, rec->ftvl);
 	}
         return false;
     }
@@ -232,7 +232,6 @@ std::string arrayOfStrToStr(const std::vector<std::string>& val)
         value += "]";
     }
     return value;
-
 }
 
 static void processRecordCb(waveformRecord* rec)
@@ -248,11 +247,11 @@ static void processRecordCb(waveformRecord* rec)
                     keyval.second = Util::arrayToStr(arr);
                 }
 	    } else if (rec->ftvl == menuFtypeSTRING) {
-	        std::vector<std::string> arr;
+                std::vector<std::string> arr;
                 if (fromRecArrayStringVal(rec, arr) == true) {
-		    // current implementation of arrayToStr does not handle strings ..
-		    keyval.second = arrayOfStrToStr(arr);
-		}
+                    // current implementation of arrayToStr does not handle strings ..
+                    keyval.second = arrayOfStrToStr(arr);
+                }
             } else {
                 std::vector<long> arr;
                 if (fromRecArrayVal(rec, arr) == true) {
@@ -270,8 +269,8 @@ static void processRecordCb(waveformRecord* rec)
             std::vector<double> arr;
             ret = (PyWrapper::exec(code, (rec->tpro == 1), arr) && toRecArrayVal(rec, arr));
 	} else if (rec->ftvl == menuFtypeSTRING) {
-	    std::vector<std::string> arr;
-	    ret = (PyWrapper::exec(code, (rec->tpro == 1), arr) && toRecArrayValString(rec, arr));
+            std::vector<std::string> arr;
+            ret = (PyWrapper::exec(code, (rec->tpro == 1), arr) && toRecArrayValString(rec, arr));
         } else {
             std::vector<long> arr;
             ret = (PyWrapper::exec(code, (rec->tpro == 1), arr) && toRecArrayVal(rec, arr));
