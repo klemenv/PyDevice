@@ -290,9 +290,7 @@ bool PyWrapper::convert(void* in_, MultiTypeValue& out)
                 out.vf.push_back(val);
                 out.type = MultiTypeValue::Type::VECTOR_FLOAT;
             }
-	    if (PyBytes_Check(el) && (out.type == MultiTypeValue::Type::NONE || out.type == MultiTypeValue::Type::VECTOR_STRING ||
-				      out.type == MultiTypeValue::Type::VECTOR_FLOAT /* how not to end here ? */
-				     )) {
+            if (PyBytes_Check(el) && (out.type == MultiTypeValue::Type::NONE || out.type == MultiTypeValue::Type::VECTOR_STRING)) {
                 const char *cval = PyBytes_AsString(el);
                 if (!cval) {
                     if (PyErr_Occurred()) {
