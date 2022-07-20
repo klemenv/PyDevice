@@ -16,7 +16,6 @@
 
 #include <map>
 #include <string.h>
-#include <iostream>
 #include <sstream>
 #include "asyncexec.h"
 #include "pywrapper.h"
@@ -32,35 +31,37 @@ static std::map<std::string, IOSCANPVT> ioScanPvts;
 
 static bool toRecArrayValString(waveformRecord* rec, const std::vector<std::string>& arr)
 {
-    /* should be defined somewhee in epics headers */
-    const int epics_string_length = 40;
 
     if (!rec->ftvl == menuFtypeSTRING) {
-        if(rec->tpro){
-            std::cerr << "Not prepared for rec->ftvl" << rec->ftvl << "\n";
+        if (rec->tpro) {
+	    printf("Can not convert strings for record type %d\n", rec->ftvl);
 	}
-        return false;
+	return false;
     }
 
     rec->nord = std::min(arr.size(), (size_t)rec->nelm);
     auto val = reinterpret_cast<char*>(rec->bptr);
-    for(size_t i = 0; i < rec->nord; ++i){
-        char *cptr = &val[i * epics_string_length];
+
+    for (size_t i = 0; i < rec->nord; ++i) {
+        char *cptr = &val[i * MAX_STRING_SIZE];
 	std::string sval = arr[i];
-	// need to foresee space for last '\0'
-	if(rec->tpro && sval.size() > epics_string_length - 1){
-	    // Indicate on console which element will be truncated where
-	    std::stringstream strm;
-	    strm << rec->name << "[" << i << "]: '";
-	    const std::string info = strm.str();
-	    std::cerr << info << sval << "' too long\n"
-		      << std::string(info.size() + epics_string_length - 1, ' ')
-		      << "^\n";
+	if (rec->tpro) {
+	    // need to foresee space for last '\0'
+	    if (sval.size() > MAX_STRING_SIZE - 1) {
+	        // Indicate on console which element will be truncated where
+	        std::stringstream strm;
+		strm << rec->name << "[" << i << "]: '";
+		const std::string info = strm.str();
+		printf("%s%s' too long\n%s^\n", info.c_str(), sval.c_str(),
+		       std::string(info.size() + MAX_STRING_SIZE - 1, ' ').c_str()
+		       );
+	       }
 	}
-	std::string cval = sval.substr(0, epics_string_length - 1);
+	std::string cval = sval.substr(0, MAX_STRING_SIZE - 1);
 	std::copy(cval.begin(), cval.end(), cptr);
-	cptr[epics_string_length - 1] = '\0'; /* sentinel */
+	cptr[MAX_STRING_SIZE - 1] = '\0'; /* sentinel */
     }
+
     return true;
 }
 
@@ -107,6 +108,25 @@ static bool toRecArrayVal(waveformRecord* rec, const std::vector<T>& arr)
         rec->nord = std::min(arr.size(), (size_t)rec->nelm);
         std::copy(arr.begin(), arr.begin()+rec->nord, val);
         return true;
+    }
+    return false;
+}
+
+static bool fromRecArrayStringVal(waveformRecord* rec, std::vector<std::string>& arr)
+{
+    arr.resize(rec->nelm);
+    if (!rec->ftvl == menuFtypeSTRING) {
+        if (rec->tpro){
+            std::cerr << "Can not convert entries to strings for " << rec->ftvl
+		      << "\n";
+	}
+        return false;
+    }
+    auto val = reinterpret_cast<char*>(rec->bptr);
+    for(size_t i=0; i<rec->nord; ++i){
+	const char *cptr = &val[i * MAX_STRING_SIZE];
+	std::string tmp(cptr, 0, MAX_STRING_SIZE);
+	arr[i] = tmp;
     }
     return false;
 }
@@ -211,6 +231,14 @@ static void processRecordCb(waveformRecord* rec)
                 std::vector<double> arr;
                 if (fromRecArrayVal(rec, arr) == true) {
                     keyval.second = Util::arrayToStr(arr);
+                }
+	    } else if (rec->ftvl == menuFtypeSTRING) {
+	        std::vector<std::string> arr;
+                if (fromRecArrayStringVal(rec, arr) == true) {
+		    keyval.second = Util::arrayToStr(arr);
+		    if (rec->tpro){
+		      printf("%s: input %s\n", rec->name, keyval.second);
+		    }
                 }
             } else {
                 std::vector<long> arr;

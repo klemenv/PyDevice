@@ -253,7 +253,8 @@ bool PyWrapper::convert(void* in_, MultiTypeValue& out)
         out.type = MultiTypeValue::Type::NONE;
         out.vi.clear();
         out.vf.clear();
-                out.type = MultiTypeValue::Type::VECTOR_FLOAT;
+	// Test if this required ....
+        // out.type = MultiTypeValue::Type::VECTOR_FLOAT;
 
         for (Py_ssize_t i = 0; i < PyList_Size(in); i++) {
             PyObject* el = PyList_GetItem(in, i);
@@ -291,12 +292,18 @@ bool PyWrapper::convert(void* in_, MultiTypeValue& out)
                 out.vf.push_back(val);
                 out.type = MultiTypeValue::Type::VECTOR_FLOAT;
             }
-	    if(PyBytes_Check(el) && (out.type == MultiTypeValue::Type::NONE || out.type == MultiTypeValue::Type::VECTOR_STRING ||
-				     out.type == MultiTypeValue::Type::VECTOR_FLOAT /* how not to end here ? */
+	    if (PyBytes_Check(el) && (out.type == MultiTypeValue::Type::NONE || out.type == MultiTypeValue::Type::VECTOR_STRING ||
+				      out.type == MultiTypeValue::Type::VECTOR_FLOAT /* how not to end here ? */
 				     )) {
 	        const char *cval = PyBytes_AsString(el);
-	        if (!cval && PyErr_Occurred()) {
-                    PyErr_Clear();
+	        if (!cval) {
+		    if (PyErr_Occurred()) {
+			PyErr_Clear();
+		    } else {
+			// according to documentation should not end up here;
+			printf("ERROR: santiy check failed. PyBytes_AsString returned NULL"
+			       ", but no exception was set");
+		    }
                     return false;
                 }
 	        out.vs.push_back(cval);
@@ -405,8 +412,8 @@ bool PyWrapper::exec(const std::string& line, bool debug, std::vector<std::strin
         arr = out.vs;
         return true;
     }
-    if(debug){
-        std::cerr << "exec for string array out type ? " << static_cast<int>(out.type) << "\n" ;
+    if (debug) {
+	printf("exec for string array out type: %d ?\n", static_cast<int>(out.type));
     }
     return false;
 }

@@ -20,9 +20,8 @@ include $(CONFIG)/CONFIG
 INSTALL_LOCATION = $(TOP)
 
 # As soon as python3 is the default configuration
-PYTHON_CONFIG=python3-config
-# Ubuntu 20 needs python2-config
-# PYTHON_CONFIG=python2-config
+# PYTHON_CONFIG=python3-config
+PYTHON_CONFIG=python-config
 
 # CONFIG_SITE files contain other build configuration settings
 include $(TOP)/configure/CONFIG_SITE
