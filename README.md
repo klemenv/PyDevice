@@ -63,7 +63,7 @@ def send(self, msg):
 Such class can be easily instantiated and tested in any Python environment:
 
 ``` python
-import mydevice
+from mydevice import MyDevice
 if __name__ == "__main__":
     device = MyDevice()
     device.connect("127.0.0.1")
