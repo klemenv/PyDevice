@@ -304,7 +304,7 @@ bool PyWrapper::convert(void* in_, MultiTypeValue& out)
                     }
                     return false;
                 }
-	        out.vs.push_back(cval);
+                out.vs.push_back(cval);
                 out.type = MultiTypeValue::Type::VECTOR_STRING;
             }
         }

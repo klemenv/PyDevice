@@ -118,7 +118,7 @@ static bool fromRecArrayStringVal(waveformRecord* rec, std::vector<std::string>&
     if (!rec->ftvl == menuFtypeSTRING) {
         if (rec->tpro) {
             printf("%s: Can not convert entries to strings for %d\n", rec->name, rec->ftvl);
-    }
+        }
         return false;
     }
     auto val = reinterpret_cast<char*>(rec->bptr);
@@ -246,7 +246,7 @@ static void processRecordCb(waveformRecord* rec)
                 if (fromRecArrayVal(rec, arr) == true) {
                     keyval.second = Util::arrayToStr(arr);
                 }
-        } else if (rec->ftvl == menuFtypeSTRING) {
+            } else if (rec->ftvl == menuFtypeSTRING) {
                 std::vector<std::string> arr;
                 if (fromRecArrayStringVal(rec, arr) == true) {
                     // current implementation of arrayToStr does not handle strings ..
