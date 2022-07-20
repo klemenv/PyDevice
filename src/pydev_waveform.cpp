@@ -35,7 +35,7 @@ static bool toRecArrayValString(waveformRecord* rec, const std::vector<std::stri
     if (!rec->ftvl == menuFtypeSTRING) {
         if (rec->tpro) {
 	    printf("Can not convert strings for record type %d\n", rec->ftvl);
-	}
+        }
 	return false;
     }
 
@@ -48,14 +48,14 @@ static bool toRecArrayValString(waveformRecord* rec, const std::vector<std::stri
 	if (rec->tpro) {
 	    // need to foresee space for last '\0'
 	    if (sval.size() > MAX_STRING_SIZE - 1) {
-	        // Indicate on console which element will be truncated where
-	        std::stringstream strm;
+                // Indicate on console which element will be truncated where
+                std::stringstream strm;
 		strm << rec->name << "[" << i << "]: '";
-		const std::string info = strm.str();
-		printf("%s%s' too long\n%s^\n", info.c_str(), sval.c_str(),
+                const std::string info = strm.str();
+                printf("%s%s' too long\n%s^\n", info.c_str(), sval.c_str(),
 		       std::string(info.size() + MAX_STRING_SIZE - 1, ' ').c_str()
 		       );
-	       }
+	    }
 	}
 	std::string cval = sval.substr(0, MAX_STRING_SIZE - 1);
 	std::copy(cval.begin(), cval.end(), cptr);

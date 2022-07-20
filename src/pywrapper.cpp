@@ -253,8 +253,6 @@ bool PyWrapper::convert(void* in_, MultiTypeValue& out)
         out.type = MultiTypeValue::Type::NONE;
         out.vi.clear();
         out.vf.clear();
-	// Test if this required ....
-        // out.type = MultiTypeValue::Type::VECTOR_FLOAT;
 
         for (Py_ssize_t i = 0; i < PyList_Size(in); i++) {
             PyObject* el = PyList_GetItem(in, i);
@@ -413,7 +411,7 @@ bool PyWrapper::exec(const std::string& line, bool debug, std::vector<std::strin
         return true;
     }
     if (debug) {
-	printf("exec for string array out type: %d ?\n", static_cast<int>(out.type));
+        printf("exec for string array out type: %d ?\n", static_cast<int>(out.type));
     }
     return false;
 }
