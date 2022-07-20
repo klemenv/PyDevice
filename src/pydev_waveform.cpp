@@ -114,11 +114,10 @@ static bool toRecArrayVal(waveformRecord* rec, const std::vector<T>& arr)
 
 static bool fromRecArrayStringVal(waveformRecord* rec, std::vector<std::string>& arr)
 {
-    arr.resize(rec->nelm);
+    arr.resize(rec->nord);
     if (!rec->ftvl == menuFtypeSTRING) {
-        if (rec->tpro){
-            std::cerr << "Can not convert entries to strings for " << rec->ftvl
-		      << "\n";
+        if (rec->tpro) {
+	    printf("%s: Can not convert entries to strings for %d\n", rec->name, rec->ftvl);
 	}
         return false;
     }
@@ -128,7 +127,7 @@ static bool fromRecArrayStringVal(waveformRecord* rec, std::vector<std::string>&
 	std::string tmp(cptr, 0, MAX_STRING_SIZE);
 	arr[i] = tmp;
     }
-    return false;
+    return true;
 }
 
 template <typename T>
@@ -220,6 +219,22 @@ static long getIointInfo(int /*direction*/, waveformRecord *rec, IOSCANPVT* io)
     return 0;
 }
 
+
+std::string arrayOfStrToStr(const std::vector<std::string>& val)
+{
+    std::string value = "[";
+    for (const auto v: val) {
+        value += "b\"" +  Util::escape(v) + "\",";
+    }
+    if (value.back() == ',') {
+        value.back() = ']';
+    } else {
+        value += "]";
+    }
+    return value;
+
+}
+
 static void processRecordCb(waveformRecord* rec)
 {
     auto ctx = reinterpret_cast<PyDevContext*>(rec->dpvt);
@@ -235,11 +250,9 @@ static void processRecordCb(waveformRecord* rec)
 	    } else if (rec->ftvl == menuFtypeSTRING) {
 	        std::vector<std::string> arr;
                 if (fromRecArrayStringVal(rec, arr) == true) {
-		    keyval.second = Util::arrayToStr(arr);
-		    if (rec->tpro){
-		      printf("%s: input %s\n", rec->name, keyval.second);
-		    }
-                }
+		    // current implementation of arrayToStr does not handle strings ..
+		    keyval.second = arrayOfStrToStr(arr);
+		}
             } else {
                 std::vector<long> arr;
                 if (fromRecArrayVal(rec, arr) == true) {
