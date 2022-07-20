@@ -44,22 +44,22 @@ static bool toRecArrayValString(waveformRecord* rec, const std::vector<std::stri
 
     for (size_t i = 0; i < rec->nord; ++i) {
         char *cptr = &val[i * MAX_STRING_SIZE];
-	std::string sval = arr[i];
-	if (rec->tpro) {
-	    // need to foresee space for last '\0'
-	    if (sval.size() > MAX_STRING_SIZE - 1) {
+        std::string sval = arr[i];
+        if (rec->tpro) {
+            // need to foresee space for last '\0'
+            if (sval.size() > MAX_STRING_SIZE - 1) {
                 // Indicate on console which element will be truncated where
                 std::stringstream strm;
                 strm << rec->name << "[" << i << "]: '";
                 const std::string info = strm.str();
                 printf("%s%s' too long\n%s^\n", info.c_str(), sval.c_str(),
-		       std::string(info.size() + MAX_STRING_SIZE - 1, ' ').c_str()
-		       );
-	    }
-	}
-	std::string cval = sval.substr(0, MAX_STRING_SIZE - 1);
-	std::copy(cval.begin(), cval.end(), cptr);
-	cptr[MAX_STRING_SIZE - 1] = '\0'; /* sentinel */
+                       std::string(info.size() + MAX_STRING_SIZE - 1, ' ').c_str()
+               );
+            }
+        }
+        std::string cval = sval.substr(0, MAX_STRING_SIZE - 1);
+        std::copy(cval.begin(), cval.end(), cptr);
+        cptr[MAX_STRING_SIZE - 1] = '\0'; /* sentinel */
     }
 
     return true;
@@ -118,14 +118,14 @@ static bool fromRecArrayStringVal(waveformRecord* rec, std::vector<std::string>&
     if (!rec->ftvl == menuFtypeSTRING) {
         if (rec->tpro) {
             printf("%s: Can not convert entries to strings for %d\n", rec->name, rec->ftvl);
-	}
+    }
         return false;
     }
     auto val = reinterpret_cast<char*>(rec->bptr);
     for(size_t i=0; i<rec->nord; ++i){
-	const char *cptr = &val[i * MAX_STRING_SIZE];
-	std::string tmp(cptr, 0, MAX_STRING_SIZE);
-	arr[i] = tmp;
+        const char *cptr = &val[i * MAX_STRING_SIZE];
+        std::string tmp(cptr, 0, MAX_STRING_SIZE);
+        arr[i] = tmp;
     }
     return true;
 }
@@ -246,7 +246,7 @@ static void processRecordCb(waveformRecord* rec)
                 if (fromRecArrayVal(rec, arr) == true) {
                     keyval.second = Util::arrayToStr(arr);
                 }
-	    } else if (rec->ftvl == menuFtypeSTRING) {
+        } else if (rec->ftvl == menuFtypeSTRING) {
                 std::vector<std::string> arr;
                 if (fromRecArrayStringVal(rec, arr) == true) {
                     // current implementation of arrayToStr does not handle strings ..
@@ -268,7 +268,7 @@ static void processRecordCb(waveformRecord* rec)
         if (rec->ftvl == menuFtypeFLOAT || rec->ftvl == menuFtypeDOUBLE) {
             std::vector<double> arr;
             ret = (PyWrapper::exec(code, (rec->tpro == 1), arr) && toRecArrayVal(rec, arr));
-	} else if (rec->ftvl == menuFtypeSTRING) {
+        } else if (rec->ftvl == menuFtypeSTRING) {
             std::vector<std::string> arr;
             ret = (PyWrapper::exec(code, (rec->tpro == 1), arr) && toRecArrayValString(rec, arr));
         } else {
