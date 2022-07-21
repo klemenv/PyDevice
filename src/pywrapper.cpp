@@ -290,6 +290,21 @@ bool PyWrapper::convert(void* in_, MultiTypeValue& out)
                 out.vf.push_back(val);
                 out.type = MultiTypeValue::Type::VECTOR_FLOAT;
             }
+            if (PyBytes_Check(el) && (out.type == MultiTypeValue::Type::NONE || out.type == MultiTypeValue::Type::VECTOR_STRING)) {
+                const char *cval = PyBytes_AsString(el);
+                if (!cval) {
+                    if (PyErr_Occurred()) {
+                        PyErr_Clear();
+                    } else {
+                        // according to documentation should not end up here;
+                        printf("ERROR: santiy check failed. PyBytes_AsString returned NULL"
+                               ", but no exception was set");
+                    }
+                    return false;
+                }
+                out.vs.push_back(cval);
+                out.type = MultiTypeValue::Type::VECTOR_STRING;
+            }
         }
 
         if (out.type == MultiTypeValue::Type::NONE) {
@@ -380,6 +395,21 @@ bool PyWrapper::exec(const std::string& line, bool debug, std::vector<long>& arr
     } else if (out.type == MultiTypeValue::Type::VECTOR_FLOAT) {
         arr = std::vector<long>(out.vf.begin(), out.vf.end());
         return true;
+    }
+    return false;
+}
+
+
+template <>
+bool PyWrapper::exec(const std::string& line, bool debug, std::vector<std::string>& arr)
+{
+    auto out = exec(line, debug);
+    if (out.type == MultiTypeValue::Type::VECTOR_STRING) {
+        arr = out.vs;
+        return true;
+    }
+    if (debug) {
+        printf("exec for string array out type: %d ?\n", static_cast<int>(out.type));
     }
     return false;
 }

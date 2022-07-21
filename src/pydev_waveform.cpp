@@ -16,7 +16,7 @@
 
 #include <map>
 #include <string.h>
-
+#include <sstream>
 #include "asyncexec.h"
 #include "pywrapper.h"
 #include "util.h"
@@ -28,6 +28,42 @@ struct PyDevContext {
 };
 
 static std::map<std::string, IOSCANPVT> ioScanPvts;
+
+static bool toRecArrayValString(waveformRecord* rec, const std::vector<std::string>& arr)
+{
+
+    if (!rec->ftvl == menuFtypeSTRING) {
+        if (rec->tpro) {
+            printf("Can not convert strings for record type %d\n", rec->ftvl);
+        }
+        return false;
+    }
+
+    rec->nord = std::min(arr.size(), (size_t)rec->nelm);
+    auto val = reinterpret_cast<char*>(rec->bptr);
+
+    for (size_t i = 0; i < rec->nord; ++i) {
+        char *cptr = &val[i * MAX_STRING_SIZE];
+        std::string sval = arr[i];
+        if (rec->tpro) {
+            // need to foresee space for last '\0'
+            if (sval.size() > MAX_STRING_SIZE - 1) {
+                // Indicate on console which element will be truncated where
+                std::stringstream strm;
+                strm << rec->name << "[" << i << "]: '";
+                const std::string info = strm.str();
+                printf("%s%s' too long\n%s^\n", info.c_str(), sval.c_str(),
+                       std::string(info.size() + MAX_STRING_SIZE - 1, ' ').c_str()
+               );
+            }
+        }
+        std::string cval = sval.substr(0, MAX_STRING_SIZE - 1);
+        std::copy(cval.begin(), cval.end(), cptr);
+        cptr[MAX_STRING_SIZE - 1] = '\0'; /* sentinel */
+    }
+
+    return true;
+}
 
 template <typename T>
 static bool toRecArrayVal(waveformRecord* rec, const std::vector<T>& arr)
@@ -74,6 +110,24 @@ static bool toRecArrayVal(waveformRecord* rec, const std::vector<T>& arr)
         return true;
     }
     return false;
+}
+
+static bool fromRecArrayStringVal(waveformRecord* rec, std::vector<std::string>& arr)
+{
+    arr.resize(rec->nord);
+    if (!rec->ftvl == menuFtypeSTRING) {
+        if (rec->tpro) {
+            printf("%s: Can not convert entries to strings for %d\n", rec->name, rec->ftvl);
+        }
+        return false;
+    }
+    auto val = reinterpret_cast<char*>(rec->bptr);
+    for(size_t i=0; i<rec->nord; ++i){
+        const char *cptr = &val[i * MAX_STRING_SIZE];
+        std::string tmp(cptr, 0, MAX_STRING_SIZE);
+        arr[i] = tmp;
+    }
+    return true;
 }
 
 template <typename T>
@@ -165,6 +219,21 @@ static long getIointInfo(int /*direction*/, waveformRecord *rec, IOSCANPVT* io)
     return 0;
 }
 
+
+std::string arrayOfStrToStr(const std::vector<std::string>& val)
+{
+    std::string value = "[";
+    for (const auto v: val) {
+        value += "b\"" +  Util::escape(v) + "\",";
+    }
+    if (value.back() == ',') {
+        value.back() = ']';
+    } else {
+        value += "]";
+    }
+    return value;
+}
+
 static void processRecordCb(waveformRecord* rec)
 {
     auto ctx = reinterpret_cast<PyDevContext*>(rec->dpvt);
@@ -176,6 +245,12 @@ static void processRecordCb(waveformRecord* rec)
                 std::vector<double> arr;
                 if (fromRecArrayVal(rec, arr) == true) {
                     keyval.second = Util::arrayToStr(arr);
+                }
+            } else if (rec->ftvl == menuFtypeSTRING) {
+                std::vector<std::string> arr;
+                if (fromRecArrayStringVal(rec, arr) == true) {
+                    // current implementation of arrayToStr does not handle strings ..
+                    keyval.second = arrayOfStrToStr(arr);
                 }
             } else {
                 std::vector<long> arr;
@@ -193,6 +268,9 @@ static void processRecordCb(waveformRecord* rec)
         if (rec->ftvl == menuFtypeFLOAT || rec->ftvl == menuFtypeDOUBLE) {
             std::vector<double> arr;
             ret = (PyWrapper::exec(code, (rec->tpro == 1), arr) && toRecArrayVal(rec, arr));
+        } else if (rec->ftvl == menuFtypeSTRING) {
+            std::vector<std::string> arr;
+            ret = (PyWrapper::exec(code, (rec->tpro == 1), arr) && toRecArrayValString(rec, arr));
         } else {
             std::vector<long> arr;
             ret = (PyWrapper::exec(code, (rec->tpro == 1), arr) && toRecArrayVal(rec, arr));
