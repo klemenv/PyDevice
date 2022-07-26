@@ -79,7 +79,7 @@ record(waveform, "PyDev:Array:Stat") {
 
 record(waveform, "PyDev:Array:Strings") {
   field(DTYP, "pydev")
-  field(INP,  "@[b'q3m2d1r', b'd05l2d1r', b'bm2d1r11', b'ABCDEFGHIJKLMNOPQRSTUVWXYZ.__.abcdefgh.01234567890', b'm_beamport_22']")
+  field(INP,  "@[b'q3m2d1r', b'd05l2d1r', b'bm2d1r11', b'ABCDEFGHIJKLMNOPQRSTUVWXYZ.01234567890', b'm_beamport_22']")
   field(NELM, "20")
   field(FTVL, "STRING")
   field(PINI, "YES")

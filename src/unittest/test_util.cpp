@@ -99,6 +99,12 @@ struct TestReplace {
             { "B", "3" }
         };
         testOk1(Util::replaceFields("A*B", fields) == "17*3");
+
+        const static std::map<std::string, std::string> fields2 = {
+            { "A", "[1,2,3]" },
+            { "B", "['one','two','three']" }
+        };
+        testOk1(Util::replaceFields("zip(A,B)", fields2) == "zip([1,2,3],['one','two','three'])");
     }
 };
 

@@ -15,20 +15,28 @@ namespace Util {
 std::map<std::string, std::string> getFields(const std::string& text);
 std::string replaceFields(const std::string& text, const std::map<std::string, std::string>& fields);
 std::string escape(const std::string& text);
+std::string join(const std::vector<std::string>& tokens, const std::string& glue);
 
 template <typename T>
-std::string arrayToStr(const std::vector<T>& val)
+std::vector<std::string> to_strings(const T* array, size_t n)
 {
-    std::string value = "[";
-    for (const auto v: val) {
-        value += std::to_string(v) + ",";
+    std::vector<std::string> values;
+    for (size_t i=0; i<n; i++) {
+        values.push_back(std::to_string(array[i]));
     }
-    if (value.back() == ',') {
-        value.back() = ']';
-    } else {
-        value += "]";
-    }
-    return value;
+    return values;
+}
+
+template <typename T>
+std::string to_pylist_string(const T* array, size_t n)
+{
+    auto values = to_strings(array, n);
+    return "[" + join(values, ",") + "]";
+}
+
+static inline std::string to_pylist_string(const std::vector<std::string>& array)
+{
+    return "[" + join(array, ",") + "]";
 }
 
 template<typename T, typename... Rest>

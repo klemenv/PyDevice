@@ -24,3 +24,28 @@ record(pycalc, "PyCalcTest:AdaptiveTypes") {
 record(pycalc, "PyCalcTest:InvalidAlarm") {
     field(CALC, "unknown_function()")
 }
+
+record(waveform, "PyCalcTest:InputNumbers") {
+    field(FTVL, "DOUBLE")
+    field(NELM, "3")
+    # Only works with EPICS 7.0.2+
+    field(INP,  [1.7, 2.3, 14.91])
+}
+record(waveform, "PyCalcTest:InputStrings") {
+    field(FTVL, "STRING")
+    field(NELM, "3")
+    # Only works with EPICS 7.0.2+
+    field(INP,  [one, two, three])
+}
+record(pycalc, "PyCalcTest:MergeArrays") {
+    field(INPA, "PyCalcTest:InputNumbers")
+    field(INPB, "PyCalcTest:InputStrings")
+    field(FTA,  "DOUBLE")
+    field(FTB,  "STRING")
+    field(MEA,  "10")
+    field(MEB,  "10")
+    field(CALC, "list(map(lambda tuple: tuple[1]+':'+str(tuple[0]), zip(A,B)))")
+    field(FTVL, "STRING")
+    field(MEVL, "10")
+    field(PINI, "1")
+}

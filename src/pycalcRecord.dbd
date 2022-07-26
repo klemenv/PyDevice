@@ -32,6 +32,19 @@ recordtype(pycalc) {
                 initial("DOUBLE")
                 menu(menuFtype)
         }
+        field(MEVL,DBF_ULONG) {
+                prompt("Max elements in VAL")
+                special(SPC_NOMOD)
+                interest(2)
+                initial("1")
+        }
+
+        field(NEVL,DBF_ULONG) {
+                prompt("Num elements in VAL")
+                special(SPC_NOMOD)
+                interest(2)
+                initial("1")
+        }
         field(OUT,DBF_OUTLINK) {
                 prompt("Output Specification")
                 interest(1)
@@ -248,6 +261,128 @@ recordtype(pycalc) {
                 interest(1)
                 initial("DOUBLE")
                 menu(menuFtype)
+        }
+
+        field(MEA,DBF_ULONG) {
+                prompt("Max elements in A")
+                special(SPC_NOMOD)
+                interest(2)
+                initial("1")
+        }
+        field(MEB,DBF_ULONG) {
+                prompt("Max elements in B")
+                special(SPC_NOMOD)
+                interest(2)
+                initial("1")
+        }
+        field(MEC,DBF_ULONG) {
+                prompt("Max elements in C")
+                special(SPC_NOMOD)
+                interest(2)
+                initial("1")
+        }
+        field(MED,DBF_ULONG) {
+                prompt("Max elements in D")
+                special(SPC_NOMOD)
+                interest(2)
+                initial("1")
+        }
+        field(MEE,DBF_ULONG) {
+                prompt("Max elements in E")
+                special(SPC_NOMOD)
+                interest(2)
+                initial("1")
+        }
+        field(MEF,DBF_ULONG) {
+                prompt("Max elements in F")
+                special(SPC_NOMOD)
+                interest(2)
+                initial("1")
+        }
+        field(MEG,DBF_ULONG) {
+                prompt("Max elements in G")
+                special(SPC_NOMOD)
+                interest(2)
+                initial("1")
+        }
+        field(MEH,DBF_ULONG) {
+                prompt("Max elements in H")
+                special(SPC_NOMOD)
+                interest(2)
+                initial("1")
+        }
+        field(MEI,DBF_ULONG) {
+                prompt("Max elements in I")
+                special(SPC_NOMOD)
+                interest(2)
+                initial("1")
+        }
+        field(MEJ,DBF_ULONG) {
+                prompt("Max elements in J")
+                special(SPC_NOMOD)
+                interest(2)
+                initial("1")
+        }
+
+        field(NEA,DBF_ULONG) {
+                prompt("Num elements in A")
+                special(SPC_NOMOD)
+                interest(2)
+                initial("1")
+        }
+        field(NEB,DBF_ULONG) {
+                prompt("Num elements in B")
+                special(SPC_NOMOD)
+                interest(2)
+                initial("1")
+        }
+        field(NEC,DBF_ULONG) {
+                prompt("Num elements in C")
+                special(SPC_NOMOD)
+                interest(2)
+                initial("1")
+        }
+        field(NED,DBF_ULONG) {
+                prompt("Num elements in D")
+                special(SPC_NOMOD)
+                interest(2)
+                initial("1")
+        }
+        field(NEE,DBF_ULONG) {
+                prompt("Num elements in E")
+                special(SPC_NOMOD)
+                interest(2)
+                initial("1")
+        }
+        field(NEF,DBF_ULONG) {
+                prompt("Num elements in F")
+                special(SPC_NOMOD)
+                interest(2)
+                initial("1")
+        }
+        field(NEG,DBF_ULONG) {
+                prompt("Num elements in G")
+                special(SPC_NOMOD)
+                interest(2)
+                initial("1")
+        }
+        field(NEH,DBF_ULONG) {
+                prompt("Num elements in H")
+                special(SPC_NOMOD)
+                interest(2)
+                initial("1")
+        }
+        field(NEI,DBF_ULONG) {
+                prompt("Num elements in I")
+                special(SPC_NOMOD)
+                interest(2)
+                initial("1")
+        }
+        field(NEJ,DBF_ULONG) {
+                prompt("Num elements in J")
+                special(SPC_NOMOD)
+                interest(2)
+                initial("1")
         }
 
         field(SIZA,DBF_ULONG) {

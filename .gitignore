@@ -1,3 +1,4 @@
+# Files generated during build
 configure/CONFIG.PyDevice
 O.linux*
 O.Common
@@ -6,5 +7,8 @@ bin/
 lib/
 db/
 dbd/
+include/
 *.pyc
-include/pyRecord.h
+
+# Various IDE project files
+.vscode/

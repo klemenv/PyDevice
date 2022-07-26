@@ -253,6 +253,7 @@ bool PyWrapper::convert(void* in_, MultiTypeValue& out)
         out.type = MultiTypeValue::Type::NONE;
         out.vi.clear();
         out.vf.clear();
+        out.vs.clear();
 
         for (Py_ssize_t i = 0; i < PyList_Size(in); i++) {
             PyObject* el = PyList_GetItem(in, i);

@@ -95,17 +95,26 @@ static long initRecord(dbCommon *common, int pass)
             auto ft  = &rec->fta  + i;
             auto val = &rec->a    + i;
             auto siz = &rec->siza + i;
+            auto me  = &rec->mea  + i;
+            auto ne  = &rec->nea  + i;
 
             if (*ft > DBF_ENUM) {
                 *ft = DBF_CHAR;
             }
+            if (*me < 1) {
+                *me = 1;
+            }
+            *ne = (*me == 1 ? 1 : 0);
 
             *siz = dbValueSize(*ft);
-            *val = callocMustSucceed(1, *siz, "pycalcRecord::initRecord");
+            *val = callocMustSucceed(*me, *siz, "pycalcRecord::initRecord");
         }
 
         // Allocate output VAL field for longest possible value
-        rec->val = callocMustSucceed(1, dbValueSize(DBR_STRING), "pycalcRecord::initRecord");
+        if (rec->mevl < 1) {
+            rec->mevl = 1;
+        }
+        rec->val = callocMustSucceed(rec->mevl, dbValueSize(rec->ftvl), "pycalcRecord::initRecord");
         reinterpret_cast<char*>(rec->val)[0] = 0;
         return 0;
     }
@@ -135,22 +144,50 @@ static void processRecordCb(pycalcRecord* rec)
             for (auto i = 0; i < PYCALCREC_NARGS; i++) {
                 std::string field = std::string(1,'A'+i);
                 if (keyval.first == field) {
-                    auto val = &rec->a + i;
+                    auto val = &rec->a   + i;
                     auto ft  = &rec->fta + i;
+                    auto me  = &rec->mea + i;
+                    auto ne  = &rec->nea + i;
 
-                    if      (*ft == DBR_CHAR)   keyval.second = std::to_string(*reinterpret_cast<   epicsInt8*>(*val));
-                    else if (*ft == DBR_UCHAR)  keyval.second = std::to_string(*reinterpret_cast<  epicsUInt8*>(*val));
-                    else if (*ft == DBR_SHORT)  keyval.second = std::to_string(*reinterpret_cast<  epicsInt16*>(*val));
-                    else if (*ft == DBR_USHORT) keyval.second = std::to_string(*reinterpret_cast< epicsUInt16*>(*val));
-                    else if (*ft == DBR_LONG)   keyval.second = std::to_string(*reinterpret_cast<  epicsInt32*>(*val));
-                    else if (*ft == DBR_ULONG)  keyval.second = std::to_string(*reinterpret_cast< epicsUInt32*>(*val));
+                    if (*me == 1) {
+                        if      (*ft == DBR_CHAR)   keyval.second = std::to_string(*reinterpret_cast<   epicsInt8*>(*val));
+                        else if (*ft == DBR_UCHAR)  keyval.second = std::to_string(*reinterpret_cast<  epicsUInt8*>(*val));
+                        else if (*ft == DBR_SHORT)  keyval.second = std::to_string(*reinterpret_cast<  epicsInt16*>(*val));
+                        else if (*ft == DBR_USHORT) keyval.second = std::to_string(*reinterpret_cast< epicsUInt16*>(*val));
+                        else if (*ft == DBR_LONG)   keyval.second = std::to_string(*reinterpret_cast<  epicsInt32*>(*val));
+                        else if (*ft == DBR_ULONG)  keyval.second = std::to_string(*reinterpret_cast< epicsUInt32*>(*val));
 #ifdef HAVE_EPICS_INT64
-                    else if (*ft == DBR_INT64)  keyval.second = std::to_string(*reinterpret_cast<  epicsInt64*>(*val));
-                    else if (*ft == DBR_UINT64) keyval.second = std::to_string(*reinterpret_cast< epicsUInt64*>(*val));
+                        else if (*ft == DBR_INT64)  keyval.second = std::to_string(*reinterpret_cast<  epicsInt64*>(*val));
+                        else if (*ft == DBR_UINT64) keyval.second = std::to_string(*reinterpret_cast< epicsUInt64*>(*val));
 #endif
-                    else if (*ft == DBR_FLOAT)  keyval.second = std::to_string(*reinterpret_cast<epicsFloat32*>(*val));
-                    else if (*ft == DBR_DOUBLE) keyval.second = std::to_string(*reinterpret_cast<epicsFloat64*>(*val));
-                    else if (*ft == DBR_STRING) keyval.second = std::string(reinterpret_cast<const char*>(*val));
+                        else if (*ft == DBR_FLOAT)  keyval.second = std::to_string(*reinterpret_cast<epicsFloat32*>(*val));
+                        else if (*ft == DBR_DOUBLE) keyval.second = std::to_string(*reinterpret_cast<epicsFloat64*>(*val));
+                        else if (*ft == DBR_STRING) keyval.second = std::string(reinterpret_cast<const char*>(*val));
+                    } else {
+                        if      (*ft == DBR_CHAR)   keyval.second = Util::to_pylist_string( reinterpret_cast<   epicsInt8*>(*val), *ne );
+                        else if (*ft == DBR_UCHAR)  keyval.second = Util::to_pylist_string( reinterpret_cast<  epicsUInt8*>(*val), *ne );
+                        else if (*ft == DBR_SHORT)  keyval.second = Util::to_pylist_string( reinterpret_cast<  epicsInt16*>(*val), *ne );
+                        else if (*ft == DBR_USHORT) keyval.second = Util::to_pylist_string( reinterpret_cast< epicsUInt16*>(*val), *ne );
+                        else if (*ft == DBR_LONG)   keyval.second = Util::to_pylist_string( reinterpret_cast<  epicsInt32*>(*val), *ne );
+                        else if (*ft == DBR_ULONG)  keyval.second = Util::to_pylist_string( reinterpret_cast< epicsUInt32*>(*val), *ne );
+#ifdef HAVE_EPICS_INT64
+                        else if (*ft == DBR_INT64)  keyval.second = Util::to_pylist_string( reinterpret_cast<  epicsInt64*>(*val), *ne );
+                        else if (*ft == DBR_UINT64) keyval.second = Util::to_pylist_string( reinterpret_cast< epicsUInt64*>(*val), *ne );
+#endif
+                        else if (*ft == DBR_FLOAT)  keyval.second = Util::to_pylist_string( reinterpret_cast<epicsFloat32*>(*val), *ne );
+                        else if (*ft == DBR_DOUBLE) keyval.second = Util::to_pylist_string( reinterpret_cast<epicsFloat64*>(*val), *ne );
+                        else if (*ft == DBR_STRING) {
+                            std::vector<std::string> a;
+                            const char* ptr = reinterpret_cast<const char*>(*val);
+                            for (size_t i=0; i<*ne; i++) {
+                                std::string element(ptr, dbValueSize(DBF_STRING));
+                                element.resize(element.find('\0'));
+                                a.push_back("'" + Util::escape(element) + "'");
+                                ptr += dbValueSize(DBF_STRING);
+                            }
+                            keyval.second = Util::to_pylist_string(a);
+                        }
+                    }
                 }
             }
         }
@@ -165,28 +202,59 @@ static void processRecordCb(pycalcRecord* rec)
         status = -1;
     }
 
+    rec->nevl = 0;
     if (status == 0) {
-        typedef long (*convertRoutineCast)(void*, void*, void*);
+        typedef long (*convertRoutineCast)(const void*, void*, void*);
         if (ret.type == PyWrapper::MultiTypeValue::Type::BOOL) {
             epicsInt32 l = ret.b;
             auto convert = reinterpret_cast<convertRoutineCast>(dbFastPutConvertRoutine[DBF_LONG][rec->ftvl]);
             status = convert(&l, rec->val, 0);
+            rec->nevl = 1;
         } else if (ret.type == PyWrapper::MultiTypeValue::Type::INTEGER) {
             auto convert = reinterpret_cast<convertRoutineCast>(dbFastPutConvertRoutine[DBF_LONG][rec->ftvl]);
             status = convert(&ret.i, rec->val, 0);
+            rec->nevl = 1;
         } else if (ret.type == PyWrapper::MultiTypeValue::Type::FLOAT) {
             auto convert = reinterpret_cast<convertRoutineCast>(dbFastPutConvertRoutine[DBF_DOUBLE][rec->ftvl]);
             status = convert(&ret.f, rec->val, 0);
+            rec->nevl = 1;
         } else if (ret.type == PyWrapper::MultiTypeValue::Type::STRING) {
             char s[MAX_STRING_SIZE];
             strncpy(s, ret.s.c_str(), MAX_STRING_SIZE);
             s[MAX_STRING_SIZE-1] = 0;
             auto convert = reinterpret_cast<convertRoutineCast>(dbFastPutConvertRoutine[DBF_STRING][rec->ftvl]);
             status = convert(s, rec->val, 0);
-        } else {
-            char s[MAX_STRING_SIZE] = {};
+            rec->nevl = 1;
+        } else if (ret.type == PyWrapper::MultiTypeValue::Type::VECTOR_INTEGER) {
+            auto convert = reinterpret_cast<convertRoutineCast>(dbFastPutConvertRoutine[DBF_LONG][rec->ftvl]);
+            for (size_t i=0; i<ret.vi.size() && i<rec->mevl; i++) {
+                char* val = reinterpret_cast<char*>(rec->val) + i*dbValueSize(rec->ftvl);
+                status = convert(&ret.vi[i], val, 0);
+                if (status != 0) {
+                    break;
+                }
+                rec->nevl++;
+            }
+        } else if (ret.type == PyWrapper::MultiTypeValue::Type::VECTOR_FLOAT) {
+            auto convert = reinterpret_cast<convertRoutineCast>(dbFastPutConvertRoutine[DBF_DOUBLE][rec->ftvl]);
+            for (size_t i=0; i<ret.vf.size() && i<rec->mevl; i++) {
+                char* val = reinterpret_cast<char*>(rec->val) + i*dbValueSize(rec->ftvl);
+                status = convert(&ret.vf[i], val, 0);
+                if (status != 0) {
+                    break;
+                }
+                rec->nevl++;
+            }
+        } else if (ret.type == PyWrapper::MultiTypeValue::Type::VECTOR_STRING) {
             auto convert = reinterpret_cast<convertRoutineCast>(dbFastPutConvertRoutine[DBF_STRING][rec->ftvl]);
-            status = convert(s, rec->val, 0);
+            for (size_t i=0; i<ret.vs.size() && i<rec->mevl; i++) {
+                char* val = reinterpret_cast<char*>(rec->val) + i*dbValueSize(rec->ftvl);
+                status = convert(ret.vs[i].c_str(), val, 0);
+                if (status != 0) {
+                    break;
+                }
+                rec->nevl++;
+            }
         }
     }
 
@@ -217,7 +285,7 @@ static long processRecord(dbCommon *common)
     }
 
     recGblGetTimeStamp(rec);
-    dbPutLink(&rec->out, rec->ftvl, rec->val, 1);
+    dbPutLink(&rec->out, rec->ftvl, rec->val, rec->nevl);
 
     auto monitor_mask = recGblResetAlarms(rec);
     if (rec->ctx->processCbStatus == -1) {
@@ -239,12 +307,18 @@ static long fetchValues(pycalcRecord *rec)
         auto inp = &rec->inpa + i;
         auto ft  = &rec->fta  + i;
         auto val = &rec->a    + i;
+        auto me  = &rec->mea  + i;
+        auto ne  = &rec->nea  + i;
 
         if (!dbLinkIsConstant(inp) && dbIsLinkConnected(inp)) {
             long nElements;
             auto ret = dbGetNelements(inp, &nElements);
-            if (ret == 0 && nElements == 1) {
+            if (ret == 0 && nElements > 0) {
+                if (nElements > *me) {
+                    nElements = *me;
+                }
                 dbGetLink(inp, *ft, *val, 0, &nElements);
+                *ne = nElements;
             }
         }
     }
@@ -259,12 +333,12 @@ static long convertDbAddr(DBADDR *paddr)
     if (field >= pycalcRecordA && field < (pycalcRecordA + PYCALCREC_NARGS)) {
         int off = field - pycalcRecordA;
         paddr->pfield      = *(&rec->a   + off);
-        paddr->no_elements = 1;
+        paddr->no_elements = *(&rec->nea + off);
         paddr->field_type  = *(&rec->fta + off);
     } else if (field == pycalcRecordVAL) {
-        paddr->pfield = rec->val;
-        paddr->no_elements = 1;
-        paddr->field_type = rec->ftvl;
+        paddr->pfield      = rec->val;
+        paddr->no_elements = rec->nevl;
+        paddr->field_type  = rec->ftvl;
     } else {
         errlogPrintf("pycalcRecord::convertDbAddr called for %s.%s\n", rec->name, paddr->pfldDes->name);
         return 0;
@@ -280,9 +354,10 @@ static long getArrayInfo(DBADDR *paddr, long *no_elements, long *offset)
     int field = dbGetFieldIndex(paddr);
 
     if (field >= pycalcRecordA && field < (pycalcRecordA + PYCALCREC_NARGS)) {
-        *no_elements = 1;
+        int off = field - pycalcRecordA;
+        *no_elements = *(&rec->nea + off);
     } else if (field == pycalcRecordVAL) {
-        *no_elements = 1;
+        *no_elements = rec->nevl;
     } else {
         errlogPrintf("pycalcRecord::getArrayInfo called for %s.%s\n", rec->name, paddr->pfldDes->name);
     }

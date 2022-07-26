@@ -29,42 +29,6 @@ struct PyDevContext {
 
 static std::map<std::string, IOSCANPVT> ioScanPvts;
 
-static bool toRecArrayValString(waveformRecord* rec, const std::vector<std::string>& arr)
-{
-
-    if (!rec->ftvl == menuFtypeSTRING) {
-        if (rec->tpro) {
-            printf("Can not convert strings for record type %d\n", rec->ftvl);
-        }
-        return false;
-    }
-
-    rec->nord = std::min(arr.size(), (size_t)rec->nelm);
-    auto val = reinterpret_cast<char*>(rec->bptr);
-
-    for (size_t i = 0; i < rec->nord; ++i) {
-        char *cptr = &val[i * MAX_STRING_SIZE];
-        std::string sval = arr[i];
-        if (rec->tpro) {
-            // need to foresee space for last '\0'
-            if (sval.size() > MAX_STRING_SIZE - 1) {
-                // Indicate on console which element will be truncated where
-                std::stringstream strm;
-                strm << rec->name << "[" << i << "]: '";
-                const std::string info = strm.str();
-                printf("%s%s' too long\n%s^\n", info.c_str(), sval.c_str(),
-                       std::string(info.size() + MAX_STRING_SIZE - 1, ' ').c_str()
-               );
-            }
-        }
-        std::string cval = sval.substr(0, MAX_STRING_SIZE - 1);
-        std::copy(cval.begin(), cval.end(), cptr);
-        cptr[MAX_STRING_SIZE - 1] = '\0'; /* sentinel */
-    }
-
-    return true;
-}
-
 template <typename T>
 static bool toRecArrayVal(waveformRecord* rec, const std::vector<T>& arr)
 {
@@ -112,62 +76,41 @@ static bool toRecArrayVal(waveformRecord* rec, const std::vector<T>& arr)
     return false;
 }
 
-static bool fromRecArrayStringVal(waveformRecord* rec, std::vector<std::string>& arr)
+template <>
+bool toRecArrayVal<std::string>(waveformRecord* rec, const std::vector<std::string>& arr)
 {
-    arr.resize(rec->nord);
+
     if (!rec->ftvl == menuFtypeSTRING) {
         if (rec->tpro) {
-            printf("%s: Can not convert entries to strings for %d\n", rec->name, rec->ftvl);
+            printf("Can not convert strings for record type %d\n", rec->ftvl);
         }
         return false;
     }
-    auto val = reinterpret_cast<char*>(rec->bptr);
-    for(size_t i=0; i<rec->nord; ++i){
-        const char *cptr = &val[i * MAX_STRING_SIZE];
-        std::string tmp(cptr, 0, MAX_STRING_SIZE);
-        arr[i] = tmp;
-    }
-    return true;
-}
 
-template <typename T>
-static bool fromRecArrayVal(waveformRecord* rec, std::vector<T>& arr)
-{
-    arr.resize(rec->nelm);
-    if (rec->ftvl == menuFtypeCHAR) {
-        auto val = reinterpret_cast<epicsInt8*>(rec->bptr);
-        arr.assign(val, val+rec->nelm);
-        return true;
-    } else if (rec->ftvl == menuFtypeUCHAR) {
-        auto val = reinterpret_cast<epicsUInt8*>(rec->bptr);
-        arr.assign(val, val+rec->nelm);
-        return true;
-    } else if (rec->ftvl == menuFtypeSHORT) {
-        auto val = reinterpret_cast<epicsInt16*>(rec->bptr);
-        arr.assign(val, val+rec->nelm);
-        return true;
-    } else if (rec->ftvl == menuFtypeUSHORT) {
-        auto val = reinterpret_cast<epicsUInt16*>(rec->bptr);
-        arr.assign(val, val+rec->nelm);
-        return true;
-    } else if (rec->ftvl == menuFtypeLONG) {
-        auto val = reinterpret_cast<epicsInt32*>(rec->bptr);
-        arr.assign(val, val+rec->nelm);
-        return true;
-    } else if (rec->ftvl == menuFtypeULONG) {
-        auto val = reinterpret_cast<epicsUInt32*>(rec->bptr);
-        arr.assign(val, val+rec->nelm);
-        return true;
-    } else if (rec->ftvl == menuFtypeFLOAT) {
-        auto val = reinterpret_cast<epicsFloat32*>(rec->bptr);
-        arr.assign(val, val+rec->nelm);
-        return true;
-    } else if (rec->ftvl == menuFtypeDOUBLE) {
-        auto val = reinterpret_cast<epicsFloat64*>(rec->bptr);
-        arr.assign(val, val+rec->nelm);
-        return true;
+    rec->nord = std::min(arr.size(), (size_t)rec->nelm);
+    auto val = reinterpret_cast<char*>(rec->bptr);
+
+    for (size_t i = 0; i < rec->nord; ++i) {
+        char *cptr = &val[i * MAX_STRING_SIZE];
+        std::string sval = arr[i];
+        if (rec->tpro) {
+            // need to foresee space for last '\0'
+            if (sval.size() > MAX_STRING_SIZE - 1) {
+                // Indicate on console which element will be truncated where
+                std::stringstream strm;
+                strm << rec->name << "[" << i << "]: '";
+                const std::string info = strm.str();
+                printf("%s%s' too long\n%s^\n", info.c_str(), sval.c_str(),
+                       std::string(info.size() + MAX_STRING_SIZE - 1, ' ').c_str()
+                );
+            }
+        }
+        std::string cval = sval.substr(0, MAX_STRING_SIZE - 1);
+        std::copy(cval.begin(), cval.end(), cptr);
+        cptr[MAX_STRING_SIZE - 1] = '\0'; /* sentinel */
     }
-    return false;
+
+    return true;
 }
 
 static void scanCallback(IOSCANPVT scan)
@@ -241,22 +184,25 @@ static void processRecordCb(waveformRecord* rec)
     auto fields = Util::getFields(rec->inp.value.instio.string);
     for (auto& keyval: fields) {
         if (keyval.first == "VAL") {
-            if (rec->ftvl == menuFtypeFLOAT || rec->ftvl == menuFtypeDOUBLE) {
-                std::vector<double> arr;
-                if (fromRecArrayVal(rec, arr) == true) {
-                    keyval.second = Util::arrayToStr(arr);
-                }
-            } else if (rec->ftvl == menuFtypeSTRING) {
+
+            if      (rec->ftvl == menuFtypeCHAR)   keyval.second = Util::to_pylist_string( reinterpret_cast<   epicsInt8*>(rec->bptr), rec->nelm );
+            else if (rec->ftvl == menuFtypeUCHAR)  keyval.second = Util::to_pylist_string( reinterpret_cast<  epicsUInt8*>(rec->bptr), rec->nelm );
+            else if (rec->ftvl == menuFtypeSHORT)  keyval.second = Util::to_pylist_string( reinterpret_cast<  epicsInt16*>(rec->bptr), rec->nelm );
+            else if (rec->ftvl == menuFtypeUSHORT) keyval.second = Util::to_pylist_string( reinterpret_cast< epicsUInt16*>(rec->bptr), rec->nelm );
+            else if (rec->ftvl == menuFtypeLONG)   keyval.second = Util::to_pylist_string( reinterpret_cast<  epicsInt32*>(rec->bptr), rec->nelm );
+            else if (rec->ftvl == menuFtypeULONG)  keyval.second = Util::to_pylist_string( reinterpret_cast< epicsUInt32*>(rec->bptr), rec->nelm );
+            else if (rec->ftvl == menuFtypeFLOAT)  keyval.second = Util::to_pylist_string( reinterpret_cast<epicsFloat32*>(rec->bptr), rec->nelm );
+            else if (rec->ftvl == menuFtypeDOUBLE) keyval.second = Util::to_pylist_string( reinterpret_cast<epicsFloat64*>(rec->bptr), rec->nelm );
+            else if (rec->ftvl == menuFtypeSTRING) keyval.second = Util::to_pylist_string( reinterpret_cast<epicsFloat64*>(rec->bptr), rec->nelm );
+            else if (rec->ftvl == menuFtypeSTRING) {
                 std::vector<std::string> arr;
-                if (fromRecArrayStringVal(rec, arr) == true) {
-                    // current implementation of arrayToStr does not handle strings ..
-                    keyval.second = arrayOfStrToStr(arr);
+                arr.resize(rec->nord);
+                auto val = reinterpret_cast<char*>(rec->bptr);
+                for(size_t i=0; i<rec->nord; ++i){
+                    const char *cptr = &val[i * MAX_STRING_SIZE];
+                    arr[i] = std::string(cptr, 0, MAX_STRING_SIZE);
                 }
-            } else {
-                std::vector<long> arr;
-                if (fromRecArrayVal(rec, arr) == true) {
-                    keyval.second = Util::arrayToStr(arr);
-                }
+                keyval.second = Util::to_pylist_string(arr);
             }
         }
         else if (keyval.first == "TPRO") keyval.second = std::to_string(rec->tpro);
@@ -270,7 +216,7 @@ static void processRecordCb(waveformRecord* rec)
             ret = (PyWrapper::exec(code, (rec->tpro == 1), arr) && toRecArrayVal(rec, arr));
         } else if (rec->ftvl == menuFtypeSTRING) {
             std::vector<std::string> arr;
-            ret = (PyWrapper::exec(code, (rec->tpro == 1), arr) && toRecArrayValString(rec, arr));
+            ret = (PyWrapper::exec(code, (rec->tpro == 1), arr) && toRecArrayVal(rec, arr));
         } else {
             std::vector<long> arr;
             ret = (PyWrapper::exec(code, (rec->tpro == 1), arr) && toRecArrayVal(rec, arr));

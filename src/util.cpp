@@ -108,4 +108,13 @@ std::string escape(const std::string& text)
     return Util::replace(text, escapables);
 }
 
+std::string join(const std::vector<std::string>& tokens, const std::string& glue)
+{
+    std::string out;
+    for (auto& token: tokens) {
+        out += token + glue;
+    }
+    return out.substr(0, out.length() - glue.length());
+}
+
 }; // namespace Util
