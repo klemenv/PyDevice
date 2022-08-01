@@ -9,6 +9,7 @@
 
 #include "asyncexec.h"
 #include "pywrapper.h"
+#include "util.h"
 
 extern "C"
 {
@@ -42,8 +43,12 @@ static void pydevRegister(void)
     static bool firstTime = true;
     if (firstTime) {
         firstTime = false;
+        auto numThreads = Util::getEnvConfig("PYDEV_NUM_THREADS", 3);
+        if (numThreads < 1)
+            numThreads = 3;
+
         PyWrapper::init();
-        AsyncExec::init();
+        AsyncExec::init(numThreads);
         iocshRegister(&pydevDef, pydevCall);
         epicsAtExit(pydevUnregister, 0);
     }

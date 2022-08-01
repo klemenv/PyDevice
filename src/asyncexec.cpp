@@ -12,6 +12,7 @@
 #include <atomic>
 #include <list>
 #include <memory>
+#include <vector>
 
 template<typename T>
 class TaskQueue {
@@ -43,20 +44,19 @@ class TaskQueue {
                 que.pop_front();
                 found = true;
             }
-//            printf("empty/found: %d/%d\n", que.empty(), found);
             mutex.unlock();
             return found;
         }
 };
+static TaskQueue<AsyncExec::Callback> g_tasks;
 
 class WorkerThread : public epicsThreadRunable {
     public:
         epicsThread thread;
-        TaskQueue<AsyncExec::Callback> tasks;
         std::atomic<bool> running{true};
 
-        WorkerThread()
-        : thread(*this, "WorkerThread", epicsThreadGetStackSize(epicsThreadStackSmall))
+        WorkerThread(const std::string& id)
+        : thread(*this, id.c_str(), epicsThreadGetStackSize(epicsThreadStackMedium))
         {
             thread.start();
         }
@@ -71,30 +71,49 @@ class WorkerThread : public epicsThreadRunable {
         {
             while (running) {
                 AsyncExec::Callback cb;
-                if (tasks.dequeue(1.0, cb)) {
+                if (g_tasks.dequeue(1.0, cb)) {
                     cb();
                 }
             }
         }
+
+        void stop()
+        {
+            running = false;
+        }
 };
+static std::vector< std::unique_ptr<WorkerThread> > g_workers;
 
-static std::unique_ptr<WorkerThread> worker;
-
-bool AsyncExec::init()
+void AsyncExec::init(unsigned numThreads)
 {
-    worker.reset(new WorkerThread());
-    return !!worker;
+    while (numThreads--) {
+        std::string id = "PyDeviceExec_" + std::to_string(numThreads);
+        WorkerThread* worker = new WorkerThread(id);
+        if (worker) {
+            g_workers.push_back(std::unique_ptr<WorkerThread>(worker));
+        }
+    }
+
+    if (g_workers.empty()) {
+        printf("Failed to initialize PyDevice worker threads!");
+    }
 }
 
 void AsyncExec::shutdown()
 {
-    worker.reset();
+    // Let all threads know we're going down, so that they can start
+    // wrapping up in parallel and not start any new tasks.
+    for (auto& worker: g_workers) {
+        worker->stop();
+    }
+    // This is a blocking call that waits for all threads to exit
+    g_workers.clear();
 }
 
 bool AsyncExec::schedule(const AsyncExec::Callback& callback)
 {
-    if (!worker || !callback)
+    if (g_workers.empty() || !callback)
         return false;
-    worker->tasks.enqueue(callback);
+    g_tasks.enqueue(callback);
     return true;
 }

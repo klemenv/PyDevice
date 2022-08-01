@@ -11,7 +11,7 @@
 class AsyncExec {
     public:
         using Callback = std::function<void()>;
-        static bool init();
+        static void init(unsigned numThreads);
         static void shutdown();
         static bool schedule(const Callback& callback);
 };

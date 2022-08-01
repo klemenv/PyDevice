@@ -168,13 +168,12 @@ void PyWrapper::registerIoIntr(const std::string& name, const Callback& cb)
 }
 
 struct PyGIL {
+    PyGILState_STATE state;
     PyGIL() {
-        if (mainThread == nullptr)
-            throw std::domain_error("Python interpreter not initialized");
-        PyEval_RestoreThread(mainThread);
+        state = PyGILState_Ensure();
     }
     ~PyGIL() {
-        mainThread = PyEval_SaveThread();
+        PyGILState_Release(state);
     }
 };
 

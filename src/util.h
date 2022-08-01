@@ -16,6 +16,7 @@ std::map<std::string, std::string> getFields(const std::string& text);
 std::string replaceFields(const std::string& text, const std::map<std::string, std::string>& fields);
 std::string escape(const std::string& text);
 std::string join(const std::vector<std::string>& tokens, const std::string& glue);
+long getEnvConfig(const std::string& name, long defval);
 
 template <typename T>
 std::vector<std::string> to_strings(const T* array, size_t n)

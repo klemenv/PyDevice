@@ -4,6 +4,7 @@
 \*************************************************************************/
 
 #include "util.h"
+#include <envDefs.h>
 #include <cctype>
 #include <stdexcept>
 
@@ -115,6 +116,19 @@ std::string join(const std::vector<std::string>& tokens, const std::string& glue
         out += token + glue;
     }
     return out.substr(0, out.length() - glue.length());
+}
+
+long getEnvConfig(const std::string& name, long defval)
+{
+    long value = defval;
+    std::string sdefval = std::to_string(defval);
+    ENV_PARAM param{const_cast<char*>(name.c_str()), const_cast<char*>(sdefval.c_str())};
+    envGetLongConfigParam(&param, &value);
+    if (value < 1) {
+        value = defval;
+    }
+
+    return value;
 }
 
 }; // namespace Util

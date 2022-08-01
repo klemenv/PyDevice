@@ -204,11 +204,24 @@ Supported field macros per record:
 * waveform
   * VAL
 
-### Serialized record processing
+### Support for concurrent record processing
 
-PyDevice uses a single thread to execute any Python code from records. It is assumed that Python's Global Interpreter Lock (GIL) would serialize requests anyway, although support for multiple processing threads might be added in the future. When record processes, the requested Python code to be executed is put into FIFO queue, record's PACT field is set to 1 and handle is returned to callee. This allows requests without callback to return immediately. When its turn, the request is dequeued and Python code is executed. Once the Python code is complete, record's value is updated and callback is executed. This allows requests with completion to properly get notified after Python code is done.
+PyDevice supports processing multiple pydev records at the same time. While
+Python protects the interpreted code with GIL, many of the built-in functions
+as well as external modules support releasing GIL when doing IO bound or CPU
+intensive operations. This works well for parallel processing with Python
+threads, and now PyDevice also supports processing multiple `pydev` records in
+parallel.
 
-Single thread policy doesn't apply to any threads spawned from Python code.
+When a record processes, the Python code from the record is pushed to the
+queue, record's PACT field is set to 1 and handle is returned to the caller.
+This allows requests without put/get callback to return immediately. When a
+worker thread becomes available, it processes the oldest request from the queue
+and executes the Python code referenced. Once the Python code is complete,
+record's value is updated and callback is executed. This allows requests with
+completion to properly get notified after Python code is done. By default there
+are 3 worker threads, which can be changed with the `PYDEV_NUM_THREADS`
+environment variable. 
 
 ## Building and adding to IOC
 

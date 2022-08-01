@@ -7,7 +7,6 @@ record(longout, "PyDev:Long:PrintVal") {
 record(longout, "PyDev:Sleep") {
   field(DTYP, "pydev")
   field(OUT,  "@time.sleep(VAL)")
-  field(FLNK, "PyDev:Long:PrintVal")
 }
 record(longout, "PyDev:Long:SetB") {
   field(DTYP, "pydev")
@@ -115,4 +114,26 @@ record(longin, "PyDev:Google:Rsp:Code") {
 record(bo, "PyDev:NewLine") {
   field(DTYP, "pydev")
   field(OUT,  "@print('Hello\nworld!')")
+}
+
+# Testing concurrent Python threads
+record(longout, "PyDev:Threads:Exec1") {
+  field(DTYP, "pydev")
+  field(OUT,  "@time.sleep(1.0)")
+#  field(SCAN, ".1 second")
+  field(FLNK, "PyDev:Threads:Print1")
+}
+record(stringout, "PyDev:Threads:Print1") {
+  field(DTYP, "pydev")
+  field(OUT,  "@print(time.asctime() + ': 1Hz timer')")
+}
+record(longout, "PyDev:Threads:Exec2") {
+  field(DTYP, "pydev")
+  field(OUT,  "@time.sleep(2.0)")
+#  field(SCAN, ".1 second")
+  field(FLNK, "PyDev:Threads:Print2")
+}
+record(stringout, "PyDev:Threads:Print2") {
+  field(DTYP, "pydev")
+  field(OUT,  "@print(time.asctime() + ': 2Hz timer')")
 }
