@@ -256,3 +256,21 @@ include $(PYDEVICE)/configure/CONFIG.PyDevice
 ```
 
 After rebuilding, the IOC should have support for pydev.
+
+## Python path and the use of virtual environments
+
+The Python search path can be defined by PYTHONPATH before starting the IOC, or can be defined within the context of the IOC, like:
+```
+epicsEnvSet("PYTHONPATH","$(MODULE)/python")
+epicsEnvSet("PYTHONPATH","$(PYTHONPATH):$(TOP)/python")
+```
+In the above case, Python source files can be searched for in ```$(MODULE)/python/``` and in a ```python/``` directory in the IOC ```$(TOP)```.
+
+
+It is also possible to make use of Python virtual environments, which may contain user installed Python packages that are not available via the default system packages. This is simply a case of starting the IOC after activating the environment. For example, to use an environment installed in ```/home/controls/common/python_env/main/env_scan```:
+```
+source /home/controls/common/python_env/main/env_scan/bin/activate
+./st.cmd
+```
+The packages installed in the virtual environment will then be available to the IOC applcation. 
+
