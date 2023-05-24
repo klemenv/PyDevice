@@ -10,9 +10,11 @@
 #include <epicsThread.h>
 
 #include <atomic>
+#include <cstdio>
 #include <list>
 #include <memory>
 #include <vector>
+#include <string>
 
 template<typename T>
 class TaskQueue {
