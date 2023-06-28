@@ -13,6 +13,8 @@
 #include <list>
 #include <memory>
 #include <vector>
+#include <cstdio>
+#include <string>
 
 template<typename T>
 class TaskQueue {

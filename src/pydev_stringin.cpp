@@ -85,7 +85,7 @@ static void processRecordCb(stringinRecord* rec)
     for (auto& keyval: fields) {
         if      (keyval.first == "VAL")  keyval.second = Util::escape(rec->val);
         else if (keyval.first == "NAME") keyval.second = rec->name;
-        else if (keyval.first == "TPRO") keyval.second = std::to_string(rec->tpro);
+        else if (keyval.first == "TPRO") keyval.second = Util::to_string(rec->tpro);
     }
     std::string code = Util::replaceFields(rec->inp.value.instio.string, fields);
 

@@ -86,15 +86,15 @@ static void processRecordCb(aiRecord* rec)
 
     auto fields = Util::getFields(rec->inp.value.instio.string);
     for (auto& keyval: fields) {
-        if      (keyval.first == "VAL")  keyval.second = std::to_string(rec->val);
-        else if (keyval.first == "RVAL") keyval.second = std::to_string(rec->rval);
-        else if (keyval.first == "ORAW") keyval.second = std::to_string(rec->oraw);
+        if      (keyval.first == "VAL")  keyval.second = Util::to_string(rec->val);
+        else if (keyval.first == "RVAL") keyval.second = Util::to_string(rec->rval);
+        else if (keyval.first == "ORAW") keyval.second = Util::to_string(rec->oraw);
         else if (keyval.first == "NAME") keyval.second = rec->name;
         else if (keyval.first == "EGU")  keyval.second = rec->egu;
-        else if (keyval.first == "HOPR") keyval.second = std::to_string(rec->hopr);
-        else if (keyval.first == "LOPR") keyval.second = std::to_string(rec->lopr);
-        else if (keyval.first == "PREC") keyval.second = std::to_string(rec->prec);
-        else if (keyval.first == "TPRO") keyval.second = std::to_string(rec->tpro);
+        else if (keyval.first == "HOPR") keyval.second = Util::to_string(rec->hopr);
+        else if (keyval.first == "LOPR") keyval.second = Util::to_string(rec->lopr);
+        else if (keyval.first == "PREC") keyval.second = Util::to_string(rec->prec);
+        else if (keyval.first == "TPRO") keyval.second = Util::to_string(rec->tpro);
     }
     std::string code = Util::replaceFields(rec->inp.value.instio.string, fields);
 
