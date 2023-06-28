@@ -83,12 +83,12 @@ static void processRecordCb(biRecord* rec)
 
     auto fields = Util::getFields(rec->inp.value.instio.string);
     for (auto& keyval: fields) {
-        if      (keyval.first == "VAL")  keyval.second = std::to_string(rec->val);
-        else if (keyval.first == "RVAL") keyval.second = std::to_string(rec->rval);
+        if      (keyval.first == "VAL")  keyval.second = Util::to_string(rec->val);
+        else if (keyval.first == "RVAL") keyval.second = Util::to_string(rec->rval);
         else if (keyval.first == "NAME") keyval.second = rec->name;
         else if (keyval.first == "ZNAM") keyval.second = rec->znam;
         else if (keyval.first == "ONAM") keyval.second = rec->onam;
-        else if (keyval.first == "TPRO") keyval.second = std::to_string(rec->tpro);
+        else if (keyval.first == "TPRO") keyval.second = Util::to_string(rec->tpro);
     }
     std::string code = Util::replaceFields(rec->inp.value.instio.string, fields);
 

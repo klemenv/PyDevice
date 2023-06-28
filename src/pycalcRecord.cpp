@@ -139,7 +139,7 @@ static void processRecordCb(pycalcRecord* rec)
     auto fields = Util::getFields(rec->calc);
     for (auto& keyval: fields) {
         if      (keyval.first == "NAME") keyval.second = rec->name;
-        else if (keyval.first == "TPRO") keyval.second = std::to_string(rec->tpro);
+        else if (keyval.first == "TPRO") keyval.second = Util::to_string(rec->tpro);
         else {
             for (auto i = 0; i < PYCALCREC_NARGS; i++) {
                 std::string field = std::string(1,'A'+i);
@@ -150,18 +150,18 @@ static void processRecordCb(pycalcRecord* rec)
                     auto ne  = &rec->nea + i;
 
                     if (*me == 1) {
-                        if      (*ft == DBR_CHAR)   keyval.second = std::to_string(*reinterpret_cast<   epicsInt8*>(*val));
-                        else if (*ft == DBR_UCHAR)  keyval.second = std::to_string(*reinterpret_cast<  epicsUInt8*>(*val));
-                        else if (*ft == DBR_SHORT)  keyval.second = std::to_string(*reinterpret_cast<  epicsInt16*>(*val));
-                        else if (*ft == DBR_USHORT) keyval.second = std::to_string(*reinterpret_cast< epicsUInt16*>(*val));
-                        else if (*ft == DBR_LONG)   keyval.second = std::to_string(*reinterpret_cast<  epicsInt32*>(*val));
-                        else if (*ft == DBR_ULONG)  keyval.second = std::to_string(*reinterpret_cast< epicsUInt32*>(*val));
+                        if      (*ft == DBR_CHAR)   keyval.second = Util::to_string(*reinterpret_cast<   epicsInt8*>(*val));
+                        else if (*ft == DBR_UCHAR)  keyval.second = Util::to_string(*reinterpret_cast<  epicsUInt8*>(*val));
+                        else if (*ft == DBR_SHORT)  keyval.second = Util::to_string(*reinterpret_cast<  epicsInt16*>(*val));
+                        else if (*ft == DBR_USHORT) keyval.second = Util::to_string(*reinterpret_cast< epicsUInt16*>(*val));
+                        else if (*ft == DBR_LONG)   keyval.second = Util::to_string(*reinterpret_cast<  epicsInt32*>(*val));
+                        else if (*ft == DBR_ULONG)  keyval.second = Util::to_string(*reinterpret_cast< epicsUInt32*>(*val));
 #ifdef HAVE_EPICS_INT64
-                        else if (*ft == DBR_INT64)  keyval.second = std::to_string(*reinterpret_cast<  epicsInt64*>(*val));
-                        else if (*ft == DBR_UINT64) keyval.second = std::to_string(*reinterpret_cast< epicsUInt64*>(*val));
+                        else if (*ft == DBR_INT64)  keyval.second = Util::to_string(*reinterpret_cast<  epicsInt64*>(*val));
+                        else if (*ft == DBR_UINT64) keyval.second = Util::to_string(*reinterpret_cast< epicsUInt64*>(*val));
 #endif
-                        else if (*ft == DBR_FLOAT)  keyval.second = std::to_string(*reinterpret_cast<epicsFloat32*>(*val));
-                        else if (*ft == DBR_DOUBLE) keyval.second = std::to_string(*reinterpret_cast<epicsFloat64*>(*val));
+                        else if (*ft == DBR_FLOAT)  keyval.second = Util::to_string(*reinterpret_cast<epicsFloat32*>(*val));
+                        else if (*ft == DBR_DOUBLE) keyval.second = Util::to_string(*reinterpret_cast<epicsFloat64*>(*val));
                         else if (*ft == DBR_STRING) keyval.second = std::string(reinterpret_cast<const char*>(*val));
                     } else {
                         if      (*ft == DBR_CHAR)   keyval.second = Util::to_pylist_string( reinterpret_cast<   epicsInt8*>(*val), *ne );
