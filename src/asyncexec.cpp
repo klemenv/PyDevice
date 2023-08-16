@@ -16,6 +16,8 @@
 #include <vector>
 #include <string>
 
+epicsMutex mutex2;
+
 template<typename T>
 class TaskQueue {
     private:
@@ -74,7 +76,9 @@ class WorkerThread : public epicsThreadRunable {
             while (running) {
                 AsyncExec::Callback cb;
                 if (g_tasks.dequeue(1.0, cb)) {
+                    mutex2.lock();
                     cb();
+                    mutex2.unlock();
                 }
             }
         }
@@ -114,8 +118,10 @@ void AsyncExec::shutdown()
 
 bool AsyncExec::schedule(const AsyncExec::Callback& callback)
 {
+    mutex2.lock();
     if (g_workers.empty() || !callback)
         return false;
     g_tasks.enqueue(callback);
+    mutex2.unlock();
     return true;
 }
