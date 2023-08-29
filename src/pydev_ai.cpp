@@ -119,11 +119,11 @@ static void processRecordCb(aiRecord* rec)
         recGblSetSevr(rec, epicsAlarmCalc, epicsSevInvalid);
         ctx->processCbStatus = -1;
     }
-    callbackRequestProcessCallback(&ctx->callback, rec->prio, rec);
-
 
     if (ctx->processCbStatus == 0)
-        ctx->processCbStatus = 2; // No convertion needed
+        ctx->processCbStatus = 2; // Conversion already done
+
+    callbackRequestProcessCallback(&ctx->callback, rec->prio, rec);
 }
 
 static long processRecord(aiRecord* rec)
