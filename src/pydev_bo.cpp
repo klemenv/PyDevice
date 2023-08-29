@@ -65,7 +65,7 @@ static long initRecord(boRecord* rec)
         ctx->scan = nullptr;
     }
 
-    return 0;
+    return 2;
 }
 
 static long getIointInfo(int /*direction*/, boRecord *rec, IOSCANPVT* io)
