@@ -31,6 +31,15 @@ record(waveform, "PyCalcTest:InputNumbers") {
     # Only works with EPICS 7.0.2+
     field(INP,  [1.7, 2.3, 14.91])
 }
+
+record(waveform, "PyCalcTest:InputArray") {
+    field(FTVL, "DOUBLE")
+    field(NELM, "3")
+    # Only works with EPICS 7.0.2+
+    field(INP,  np.array([1.7, 2.3, 14.91]))
+    field(TRPO, 1)
+    field(PINI, "1")
+}
 record(waveform, "PyCalcTest:InputStrings") {
     field(FTVL, "STRING")
     field(NELM, "3")
