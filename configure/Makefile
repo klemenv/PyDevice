@@ -11,10 +11,8 @@ include $(TOP)/configure/RULES
 # Starting with Python 3.8, python-config needs --embed flag
 ifeq (,$(findstring embed,$(shell $(PYTHON_CONFIG) --help)))
 	PYDEV_SYS_PROD_LIBS = $(patsubst -l%,%,$(filter -l%,$(shell $(PYTHON_CONFIG) --ldflags)))
-	PYDEV_USR_LDFLAGS = $(filter -L%,$(shell $(PYTHON_CONFIG) --ldflags))
 else
 	PYDEV_SYS_PROD_LIBS = $(patsubst -l%,%,$(filter -l%,$(shell $(PYTHON_CONFIG) --ldflags --embed)))
-	PYDEV_USR_LDFLAGS = $(filter -L%,$(shell $(PYTHON_CONFIG) --ldflags --embed))
 endif
 PYDEV_USR_CXXFLAGS = $(filter -I%,$(shell $(PYTHON_CONFIG) --cflags))
 
