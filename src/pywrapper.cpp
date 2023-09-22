@@ -270,14 +270,14 @@ bool PyWrapper::convert(void* in_, Variant& out)
         return true;
     }
 
-    if (PyList_Check(in)) {
+    if (PySequence_Check(in)) {
         std::vector<double> vd;
         std::vector<long long int> vl;
         std::vector<std::string> vs;
         Variant::Type t = Variant::Type::NONE;
 
-        for (Py_ssize_t i = 0; i < PyList_Size(in); i++) {
-            PyObject* el = PyList_GetItem(in, i);
+        for (Py_ssize_t i = 0; i < PySequence_Size(in); i++) {
+            PyObject* el = PySequence_GetItem(in, i);
 #if PY_MAJOR_VERSION < 3
             if (PyInt_Check(el) && (t == Variant::Type::NONE || t == Variant::Type::VECTOR_LONG)) {
                 long long val = PyInt_AsLong(el);
