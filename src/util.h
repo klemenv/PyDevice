@@ -18,12 +18,30 @@ std::string escape(const std::string& text);
 std::string join(const std::vector<std::string>& tokens, const std::string& glue);
 long getEnvConfig(const std::string& name, long defval);
 
+namespace detail {
+// conversion from python basis types to strings
+// std::to_string has only limited accuracy for floot double etc.
+std::string float_to_string(const float v);
+std::string double_to_string(const double v);
+std::string long_double_to_string(const long double v);
+}
+
+// defined inline to avoid definition of function in different sub-objects.
+template<typename T>
+inline std::string to_string(const T v) { return std::to_string(v); }
+template<>
+inline std::string to_string(const float v) { return detail::float_to_string(v); }
+template<>
+inline std::string to_string(const double v) { return detail::double_to_string(v); }
+template<>
+inline std::string to_string(const long double v) { return detail::long_double_to_string(v); }
+
 template <typename T>
 std::vector<std::string> to_strings(const T* array, size_t n)
 {
     std::vector<std::string> values;
     for (size_t i=0; i<n; i++) {
-        values.push_back(std::to_string(array[i]));
+        values.push_back(Util::to_string(array[i]));
     }
     return values;
 }
