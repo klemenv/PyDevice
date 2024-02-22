@@ -32,14 +32,14 @@ pydev_SRCS += pydev_stringout.cpp
 pydev_SRCS += pydev_waveform.cpp
 pydev_SRCS += pycalcRecord.cpp
 
-# 3.15 and above support lsi, lso and printf records  
+# 3.15 and above support lsi, lso and printf records
 ifdef BASE_3_15
   DBD += pydev315.dbd
   pydev_SRCS += pydev_lsi.cpp
   pydev_SRCS += pydev_lso.cpp
+  pydev_SRCS += pydev_aao.cpp
 endif
 
 pydevice_LIBS += $(EPICS_BASE_IOC_LIBS)
 
 include $(TOP)/configure/RULES
-

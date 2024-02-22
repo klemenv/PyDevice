@@ -95,6 +95,28 @@ record(waveform, "PyDev:Array:Strings:Upper") {
   field(TPRO, 1)
 }
 
+# array ao PVs
+record(waveform, "PyDev:Array:aao:input") {
+  field(DTYP, "pydev")
+  field(INP,  "@[x**2 for x in range(5)]")
+  field(NELM, "20")
+  field(FTVL, "DOUBLE")
+  field(PINI, "YES")
+  field(TPRO, 1)
+  field(FLNK,"PyDev:Array:aao")
+}
+
+record(aao, "PyDev:Array:aao") {
+  field(DTYP, "pydev")
+  field(NELM, "20")
+  field(NELM, "5")
+  field(FTVL, "DOUBLE")
+  field(TPRO, 1)
+  field(DOL, "PyDev:Array:aao:input")
+  field(OUT, "@print(%VAL%)")
+}
+
+
 # Custom Python code from python/pydevtest.py
 record(stringin, "PyDev:Google:Refresh") {
   field(DTYP, "pydev")

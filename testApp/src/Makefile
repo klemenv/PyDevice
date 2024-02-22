@@ -18,6 +18,7 @@ DBD += pydevioc.dbd
 # pydev.dbd will be made up from these files:
 pydevioc_DBD += base.dbd
 pydevioc_DBD += pydev.dbd
+pydevioc_DBD += pydev315.dbd
 pydevioc_DBD += pycalcRecord.dbd
 
 # Include dbd files from all support applications:
@@ -44,4 +45,3 @@ pydevioc_LIBS += $(EPICS_BASE_IOC_LIBS)
 include $(TOP)/configure/RULES
 #----------------------------------------
 #  ADD RULES AFTER THIS LINE
-
