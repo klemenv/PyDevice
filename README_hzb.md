@@ -7,3 +7,5 @@ Merged features not in upstream
 * sequence : thus arrays can be directly pusehd with iointr, 
   branch  dev/feature/sequence-iterator
 
+* init val: use val as set by record if given
+  branch init-val-rval
