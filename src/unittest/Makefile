@@ -19,9 +19,9 @@ TESTS += testutil
 TESTPROD_HOST += testpywrapper
 testpywrapper_SRCS += test_pywrapper.cpp
 testpywrapper_SRCS += pywrapper.cpp
+testpywrapper_SRCS += util.cpp
 TESTS += testpywrapper
 
 TESTSCRIPTS_HOST += $(TESTS:%=%.t)
 
 include $(TOP)/configure/RULES
-

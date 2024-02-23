@@ -85,9 +85,9 @@ static void processRecordCb(lsoRecord* rec)
     for (auto& keyval: fields) {
         if      (keyval.first == "VAL")  keyval.second = Util::escape(rec->val);
         else if (keyval.first == "NAME") keyval.second = rec->name;
-        else if (keyval.first == "SIZV") keyval.second = std::to_string(rec->sizv);
-        else if (keyval.first == "LEN")  keyval.second = std::to_string(rec->len);
-        else if (keyval.first == "TPRO") keyval.second = std::to_string(rec->tpro);
+        else if (keyval.first == "SIZV") keyval.second = Util::to_string(rec->sizv);
+        else if (keyval.first == "LEN")  keyval.second = Util::to_string(rec->len);
+        else if (keyval.first == "TPRO") keyval.second = Util::to_string(rec->tpro);
     }
     std::string code = Util::replaceFields(rec->out.value.instio.string, fields);
 

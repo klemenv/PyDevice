@@ -83,25 +83,25 @@ static void processRecordCb(mbbiRecord* rec)
 
     auto fields = Util::getFields(rec->inp.value.instio.string);
     for (auto& keyval: fields) {
-        if      (keyval.first == "VAL")  keyval.second = std::to_string(rec->val);
-        else if (keyval.first == "RVAL") keyval.second = std::to_string(rec->rval);
+        if      (keyval.first == "VAL")  keyval.second = Util::to_string(rec->val);
+        else if (keyval.first == "RVAL") keyval.second = Util::to_string(rec->rval);
         else if (keyval.first == "NAME") keyval.second = rec->name;
-        else if (keyval.first == "ZRVL") keyval.second = std::to_string(rec->zrvl);
-        else if (keyval.first == "ONVL") keyval.second = std::to_string(rec->onvl);
-        else if (keyval.first == "TWVL") keyval.second = std::to_string(rec->twvl);
-        else if (keyval.first == "THVL") keyval.second = std::to_string(rec->thvl);
-        else if (keyval.first == "FRVL") keyval.second = std::to_string(rec->frvl);
-        else if (keyval.first == "FVVL") keyval.second = std::to_string(rec->fvvl);
-        else if (keyval.first == "SXVL") keyval.second = std::to_string(rec->sxvl);
-        else if (keyval.first == "SVVL") keyval.second = std::to_string(rec->svvl);
-        else if (keyval.first == "EIVL") keyval.second = std::to_string(rec->eivl);
-        else if (keyval.first == "NIVL") keyval.second = std::to_string(rec->nivl);
-        else if (keyval.first == "TEVL") keyval.second = std::to_string(rec->tevl);
-        else if (keyval.first == "ELVL") keyval.second = std::to_string(rec->elvl);
-        else if (keyval.first == "TVVL") keyval.second = std::to_string(rec->tvvl);
-        else if (keyval.first == "TTVL") keyval.second = std::to_string(rec->ttvl);
-        else if (keyval.first == "FTVL") keyval.second = std::to_string(rec->ftvl);
-        else if (keyval.first == "FFVL") keyval.second = std::to_string(rec->ffvl);
+        else if (keyval.first == "ZRVL") keyval.second = Util::to_string(rec->zrvl);
+        else if (keyval.first == "ONVL") keyval.second = Util::to_string(rec->onvl);
+        else if (keyval.first == "TWVL") keyval.second = Util::to_string(rec->twvl);
+        else if (keyval.first == "THVL") keyval.second = Util::to_string(rec->thvl);
+        else if (keyval.first == "FRVL") keyval.second = Util::to_string(rec->frvl);
+        else if (keyval.first == "FVVL") keyval.second = Util::to_string(rec->fvvl);
+        else if (keyval.first == "SXVL") keyval.second = Util::to_string(rec->sxvl);
+        else if (keyval.first == "SVVL") keyval.second = Util::to_string(rec->svvl);
+        else if (keyval.first == "EIVL") keyval.second = Util::to_string(rec->eivl);
+        else if (keyval.first == "NIVL") keyval.second = Util::to_string(rec->nivl);
+        else if (keyval.first == "TEVL") keyval.second = Util::to_string(rec->tevl);
+        else if (keyval.first == "ELVL") keyval.second = Util::to_string(rec->elvl);
+        else if (keyval.first == "TVVL") keyval.second = Util::to_string(rec->tvvl);
+        else if (keyval.first == "TTVL") keyval.second = Util::to_string(rec->ttvl);
+        else if (keyval.first == "FTVL") keyval.second = Util::to_string(rec->ftvl);
+        else if (keyval.first == "FFVL") keyval.second = Util::to_string(rec->ffvl);
         else if (keyval.first == "ZRST") keyval.second = rec->zrst;
         else if (keyval.first == "ONST") keyval.second = rec->onst;
         else if (keyval.first == "TWST") keyval.second = rec->twst;
@@ -118,7 +118,7 @@ static void processRecordCb(mbbiRecord* rec)
         else if (keyval.first == "TTST") keyval.second = rec->ttst;
         else if (keyval.first == "FTST") keyval.second = rec->ftst;
         else if (keyval.first == "FFST") keyval.second = rec->ffst;
-        else if (keyval.first == "TPRO") keyval.second = std::to_string(rec->tpro);
+        else if (keyval.first == "TPRO") keyval.second = Util::to_string(rec->tpro);
     }
     std::string code = Util::replaceFields(rec->inp.value.instio.string, fields);
 

@@ -359,13 +359,13 @@ bool PyWrapper::exec(const std::string& line, bool debug, std::string& val)
         val = out.s;
         return true;
     case MultiTypeValue::Type::INTEGER:
-        val = std::to_string(out.i);
+        val = Util::to_string(out.i);
         return true;
     case MultiTypeValue::Type::FLOAT:
-        val = std::to_string(out.f);
+        val = Util::to_string(out.f);
         return true;
     case MultiTypeValue::Type::BOOL:
-        val = std::to_string(out.b);
+        val = Util::to_string(out.b);
         return true;
     default:
         return false;

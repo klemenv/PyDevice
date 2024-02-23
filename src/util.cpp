@@ -6,7 +6,11 @@
 #include "util.h"
 #include <envDefs.h>
 #include <cctype>
+#include <cfloat>
+#include <iomanip>
+#include <sstream>
 #include <stdexcept>
+
 
 namespace Util {
 
@@ -118,10 +122,11 @@ std::string join(const std::vector<std::string>& tokens, const std::string& glue
     return out.substr(0, out.length() - glue.length());
 }
 
+
 long getEnvConfig(const std::string& name, long defval)
 {
     long value = defval;
-    std::string sdefval = std::to_string(defval);
+    std::string sdefval = Util::to_string(defval);
     ENV_PARAM param{const_cast<char*>(name.c_str()), const_cast<char*>(sdefval.c_str())};
     envGetLongConfigParam(&param, &value);
     if (value < 1) {
@@ -130,5 +135,19 @@ long getEnvConfig(const std::string& name, long defval)
 
     return value;
 }
+
+namespace detail {
+template <typename T>
+static std::string floating_point_to_string(const T v, const int digits)
+{
+    std::stringstream strm;
+    strm << std::scientific << std::setprecision(digits + 1) << v;
+    return strm.str();
+}
+} // namespace detail
+
+std::string detail::float_to_string(const float v){ return detail::floating_point_to_string(v, FLT_DIG); }
+std::string detail::double_to_string(const double v){ return detail::floating_point_to_string(v, DBL_DIG); }
+std::string detail::long_double_to_string(const long double v){ return detail::floating_point_to_string(v, LDBL_DIG); }
 
 }; // namespace Util
