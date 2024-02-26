@@ -24,6 +24,8 @@ struct PyDevContext {
     CALLBACK callback;
     IOSCANPVT scan;
     int processCbStatus;
+    std::string code;
+    PyWrapper::ByteCode bytecode;
 };
 
 static std::map<std::string, IOSCANPVT> ioScanPvts;
@@ -84,44 +86,42 @@ static void processRecordCb(aiRecord* rec)
     rec->val -= rec->aoff;
     if (rec->aslo != 0.0) rec->val /= rec->aslo;
 
-    auto fields = Util::getFields(rec->inp.value.instio.string);
-    for (auto& keyval: fields) {
-        if      (keyval.first == "VAL")  keyval.second = std::to_string(rec->val);
-        else if (keyval.first == "RVAL") keyval.second = std::to_string(rec->rval);
-        else if (keyval.first == "ORAW") keyval.second = std::to_string(rec->oraw);
-        else if (keyval.first == "NAME") keyval.second = rec->name;
-        else if (keyval.first == "EGU")  keyval.second = rec->egu;
-        else if (keyval.first == "HOPR") keyval.second = std::to_string(rec->hopr);
-        else if (keyval.first == "LOPR") keyval.second = std::to_string(rec->lopr);
-        else if (keyval.first == "PREC") keyval.second = std::to_string(rec->prec);
-        else if (keyval.first == "TPRO") keyval.second = std::to_string(rec->tpro);
+    std::string code = rec->inp.value.instio.string;
+    std::map<std::string, Variant> args;
+    for (auto& macro: Util::getMacros(code)) {
+        if      (macro == "VAL")  { args["pydevVAL"]  = Variant(rec->val);  code = Util::replaceMacro(code, "VAL",  "pydevVAL");  }
+        else if (macro == "RVAL") { args["pydevRVAL"] = Variant(rec->rval); code = Util::replaceMacro(code, "RVAL", "pydevRVAL"); }
+        else if (macro == "ORAW") { args["pydevORAW"] = Variant(rec->oraw); code = Util::replaceMacro(code, "ORAW", "pydevORAW"); }
+        else if (macro == "NAME") { args["pydevNAME"] = Variant(rec->name); code = Util::replaceMacro(code, "NAME", "pydevNAME"); }
+        else if (macro == "EGU")  { args["pydevEGU"]  = Variant(rec->egu);  code = Util::replaceMacro(code, "EGU",  "pydevEGU");  }
+        else if (macro == "HOPR") { args["pydevHOPR"] = Variant(rec->hopr); code = Util::replaceMacro(code, "HOPR", "pydevHOPR"); }
+        else if (macro == "LOPR") { args["pydevLOPR"] = Variant(rec->lopr); code = Util::replaceMacro(code, "LOPR", "pydevLOPR"); }
+        else if (macro == "PREC") { args["pydevPREC"] = Variant(rec->prec); code = Util::replaceMacro(code, "PREC", "pydevPREC"); }
+        else if (macro == "TPRO") { args["pydevTPRO"] = Variant(rec->tpro); code = Util::replaceMacro(code, "TPRO", "pydevTPRO"); }
     }
-    std::string code = Util::replaceFields(rec->inp.value.instio.string, fields);
 
     try {
-        epicsFloat64 val;
-        if (PyWrapper::exec(code, (rec->tpro == 1), &val) == true) {
-            val = (val * rec->aslo) + rec->aoff;
-            if (rec->smoo == 0.0 || rec->udf)
-                rec->val = val;
-            else
-                rec->val = (rec->val * rec->smoo) + (val * (1.0 - rec->smoo));
-            rec->udf = 0;
-            ctx->processCbStatus = 0;
-        } else {
-            if (rec->tpro == 1) {
-                printf("ERROR: Can't convert returned Python type to double type\n");
-            }
-            recGblSetSevr(rec, epicsAlarmCalc, epicsSevInvalid);
-            ctx->processCbStatus = -1;
+        if (ctx->code != code) {
+            ctx->bytecode = PyWrapper::compile(code, (rec->tpro == 1));
+            ctx->code = code;
         }
-    } catch (...) {
+        double val = PyWrapper::eval(ctx->bytecode, args, (rec->tpro == 1)).get_double();
+
+        val = (val * rec->aslo) + rec->aoff;
+        if (rec->smoo == 0.0 || rec->udf)
+            rec->val = val;
+        else
+            rec->val = (rec->val * rec->smoo) + (val * (1.0 - rec->smoo));
+        rec->udf = 0;
+        ctx->processCbStatus = 2; // Conversion already done
+
+    } catch (std::exception& e) {
+        if (rec->tpro == 1) {
+            printf("[%s] %s\n", rec->name, e.what());
+        }
         recGblSetSevr(rec, epicsAlarmCalc, epicsSevInvalid);
         ctx->processCbStatus = -1;
     }
-
-    if (ctx->processCbStatus == 0)
-        ctx->processCbStatus = 2; // Conversion already done
 
     callbackRequestProcessCallback(&ctx->callback, rec->prio, rec);
 }

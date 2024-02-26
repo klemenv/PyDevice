@@ -6,13 +6,54 @@
 #ifndef PYWRAPPER_H
 #define PYWRAPPER_H
 
+#include "variant.h"
+
 #include <functional>
+#include <map>
 #include <string>
 #include <vector>
 
 class PyWrapper {
     public:
-        struct MultiTypeValue {
+        class SyntaxError : public std::exception
+        {
+            public:
+                virtual const char* what() {
+                    return "Python Syntax Error";
+                }
+        };
+
+        class EvalError : public std::exception
+        {
+            public:
+                virtual const char* what() {
+                    return "Code Eval Error";
+                }
+        };
+
+        class ArgumentError : public std::exception
+        {
+            public:
+                virtual const char* what() {
+                    return "Argument Error";
+                }
+        };
+
+        struct ByteCode
+        {
+            private:
+                void* code;
+                ByteCode(void*);
+            public:
+                ByteCode();
+                ByteCode(ByteCode &);
+                ByteCode(ByteCode&&);
+                ByteCode& operator=(const ByteCode&);
+                ~ByteCode();
+                friend class PyWrapper;
+        };
+        struct MultiTypeValue
+        {
             std::string s;
             bool b;
             double f;
@@ -33,15 +74,24 @@ class PyWrapper {
         };
         using Callback = std::function<void()>;
     private:
-        static bool convert(void* in, MultiTypeValue& out);
+        static bool convert(void* in, Variant& out);
     public:
         static bool init();
         static void shutdown();
         static void registerIoIntr(const std::string& name, const Callback& cb);
-        static MultiTypeValue exec(const std::string& line, bool debug);
-        static bool exec(const std::string& line, bool debug, std::string& val);
-        template <typename T> static bool exec(const std::string& line, bool debug, T* val);
-        template <typename T> static bool exec(const std::string& line, bool debug, std::vector<T>& val);
+
+        static ByteCode compile(const std::string &code, bool debug);
+        static Variant eval(const ByteCode& bytecode, const std::map<std::string, Variant> &args, bool debug);
+        static Variant exec(const std::string& code, const std::map<std::string, Variant> &args, bool debug)
+        {
+            auto bytecode = PyWrapper::compile(code, true);
+            return PyWrapper::eval(bytecode, args, true);
+        }
+        static Variant exec(const std::string& code, bool debug)
+        {
+            std::map<std::string, Variant> args;
+            return PyWrapper::exec(code, args, debug);
+        }
 };
 
 #endif // PYWRAPPER_H

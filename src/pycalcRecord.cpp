@@ -56,6 +56,8 @@ static long fetchValues(pycalcRecord *rec);
 struct PyCalcRecordContext {
     CALLBACK callback;
     int processCbStatus;
+    std::string code;
+    PyWrapper::ByteCode bytecode;
 };
 
 rset pycalcRSET = {
@@ -136,130 +138,166 @@ static long initRecord(dbCommon *common, int pass)
 
 static void processRecordCb(pycalcRecord* rec)
 {
-    auto fields = Util::getFields(rec->calc);
-    for (auto& keyval: fields) {
-        if      (keyval.first == "NAME") keyval.second = rec->name;
-        else if (keyval.first == "TPRO") keyval.second = std::to_string(rec->tpro);
+    auto ctx = reinterpret_cast<PyCalcRecordContext*>(rec->ctx);
+    std::string code = rec->calc;
+    std::map<std::string, Variant> args;
+    for (auto& macro: Util::getMacros(code)) {
+        if      (macro == "NAME") { args["pydevNAME"] = Variant(rec->name); code = Util::replaceMacro(code, "NAME", "pydevNAME"); }
+        else if (macro == "TPRO") { args["pydevTPRO"] = Variant(rec->tpro); code = Util::replaceMacro(code, "TPRO", "pydevTPRO"); }
         else {
             for (auto i = 0; i < PYCALCREC_NARGS; i++) {
                 std::string field = std::string(1,'A'+i);
-                if (keyval.first == field) {
+                if (macro == field) {
                     auto val = &rec->a   + i;
                     auto ft  = &rec->fta + i;
                     auto me  = &rec->mea + i;
                     auto ne  = &rec->nea + i;
 
+                    code = Util::replaceMacro(code, field, "pydev"+field);
                     if (*me == 1) {
-                        if      (*ft == DBR_CHAR)   keyval.second = std::to_string(*reinterpret_cast<   epicsInt8*>(*val));
-                        else if (*ft == DBR_UCHAR)  keyval.second = std::to_string(*reinterpret_cast<  epicsUInt8*>(*val));
-                        else if (*ft == DBR_SHORT)  keyval.second = std::to_string(*reinterpret_cast<  epicsInt16*>(*val));
-                        else if (*ft == DBR_USHORT) keyval.second = std::to_string(*reinterpret_cast< epicsUInt16*>(*val));
-                        else if (*ft == DBR_LONG)   keyval.second = std::to_string(*reinterpret_cast<  epicsInt32*>(*val));
-                        else if (*ft == DBR_ULONG)  keyval.second = std::to_string(*reinterpret_cast< epicsUInt32*>(*val));
+                        if      (*ft == DBR_CHAR)   { args["pydev"+field] = Variant(*reinterpret_cast<   epicsInt8*>(*val)); }
+                        else if (*ft == DBR_UCHAR)  { args["pydev"+field] = Variant(*reinterpret_cast<  epicsUInt8*>(*val)); }
+                        else if (*ft == DBR_SHORT)  { args["pydev"+field] = Variant(*reinterpret_cast<  epicsInt16*>(*val)); }
+                        else if (*ft == DBR_USHORT) { args["pydev"+field] = Variant(*reinterpret_cast< epicsUInt16*>(*val)); }
+                        else if (*ft == DBR_LONG)   { args["pydev"+field] = Variant(*reinterpret_cast<  epicsInt32*>(*val)); }
+                        else if (*ft == DBR_ULONG)  { args["pydev"+field] = Variant(*reinterpret_cast< epicsUInt32*>(*val)); }
 #ifdef HAVE_EPICS_INT64
-                        else if (*ft == DBR_INT64)  keyval.second = std::to_string(*reinterpret_cast<  epicsInt64*>(*val));
-                        else if (*ft == DBR_UINT64) keyval.second = std::to_string(*reinterpret_cast< epicsUInt64*>(*val));
+                        else if (*ft == DBR_INT64)  { args["pydev"+field] = Variant(*reinterpret_cast<  epicsInt64*>(*val)); }
+                        else if (*ft == DBR_UINT64) { args["pydev"+field] = Variant(*reinterpret_cast< epicsUInt64*>(*val)); }
 #endif
-                        else if (*ft == DBR_FLOAT)  keyval.second = std::to_string(*reinterpret_cast<epicsFloat32*>(*val));
-                        else if (*ft == DBR_DOUBLE) keyval.second = std::to_string(*reinterpret_cast<epicsFloat64*>(*val));
-                        else if (*ft == DBR_STRING) keyval.second = std::string(reinterpret_cast<const char*>(*val));
+                        else if (*ft == DBR_FLOAT)  { args["pydev"+field] = Variant(*reinterpret_cast<epicsFloat32*>(*val)); }
+                        else if (*ft == DBR_DOUBLE) { args["pydev"+field] = Variant(*reinterpret_cast<epicsFloat64*>(*val)); }
+                        else if (*ft == DBR_STRING) { args["pydev"+field] = Variant(*reinterpret_cast<        char*>(*val)); }
                     } else {
-                        if      (*ft == DBR_CHAR)   keyval.second = Util::to_pylist_string( reinterpret_cast<   epicsInt8*>(*val), *ne );
-                        else if (*ft == DBR_UCHAR)  keyval.second = Util::to_pylist_string( reinterpret_cast<  epicsUInt8*>(*val), *ne );
-                        else if (*ft == DBR_SHORT)  keyval.second = Util::to_pylist_string( reinterpret_cast<  epicsInt16*>(*val), *ne );
-                        else if (*ft == DBR_USHORT) keyval.second = Util::to_pylist_string( reinterpret_cast< epicsUInt16*>(*val), *ne );
-                        else if (*ft == DBR_LONG)   keyval.second = Util::to_pylist_string( reinterpret_cast<  epicsInt32*>(*val), *ne );
-                        else if (*ft == DBR_ULONG)  keyval.second = Util::to_pylist_string( reinterpret_cast< epicsUInt32*>(*val), *ne );
+                        if      (*ft == DBR_CHAR)   { auto a = reinterpret_cast<   epicsInt8*>(*val); args["pydev"+field] = Variant(a, *ne); }
+                        else if (*ft == DBR_UCHAR)  { auto a = reinterpret_cast<  epicsUInt8*>(*val); args["pydev"+field] = Variant(a, *ne); }
+                        else if (*ft == DBR_SHORT)  { auto a = reinterpret_cast<  epicsInt16*>(*val); args["pydev"+field] = Variant(a, *ne); }
+                        else if (*ft == DBR_USHORT) { auto a = reinterpret_cast< epicsUInt16*>(*val); args["pydev"+field] = Variant(a, *ne); }
+                        else if (*ft == DBR_LONG)   { auto a = reinterpret_cast<  epicsInt32*>(*val); args["pydev"+field] = Variant(a, *ne); }
+                        else if (*ft == DBR_ULONG)  { auto a = reinterpret_cast< epicsUInt32*>(*val); args["pydev"+field] = Variant(a, *ne); }
 #ifdef HAVE_EPICS_INT64
-                        else if (*ft == DBR_INT64)  keyval.second = Util::to_pylist_string( reinterpret_cast<  epicsInt64*>(*val), *ne );
-                        else if (*ft == DBR_UINT64) keyval.second = Util::to_pylist_string( reinterpret_cast< epicsUInt64*>(*val), *ne );
+                        else if (*ft == DBR_INT64)  { auto a = reinterpret_cast<  epicsInt64*>(*val); args["pydev"+field] = Variant(a, *ne); }
+                        else if (*ft == DBR_UINT64) { auto a = reinterpret_cast< epicsUInt64*>(*val); args["pydev"+field] = Variant(a, *ne); }
 #endif
-                        else if (*ft == DBR_FLOAT)  keyval.second = Util::to_pylist_string( reinterpret_cast<epicsFloat32*>(*val), *ne );
-                        else if (*ft == DBR_DOUBLE) keyval.second = Util::to_pylist_string( reinterpret_cast<epicsFloat64*>(*val), *ne );
+                        else if (*ft == DBR_FLOAT)  { auto a = reinterpret_cast<epicsFloat32*>(*val); args["pydev"+field] = Variant(a, *ne); }
+                        else if (*ft == DBR_DOUBLE) { auto a = reinterpret_cast<epicsFloat64*>(*val); args["pydev"+field] = Variant(a, *ne); }
                         else if (*ft == DBR_STRING) {
                             std::vector<std::string> a;
                             const char* ptr = reinterpret_cast<const char*>(*val);
                             for (size_t i=0; i<*ne; i++) {
                                 std::string element(ptr, dbValueSize(DBF_STRING));
                                 element.resize(element.find('\0'));
-                                a.push_back("'" + Util::escape(element) + "'");
+                                a.push_back(element);
                                 ptr += dbValueSize(DBF_STRING);
                             }
-                            keyval.second = Util::to_pylist_string(a);
+                            args["pydev"+field] = Variant(a);
                         }
                     }
                 }
             }
         }
     }
-    std::string code = Util::replaceFields(rec->calc, fields);
 
-    PyWrapper::MultiTypeValue ret;
-    long status = 0;
     try {
-        ret = PyWrapper::exec(code, (rec->tpro == 1));
-    } catch (...) {
-        status = -1;
-    }
-
-    rec->nevl = 0;
-    if (status == 0) {
-        typedef long (*convertRoutineCast)(const void*, void*, void*);
-        if (ret.type == PyWrapper::MultiTypeValue::Type::BOOL) {
-            epicsInt32 l = ret.b;
-            auto convert = reinterpret_cast<convertRoutineCast>(dbFastPutConvertRoutine[DBF_LONG][rec->ftvl]);
-            status = convert(&l, rec->val, 0);
-            rec->nevl = 1;
-        } else if (ret.type == PyWrapper::MultiTypeValue::Type::INTEGER) {
-            auto convert = reinterpret_cast<convertRoutineCast>(dbFastPutConvertRoutine[DBF_LONG][rec->ftvl]);
-            status = convert(&ret.i, rec->val, 0);
-            rec->nevl = 1;
-        } else if (ret.type == PyWrapper::MultiTypeValue::Type::FLOAT) {
-            auto convert = reinterpret_cast<convertRoutineCast>(dbFastPutConvertRoutine[DBF_DOUBLE][rec->ftvl]);
-            status = convert(&ret.f, rec->val, 0);
-            rec->nevl = 1;
-        } else if (ret.type == PyWrapper::MultiTypeValue::Type::STRING) {
-            char s[MAX_STRING_SIZE];
-            strncpy(s, ret.s.c_str(), MAX_STRING_SIZE);
-            s[MAX_STRING_SIZE-1] = 0;
-            auto convert = reinterpret_cast<convertRoutineCast>(dbFastPutConvertRoutine[DBF_STRING][rec->ftvl]);
-            status = convert(s, rec->val, 0);
-            rec->nevl = 1;
-        } else if (ret.type == PyWrapper::MultiTypeValue::Type::VECTOR_INTEGER) {
-            auto convert = reinterpret_cast<convertRoutineCast>(dbFastPutConvertRoutine[DBF_LONG][rec->ftvl]);
-            for (size_t i=0; i<ret.vi.size() && i<rec->mevl; i++) {
-                char* val = reinterpret_cast<char*>(rec->val) + i*dbValueSize(rec->ftvl);
-                status = convert(&ret.vi[i], val, 0);
-                if (status != 0) {
-                    break;
-                }
-                rec->nevl++;
-            }
-        } else if (ret.type == PyWrapper::MultiTypeValue::Type::VECTOR_FLOAT) {
-            auto convert = reinterpret_cast<convertRoutineCast>(dbFastPutConvertRoutine[DBF_DOUBLE][rec->ftvl]);
-            for (size_t i=0; i<ret.vf.size() && i<rec->mevl; i++) {
-                char* val = reinterpret_cast<char*>(rec->val) + i*dbValueSize(rec->ftvl);
-                status = convert(&ret.vf[i], val, 0);
-                if (status != 0) {
-                    break;
-                }
-                rec->nevl++;
-            }
-        } else if (ret.type == PyWrapper::MultiTypeValue::Type::VECTOR_STRING) {
-            auto convert = reinterpret_cast<convertRoutineCast>(dbFastPutConvertRoutine[DBF_STRING][rec->ftvl]);
-            for (size_t i=0; i<ret.vs.size() && i<rec->mevl; i++) {
-                char* val = reinterpret_cast<char*>(rec->val) + i*dbValueSize(rec->ftvl);
-                status = convert(ret.vs[i].c_str(), val, 0);
-                if (status != 0) {
-                    break;
-                }
-                rec->nevl++;
-            }
+        if (ctx->code != code) {
+            ctx->bytecode = PyWrapper::compile(code, (rec->tpro == 1));
+            ctx->code = code;
         }
+        auto ret = PyWrapper::eval(ctx->bytecode, args, (rec->tpro == 1));
+
+        rec->nevl = 0;
+        typedef long (*convertRoutineCast)(const void*, void*, void*);
+        if (ret.type == Variant::Type::BOOL) {
+            epicsInt32 val = ret.get_bool();
+            auto convert = reinterpret_cast<convertRoutineCast>(dbFastPutConvertRoutine[DBF_LONG][rec->ftvl]);
+            if (convert(&val, rec->val, 0) != 0) {
+                throw Variant::ConvertError();
+            }
+            rec->nevl = 1;
+        } else if (ret.type == Variant::Type::LONG) {
+            epicsInt32 val = ret.get_long();
+            auto convert = reinterpret_cast<convertRoutineCast>(dbFastPutConvertRoutine[DBF_LONG][rec->ftvl]);
+            if (convert(&val, rec->val, 0) != 0) {
+                throw Variant::ConvertError();
+            }
+            rec->nevl = 1;
+        } else if (ret.type == Variant::Type::UNSIGNED) {
+            epicsInt32 val = ret.get_unsigned();
+            auto convert = reinterpret_cast<convertRoutineCast>(dbFastPutConvertRoutine[DBF_ULONG][rec->ftvl]);
+            if (convert(&val, rec->val, 0) != 0) {
+                throw Variant::ConvertError();
+            }
+            rec->nevl = 1;
+        } else if (ret.type == Variant::Type::DOUBLE) {
+            epicsFloat64 val = ret.get_double();
+            auto convert = reinterpret_cast<convertRoutineCast>(dbFastPutConvertRoutine[DBF_DOUBLE][rec->ftvl]);
+            if (convert(&val, rec->val, 0) != 0) {
+                throw Variant::ConvertError();
+            }
+            rec->nevl = 1;
+        } else if (ret.type == Variant::Type::STRING) {
+            char val[MAX_STRING_SIZE];
+            strncpy(val, ret.get_string().c_str(), MAX_STRING_SIZE);
+            val[MAX_STRING_SIZE-1] = 0;
+            auto convert = reinterpret_cast<convertRoutineCast>(dbFastPutConvertRoutine[DBF_STRING][rec->ftvl]);
+            if (convert(val, rec->val, 0) != 0) {
+                throw Variant::ConvertError();
+            }
+            rec->nevl = 1;
+        } else if (ret.type == Variant::Type::VECTOR_LONG) {
+            auto convert = reinterpret_cast<convertRoutineCast>(dbFastPutConvertRoutine[DBF_LONG][rec->ftvl]);
+            auto values = ret.get_long_array();
+            for (size_t i=0; i<values.size() && i<rec->mevl; i++) {
+                char* val = reinterpret_cast<char*>(rec->val) + i*dbValueSize(rec->ftvl);
+                if (convert(&values[i], val, 0) != 0) {
+                    throw Variant::ConvertError();
+                }
+                rec->nevl++;
+            }
+        } else if (ret.type == Variant::Type::VECTOR_UNSIGNED) {
+            auto convert = reinterpret_cast<convertRoutineCast>(dbFastPutConvertRoutine[DBF_ULONG][rec->ftvl]);
+            auto values = ret.get_unsigned_array();
+            for (size_t i=0; i<values.size() && i<rec->mevl; i++) {
+                char* val = reinterpret_cast<char*>(rec->val) + i*dbValueSize(rec->ftvl);
+                if (convert(&values[i], val, 0) != 0) {
+                    throw Variant::ConvertError();
+                }
+                rec->nevl++;
+            }
+        } else if (ret.type == Variant::Type::VECTOR_DOUBLE) {
+            auto convert = reinterpret_cast<convertRoutineCast>(dbFastPutConvertRoutine[DBF_DOUBLE][rec->ftvl]);
+            auto values = ret.get_double_array();
+            for (size_t i=0; i<values.size() && i<rec->mevl; i++) {
+                char* val = reinterpret_cast<char*>(rec->val) + i*dbValueSize(rec->ftvl);
+                if (convert(&values[i], val, 0) != 0) {
+                    throw Variant::ConvertError();
+                }
+                rec->nevl++;
+            }
+        } else if (ret.type == Variant::Type::VECTOR_STRING) {
+            auto convert = reinterpret_cast<convertRoutineCast>(dbFastPutConvertRoutine[DBF_STRING][rec->ftvl]);
+            auto values = ret.get_string_array();
+            for (size_t i=0; i<values.size() && i<rec->mevl; i++) {
+                char* val = reinterpret_cast<char*>(rec->val) + i*dbValueSize(rec->ftvl);
+                if (convert(values[i].c_str(), val, 0) != 0) {
+                    throw Variant::ConvertError();
+                }
+                rec->nevl++;
+            }
+        } else {
+            throw std::exception("Unknown type");
+        }
+        ctx->processCbStatus = 0;
+
+    } catch (std::exception& e) {
+        if (rec->tpro == 1) {
+            printf("[%s] %s\n", rec->name, e.what());
+        }
+        recGblSetSevr(rec, epicsAlarmCalc, epicsSevInvalid);
+        ctx->processCbStatus = -1;
     }
 
-    rec->ctx->processCbStatus = (status == 0 ? 0 : -1);
-    callbackRequestProcessCallback(&rec->ctx->callback, rec->prio, rec);
+    callbackRequestProcessCallback(&ctx->callback, rec->prio, rec);
 }
 
 static long processRecord(dbCommon *common)

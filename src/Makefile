@@ -31,6 +31,7 @@ pydev_SRCS += pydev_stringin.cpp
 pydev_SRCS += pydev_stringout.cpp
 pydev_SRCS += pydev_waveform.cpp
 pydev_SRCS += pycalcRecord.cpp
+pydev_SRCS += variant.cpp
 
 # 3.15 and above support lsi, lso and printf records  
 ifdef BASE_3_15

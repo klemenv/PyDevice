@@ -24,6 +24,8 @@ struct PyDevContext {
     CALLBACK callback;
     IOSCANPVT scan;
     int processCbStatus;
+    std::string code;
+    PyWrapper::ByteCode bytecode;
 };
 
 static std::map<std::string, IOSCANPVT> ioScanPvts;
@@ -81,58 +83,60 @@ static void processRecordCb(mbbiRecord* rec)
 {
     auto ctx = reinterpret_cast<PyDevContext*>(rec->dpvt);
 
-    auto fields = Util::getFields(rec->inp.value.instio.string);
-    for (auto& keyval: fields) {
-        if      (keyval.first == "VAL")  keyval.second = std::to_string(rec->val);
-        else if (keyval.first == "RVAL") keyval.second = std::to_string(rec->rval);
-        else if (keyval.first == "NAME") keyval.second = rec->name;
-        else if (keyval.first == "ZRVL") keyval.second = std::to_string(rec->zrvl);
-        else if (keyval.first == "ONVL") keyval.second = std::to_string(rec->onvl);
-        else if (keyval.first == "TWVL") keyval.second = std::to_string(rec->twvl);
-        else if (keyval.first == "THVL") keyval.second = std::to_string(rec->thvl);
-        else if (keyval.first == "FRVL") keyval.second = std::to_string(rec->frvl);
-        else if (keyval.first == "FVVL") keyval.second = std::to_string(rec->fvvl);
-        else if (keyval.first == "SXVL") keyval.second = std::to_string(rec->sxvl);
-        else if (keyval.first == "SVVL") keyval.second = std::to_string(rec->svvl);
-        else if (keyval.first == "EIVL") keyval.second = std::to_string(rec->eivl);
-        else if (keyval.first == "NIVL") keyval.second = std::to_string(rec->nivl);
-        else if (keyval.first == "TEVL") keyval.second = std::to_string(rec->tevl);
-        else if (keyval.first == "ELVL") keyval.second = std::to_string(rec->elvl);
-        else if (keyval.first == "TVVL") keyval.second = std::to_string(rec->tvvl);
-        else if (keyval.first == "TTVL") keyval.second = std::to_string(rec->ttvl);
-        else if (keyval.first == "FTVL") keyval.second = std::to_string(rec->ftvl);
-        else if (keyval.first == "FFVL") keyval.second = std::to_string(rec->ffvl);
-        else if (keyval.first == "ZRST") keyval.second = rec->zrst;
-        else if (keyval.first == "ONST") keyval.second = rec->onst;
-        else if (keyval.first == "TWST") keyval.second = rec->twst;
-        else if (keyval.first == "THST") keyval.second = rec->thst;
-        else if (keyval.first == "FRST") keyval.second = rec->frst;
-        else if (keyval.first == "FVST") keyval.second = rec->fvst;
-        else if (keyval.first == "SXST") keyval.second = rec->sxst;
-        else if (keyval.first == "SVST") keyval.second = rec->svst;
-        else if (keyval.first == "EIST") keyval.second = rec->eist;
-        else if (keyval.first == "NIST") keyval.second = rec->nist;
-        else if (keyval.first == "TEST") keyval.second = rec->test;
-        else if (keyval.first == "ELST") keyval.second = rec->elst;
-        else if (keyval.first == "TVST") keyval.second = rec->tvst;
-        else if (keyval.first == "TTST") keyval.second = rec->ttst;
-        else if (keyval.first == "FTST") keyval.second = rec->ftst;
-        else if (keyval.first == "FFST") keyval.second = rec->ffst;
-        else if (keyval.first == "TPRO") keyval.second = std::to_string(rec->tpro);
+    std::string code = rec->inp.value.instio.string;
+    std::map<std::string, Variant> args;
+    for (auto& macro: Util::getMacros(code)) {
+        if      (macro == "VAL")  { args["pydevVAL"]  = Variant(rec->val);  code = Util::replaceMacro(code, "VAL",  "pydevVAL");  }
+        else if (macro == "RVAL") { args["pydevRVAL"] = Variant(rec->rval); code = Util::replaceMacro(code, "RVAL", "pydevRVAL"); }
+        else if (macro == "NAME") { args["pydevNAME"] = Variant(rec->name); code = Util::replaceMacro(code, "NAME", "pydevNAME"); }
+        else if (macro == "ZRVL") { args["pydevZRVL"] = Variant(rec->zrvl); code = Util::replaceMacro(code, "ZRVL", "pydevZRVL"); }
+        else if (macro == "ONVL") { args["pydevONVL"] = Variant(rec->onvl); code = Util::replaceMacro(code, "ONVL", "pydevONVL"); }
+        else if (macro == "TWVL") { args["pydevTWVL"] = Variant(rec->twvl); code = Util::replaceMacro(code, "TWVL", "pydevTWVL"); }
+        else if (macro == "THVL") { args["pydevTHVL"] = Variant(rec->thvl); code = Util::replaceMacro(code, "THVL", "pydevTHVL"); }
+        else if (macro == "FRVL") { args["pydevFRVL"] = Variant(rec->frvl); code = Util::replaceMacro(code, "FRVL", "pydevFRVL"); }
+        else if (macro == "FVVL") { args["pydevFVVL"] = Variant(rec->fvvl); code = Util::replaceMacro(code, "FVVL", "pydevFVVL"); }
+        else if (macro == "SXVL") { args["pydevSXVL"] = Variant(rec->sxvl); code = Util::replaceMacro(code, "SXVL", "pydevSXVL"); }
+        else if (macro == "SVVL") { args["pydevSVVL"] = Variant(rec->svvl); code = Util::replaceMacro(code, "SVVL", "pydevSVVL"); }
+        else if (macro == "EIVL") { args["pydevEIVL"] = Variant(rec->eivl); code = Util::replaceMacro(code, "EIVL", "pydevEIVL"); }
+        else if (macro == "NIVL") { args["pydevNIVL"] = Variant(rec->nivl); code = Util::replaceMacro(code, "NIVL", "pydevNIVL"); }
+        else if (macro == "TEVL") { args["pydevTEVL"] = Variant(rec->tevl); code = Util::replaceMacro(code, "TEVL", "pydevTEVL"); }
+        else if (macro == "ELVL") { args["pydevELVL"] = Variant(rec->elvl); code = Util::replaceMacro(code, "ELVL", "pydevELVL"); }
+        else if (macro == "TVVL") { args["pydevTVVL"] = Variant(rec->tvvl); code = Util::replaceMacro(code, "TVVL", "pydevTVVL"); }
+        else if (macro == "TTVL") { args["pydevTTVL"] = Variant(rec->ttvl); code = Util::replaceMacro(code, "TTVL", "pydevTTVL"); }
+        else if (macro == "FTVL") { args["pydevFTVL"] = Variant(rec->ftvl); code = Util::replaceMacro(code, "FTVL", "pydevFTVL"); }
+        else if (macro == "FFVL") { args["pydevFFVL"] = Variant(rec->ffvl); code = Util::replaceMacro(code, "FFVL", "pydevFFVL"); }
+        else if (macro == "ZRST") { args["pydevZRST"] = Variant(rec->zrst); code = Util::replaceMacro(code, "ZRST", "pydevZRST"); }
+        else if (macro == "ONST") { args["pydevONST"] = Variant(rec->onst); code = Util::replaceMacro(code, "ONST", "pydevONST"); }
+        else if (macro == "TWST") { args["pydevTWST"] = Variant(rec->twst); code = Util::replaceMacro(code, "TWST", "pydevTWST"); }
+        else if (macro == "THST") { args["pydevTHST"] = Variant(rec->thst); code = Util::replaceMacro(code, "THST", "pydevTHST"); }
+        else if (macro == "FRST") { args["pydevFRST"] = Variant(rec->frst); code = Util::replaceMacro(code, "FRST", "pydevFRST"); }
+        else if (macro == "FVST") { args["pydevFVST"] = Variant(rec->fvst); code = Util::replaceMacro(code, "FVST", "pydevFVST"); }
+        else if (macro == "SXST") { args["pydevSXST"] = Variant(rec->sxst); code = Util::replaceMacro(code, "SXST", "pydevSXST"); }
+        else if (macro == "SVST") { args["pydevSVST"] = Variant(rec->svst); code = Util::replaceMacro(code, "SVST", "pydevSVST"); }
+        else if (macro == "EIST") { args["pydevEIST"] = Variant(rec->eist); code = Util::replaceMacro(code, "EIST", "pydevEIST"); }
+        else if (macro == "NIST") { args["pydevNIST"] = Variant(rec->nist); code = Util::replaceMacro(code, "NIST", "pydevNIST"); }
+        else if (macro == "TEST") { args["pydevTEST"] = Variant(rec->test); code = Util::replaceMacro(code, "TEST", "pydevTEST"); }
+        else if (macro == "ELST") { args["pydevELST"] = Variant(rec->elst); code = Util::replaceMacro(code, "ELST", "pydevELST"); }
+        else if (macro == "TVST") { args["pydevTVST"] = Variant(rec->tvst); code = Util::replaceMacro(code, "TVST", "pydevTVST"); }
+        else if (macro == "TTST") { args["pydevTTST"] = Variant(rec->ttst); code = Util::replaceMacro(code, "TTST", "pydevTTST"); }
+        else if (macro == "FTST") { args["pydevFTST"] = Variant(rec->ftst); code = Util::replaceMacro(code, "FTST", "pydevFTST"); }
+        else if (macro == "FFST") { args["pydevFFST"] = Variant(rec->ffst); code = Util::replaceMacro(code, "FFST", "pydevFFST"); }
+        else if (macro == "TPRO") { args["pydevTPRO"] = Variant(rec->tpro); code = Util::replaceMacro(code, "TPRO", "pydevTPRO"); }
     }
-    std::string code = Util::replaceFields(rec->inp.value.instio.string, fields);
 
     try {
-        if (PyWrapper::exec(code, (rec->tpro == 1), &rec->rval) == true) {
-            ctx->processCbStatus = 0;
-        } else {
-            if (rec->tpro == 1) {
-                printf("ERROR: Can't convert returned Python type to record type\n");
-            }
-            recGblSetSevr(rec, epicsAlarmCalc, epicsSevInvalid);
-            ctx->processCbStatus = -1;
+        if (ctx->code != code) {
+            ctx->bytecode = PyWrapper::compile(code, (rec->tpro == 1));
+            ctx->code = code;
         }
-    } catch (...) {
+        rec->val = PyWrapper::eval(ctx->bytecode, args, (rec->tpro == 1)).get_long();
+        rec->udf = 0;
+        ctx->processCbStatus = 0;
+
+    } catch (std::exception& e) {
+        if (rec->tpro == 1) {
+            printf("[%s] %s\n", rec->name, e.what());
+        }
         recGblSetSevr(rec, epicsAlarmCalc, epicsSevInvalid);
         ctx->processCbStatus = -1;
     }
