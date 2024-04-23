@@ -200,6 +200,7 @@ static void processRecordCb(pycalcRecord* rec)
 
     try {
         if (ctx->code != code) {
+            PyWrapper::destroy(std::move(ctx->bytecode));
             ctx->bytecode = PyWrapper::compile(code, (rec->tpro == 1));
             ctx->code = code;
         }
@@ -285,7 +286,7 @@ static void processRecordCb(pycalcRecord* rec)
                 rec->nevl++;
             }
         } else {
-            throw std::exception("Unknown type");
+            throw std::exception();
         }
         ctx->processCbStatus = 0;
 

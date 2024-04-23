@@ -207,6 +207,7 @@ static void processRecordCb(waveformRecord* rec)
 
     try {
         if (ctx->code != code) {
+            PyWrapper::destroy(std::move(ctx->bytecode));
             ctx->bytecode = PyWrapper::compile(code, (rec->tpro == 1));
             ctx->code = code;
         }

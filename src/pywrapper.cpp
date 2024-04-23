@@ -17,6 +17,17 @@ static PyObject* locDict = nullptr;
 static PyThreadState* mainThread = nullptr;
 static std::map<std::string, std::pair<PyWrapper::Callback, PyObject*>> params;
 
+struct PyGIL
+{
+    PyGILState_STATE state;
+    PyGIL() {
+        state = PyGILState_Ensure();
+    }
+    ~PyGIL() {
+        PyGILState_Release(state);
+    }
+};
+
 PyWrapper::ByteCode::ByteCode()
     : code(nullptr)
 {
@@ -29,13 +40,7 @@ PyWrapper::ByteCode::ByteCode(void* c)
 
 PyWrapper::ByteCode::~ByteCode()
 {
-    Py_XDECREF(reinterpret_cast<PyObject*>(code));
-}
-
-PyWrapper::ByteCode::ByteCode(ByteCode& o)
-{
-    Py_XINCREF(reinterpret_cast<PyObject*>(o.code));
-    code = o.code;
+    assert(code == nullptr);
 }
 
 PyWrapper::ByteCode::ByteCode(ByteCode&& o)
@@ -44,10 +49,10 @@ PyWrapper::ByteCode::ByteCode(ByteCode&& o)
     o.code = nullptr;
 }
 
-PyWrapper::ByteCode& PyWrapper::ByteCode::operator=(const ByteCode& o)
+PyWrapper::ByteCode& PyWrapper::ByteCode::operator=(ByteCode&& o)
 {
-    Py_XINCREF(reinterpret_cast<PyObject*>(o.code));
     code = o.code;
+    o.code = nullptr;
     return *this;
 }
 
@@ -179,7 +184,6 @@ bool PyWrapper::init()
 #else /* PY_MAJOR_VERSION < 3 */
     exec("import builtins", true);
     exec("builtins.pydev=pydev", true);
-    exec("import pydev", true);
 #endif /* PY_MAJOR_VERSION  <  3 */
 
     return true;
@@ -200,16 +204,6 @@ void PyWrapper::registerIoIntr(const std::string& name, const Callback& cb)
     params[name].first = cb;
     params[name].second = nullptr;
 }
-
-struct PyGIL {
-    PyGILState_STATE state;
-    PyGIL() {
-        state = PyGILState_Ensure();
-    }
-    ~PyGIL() {
-        PyGILState_Release(state);
-    }
-};
 
 bool PyWrapper::convert(void* in_, Variant& out)
 {
@@ -355,11 +349,18 @@ PyWrapper::ByteCode PyWrapper::compile(const std::string& code, bool debug)
 
     PyObject* bytecode = Py_CompileString(code.c_str(), "", Py_eval_input);
     if (bytecode == NULL) {
-        if (debug) {
-            PyErr_Print();
-        }
+        // Ignore error, try with Py_file_input which works for 'import xxx' etc.
         PyErr_Clear();
-        throw SyntaxError();
+
+        bytecode = Py_CompileString((code+"\n").c_str(), "", Py_file_input);
+        if (bytecode == NULL) {
+            if (debug) {
+                PyErr_Print();
+            }
+            PyErr_Clear();
+            //printf("Throwing error\n");
+            throw SyntaxError();
+        }
     }
     return ByteCode(bytecode);
 }
@@ -368,7 +369,6 @@ Variant PyWrapper::eval(const PyWrapper::ByteCode& bytecode, const std::map<std:
 {
     PyGIL gil;
 
-    PyObject *locals = PyDict_New();
     for (auto& keyval: args) {
         PyObject* item = nullptr;
         if (keyval.second.type == Variant::Type::BOOL) {
@@ -417,7 +417,7 @@ Variant PyWrapper::eval(const PyWrapper::ByteCode& bytecode, const std::map<std:
         if (item == nullptr) {
             throw ArgumentError();
         }
-        PyDict_SetItemString(locals, keyval.first.c_str(), item);
+        PyDict_SetItemString(locDict, keyval.first.c_str(), item);
         if (item != Py_True && item != Py_False) {
             Py_XDECREF(item);
         }
@@ -433,21 +433,39 @@ Variant PyWrapper::eval(const PyWrapper::ByteCode& bytecode, const std::map<std:
         throw std::invalid_argument("Missing compiled code");
     }
 
-    PyObject *r = PyEval_EvalCode(code, globDict, locals);
-    Py_DecRef(locals);
-    if (r != nullptr) {
-        Variant val;
-        bool converted = convert(r, val);
-        Py_DecRef(r);
-
-        if (!converted) {
-            if (debug) {
-                PyErr_Print();
-            }
-            PyErr_Clear();
+    PyObject *r = PyEval_EvalCode(code, globDict, locDict);
+    if (r == nullptr) {
+        if (debug) {
+            PyErr_Print();
         }
-        return val;
+        PyErr_Clear();
+        throw EvalError();
     }
 
-    throw EvalError();
+    Variant val;
+    bool converted = convert(r, val);
+    Py_DecRef(r);
+
+    if (!converted) {
+        if (debug) {
+            PyErr_Print();
+        }
+        PyErr_Clear();
+    }
+    return val;
+}
+
+Variant PyWrapper::exec(const std::string &code, const std::map<std::string, Variant> &args, bool debug)
+{
+    auto bytecode = compile(code, true);
+    auto r = eval(bytecode, args, true);
+    destroy(std::move(bytecode));
+    return r;
+}
+
+void PyWrapper::destroy(PyWrapper::ByteCode&& bytecode)
+{
+    PyGIL gil;
+    Py_XDECREF(reinterpret_cast<PyObject *>(bytecode.code));
+    bytecode.code = nullptr;
 }
