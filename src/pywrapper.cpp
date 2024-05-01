@@ -397,7 +397,7 @@ Variant PyWrapper::eval(const PyWrapper::ByteCode& bytecode, const std::map<std:
             item = PyList_New(0);
             auto vals = keyval.second.get_unsigned_array();
             for (auto& val: vals) {
-                PyObject* tmp = PyLong_FromUnsignedLongLong(val));
+                PyObject* tmp = PyLong_FromUnsignedLongLong(val);
                 PyList_Append(item, tmp);
                 Py_XDECREF(tmp);
             }
