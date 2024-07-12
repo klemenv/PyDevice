@@ -86,7 +86,7 @@ pycalcRecord.dbd in the IOC as
 ### Simple expression
 
 ```
-record(py, "PyCalcTest:MathExpr") {
+record(pycalc, "PyCalcTest:MathExpr") {
     field(INPA, "17")
     field(INPB, "3")
     field(CALC, "A*B")
@@ -103,7 +103,7 @@ value for FTVL.
 ### Adaptive parameter and return value types
 
 ```
-record(py, "PyCalcTest:AdaptiveTypes") {
+record(pycalc, "PyCalcTest:AdaptiveTypes") {
     field(INPA, "PyCalcTest:Input1 CP")
     field(INPB, "PyCalcTest:Input2 CP")
     field(FTA,  "LONG")
@@ -122,7 +122,7 @@ is a double value, but we're only intersted in integer precision.
 ### Trigger record alarm
 
 ```
-record(py, "PyCalcTest:InvalidAlarm") {
+record(pycalc, "PyCalcTest:InvalidAlarm") {
     field(CALC, "unknown_function()")
 }
 ```
