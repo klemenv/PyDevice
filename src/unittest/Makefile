@@ -19,6 +19,7 @@ TESTS += testutil
 TESTPROD_HOST += testpywrapper
 testpywrapper_SRCS += test_pywrapper.cpp
 testpywrapper_SRCS += pywrapper.cpp
+testpywrapper_SRCS += variant.cpp
 TESTS += testpywrapper
 
 TESTSCRIPTS_HOST += $(TESTS:%=%.t)

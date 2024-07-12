@@ -4,6 +4,7 @@
 #include <epicsUnitTest.h>
 #include <testMain.h>
 
+#include <algorithm>
 #include <map>
 #include <string>
 
@@ -22,141 +23,101 @@ struct TestEscape {
     }
 };
 
+struct TestJoin {
+    static void simple()
+    {
+        testOk1(Util::join({"Hello","World","!"}, " ") == "Hello World !");
+        testOk1(Util::join({"a","b","c"}, "") == "abc");
+        testOk1(Util::join({"a","b","c"}, "__") == "a__b__c");
+    }
+};
+
 struct TestReplace {
     static void basic()
     {
-        const static std::map<std::string, std::string> fields = {
-            { "%VAL%", "hello" }
-        };
-        testOk1(Util::replaceFields("test string %VAL%", fields) == "test string hello");
-        testOk1(Util::replaceFields("%VAL%", fields) == "hello");
-        testOk1(Util::replaceFields("'%VAL%'", fields) == "'hello'");
+        testOk1(Util::replaceMacro("test string %VAL%", "%VAL%", "hello") == "test string hello");
+        testOk1(Util::replaceMacro("%VAL%", "%VAL%", "hello") == "hello");
+        testOk1(Util::replaceMacro("'%VAL%'", "%VAL%", "hello") == "'hello'");
     }
 
     static void multipleInstances()
     {
-        const static std::map<std::string, std::string> fields = {
-            { "%VAL%", "hello" }
-        };
-        testOk1(Util::replaceFields("%VAL% %VAL%", fields) == "hello hello");
-        testOk1(Util::replaceFields("%VAL%,%VAL%", fields) == "hello,hello");
-        testOk1(Util::replaceFields("%VAL%/%VAL%/%VAL%", fields) == "hello/hello/hello");
-    }
-
-    static void multipleFields()
-    {
-        const static std::map<std::string, std::string> fields = {
-            { "%VAL%", "hello" },
-            { "%NAME%", "Test:PV" },
-            { "%HIGH%", "5" }
-        };
-        testOk1(Util::replaceFields("test string %VAL%", fields) == "test string hello");
-        testOk1(Util::replaceFields("%NAME%=%VAL%", fields) == "Test:PV=hello");
-        testOk1(Util::replaceFields("%NAME%: VAL=%VAL% HIGH=%HIGH%", fields) == "Test:PV: VAL=hello HIGH=5");
+        testOk1(Util::replaceMacro("%VAL% %VAL%", "%VAL%", "hello") == "hello hello");
+        testOk1(Util::replaceMacro("%VAL%,%VAL%", "%VAL%", "hello") == "hello,hello");
+        testOk1(Util::replaceMacro("%VAL%/%VAL%/%VAL%", "%VAL%", "hello") == "hello/hello/hello");
     }
 
     static void singleChar()
     {
-        const static std::map<std::string, std::string> fields = {
-            { "A", "B" },
-            { "B", "C" },
-        };
-        testOk1(Util::replaceFields("A", fields) == "B");
-        testOk1(Util::replaceFields("AAA", fields) == "AAA");
-        testOk1(Util::replaceFields("ABA", fields) == "ABA");
+        testOk1(Util::replaceMacro("A", "A", "B") == "B");
+        testOk1(Util::replaceMacro("AAA", "A", "B") == "AAA");
+        testOk1(Util::replaceMacro("ABA", "B", "C") == "ABA");
     }
 
     static void injectDelimiter()
     {
-        const static std::map<std::string, std::string> fields = {
-            { "VAL", "hello" }
-        };
-        testOk1(Util::replaceFields("%VAL% VAL", fields) == "hello hello");
-        testOk1(Util::replaceFields("%VAL%,VAL", fields) == "hello,hello");
-        testOk1(Util::replaceFields("This is a test: VAL", fields) == "This is a test: hello");
-        testOk1(Util::replaceFields("This is a test: %VAL%", fields) == "This is a test: hello");
-        testOk1(Util::replaceFields("This is a test: %VAL", fields) == "This is a test: %hello");
+        testOk1(Util::replaceMacro("%VAL% VAL", "VAL", "hello") == "hello hello");
+        testOk1(Util::replaceMacro("%VAL%,VAL", "VAL", "hello") == "hello,hello");
+        testOk1(Util::replaceMacro("This is a test: VAL", "VAL", "hello") == "This is a test: hello");
+        testOk1(Util::replaceMacro("This is a test: %VAL%", "VAL", "hello") == "This is a test: hello");
+        testOk1(Util::replaceMacro("This is a test: %VAL", "VAL", "hello") == "This is a test: %hello");
+    }
+
+    static int _countInVector(const std::vector<std::string>& v, const std::string& token) {
+        return std::count(v.begin(), v.end(), token);
     }
 
     static void inTheMiddleOfText()
     {
-        const static std::map<std::string, std::string> fields = {
-            { "VAL", "Hello" },
-            { "A",   "ValA" }
-        };
-        testOk1(Util::replaceFields("ThisIs VAL test", fields) == "ThisIs Hello test");
-        testOk1(Util::replaceFields("ThisIsVALtest", fields) == "ThisIsVALtest");
-        testOk1(Util::replaceFields("ThisIs%VAL%test", fields) == "ThisIsHellotest");
-        testOk1(Util::replaceFields("VAL%A%", fields) == "HelloValA");
-        testOk1(Util::replaceFields("%VAL%A%", fields) == "HelloValA%");
-        testOk1(Util::replaceFields("%VAL%%A%", fields) == "HelloValA");
-    }
+        testOk1(Util::replaceMacro("ThisIs VAL test", "VAL", "Hello") == "ThisIs Hello test");
+        testOk1(Util::replaceMacro("ThisIsVALtest", "VAL", "Hello") == "ThisIsVALtest");
+        testOk1(Util::replaceMacro("ThisIs%VAL%test", "VAL", "Hello") == "ThisIsHellotest");
+        testOk1(Util::replaceMacro("Hello%A%", "A", "ValA") == "HelloValA");
+        testOk1(Util::getMacros("NAME").size() == 1);
+        testOk1(Util::getMacros("    NAME").size() == 1);
+        testOk1(Util::getMacros("NAME\t").size() == 1);
+        testOk1(Util::getMacros("a,NAME").size() == 1);
+        testOk1(Util::getMacros("NAME a").size() == 1);
+        testOk1(Util::getMacros("Name").size() == 0);
+        testOk1(Util::getMacros("name").size() == 0);
+        testOk1(Util::getMacros("NAMEA").size() == 0);
+        testOk1(Util::getMacros("aVAL").size() == 0);
+        testOk1(Util::getMacros("VALa").size() == 0);
+        testOk1(Util::getMacros("...NAMEa").size() == 0);
+        testOk1(Util::getMacros("...aNAME!").size() == 0);
+        testOk1(Util::getMacros("function(NAME)").size() == 1);
+        testOk1(Util::getMacros("function(NAME,A)").size() == 2);
+        testOk1(_countInVector(Util::getMacros("function(NAME,A)"), "NAME") == 1);
+        testOk1(_countInVector(Util::getMacros("function(NAME,A)"), "A") == 1);
+        testOk1(_countInVector(Util::getMacros("function(NAME,A,A)"), "A") == 2);
 
-    static void randomOnes()
-    {
-        const static std::map<std::string, std::string> fields = {
-            { "A", "17" },
-            { "B", "3" }
-        };
-        testOk1(Util::replaceFields("A*B", fields) == "17*3");
+        testOk1(Util::getMacros("%NAME%").size() == 1);
+        testOk1(Util::getMacros("a%NAME%").size() == 1);
+        testOk1(Util::getMacros("%NAME%a").size() == 1);
+        testOk1(Util::getMacros("%Name%").size() == 0);
+        testOk1(Util::getMacros("%name%").size() == 0);
+        testOk1(Util::getMacros("%NAMEA%").size() == 0);
+        testOk1(Util::getMacros("...%NAME%a").size() == 1);
 
-        const static std::map<std::string, std::string> fields2 = {
-            { "A", "[1,2,3]" },
-            { "B", "['one','two','three']" }
-        };
-        testOk1(Util::replaceFields("zip(A,B)", fields2) == "zip([1,2,3],['one','two','three'])");
-    }
-};
-
-struct TestGetReplacables {
-    static void getReplacables()
-    {
-        testOk1(Util::getFields("NAME").count("NAME") == 1);
-        testOk1(Util::getFields("    NAME").count("NAME") == 1);
-        testOk1(Util::getFields("NAME\t").count("NAME") == 1);
-        testOk1(Util::getFields("a,NAME").count("NAME") == 1);
-        testOk1(Util::getFields("NAME a").count("NAME") == 1);
-        testOk1(Util::getFields("Name").size() == 0);
-        testOk1(Util::getFields("name").size() == 0);
-        testOk1(Util::getFields("NAMEA").size() == 0);
-        testOk1(Util::getFields("aVAL").size() == 0);
-        testOk1(Util::getFields("VALa").size() == 0);
-        testOk1(Util::getFields("...NAMEa").size() == 0);
-        testOk1(Util::getFields("...aNAME!").size() == 0);
-        testOk1(Util::getFields("function(NAME)").count("NAME") == 1);
-        testOk1(Util::getFields("function(NAME,A)").size() == 2);
-        testOk1(Util::getFields("function(NAME,A)").count("NAME") == 1);
-        testOk1(Util::getFields("function(NAME,A)").count("A") == 1);
-
-        testOk1(Util::getFields("%NAME%").count("NAME") == 1);
-        testOk1(Util::getFields("a%NAME%").count("NAME") == 1);
-        testOk1(Util::getFields("%NAME%a").count("NAME") == 1);
-        testOk1(Util::getFields("%Name%").size() == 0);
-        testOk1(Util::getFields("%name%").size() == 0);
-        testOk1(Util::getFields("%NAMEA%").size() == 0);
-        testOk1(Util::getFields("...%NAME%a").count("NAME") == 1);
-
-        testOk1(Util::getFields("%VAL%%A%").size() == 2);
-        testOk1(Util::getFields("%VAL%A%").size() == 2); // %VAL%, A and a leftover %
-        testOk1(Util::getFields("VAL%A%").size() == 2);
+        testOk1(Util::getMacros("%VAL%%A%").size() == 2);
+        testOk1(Util::getMacros("%VAL%A%").size() == 2); // %VAL%, A and a leftover %
+        testOk1(Util::getMacros("VAL%A%").size() == 2);
     }
 };
 
 MAIN(testutil)
 {
-    testPlan(55);
+    testPlan(53);
     TestReplace::basic();
     TestReplace::multipleInstances();
-    TestReplace::multipleFields();
     TestReplace::singleChar();
     TestReplace::injectDelimiter();
     TestReplace::inTheMiddleOfText();
-    TestReplace::randomOnes();
 
     TestEscape::newLine();
     TestEscape::singleQuote();
 
-    TestGetReplacables::getReplacables();
+    TestJoin::simple();
 
     return testDone();
 }

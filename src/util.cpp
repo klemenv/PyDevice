@@ -60,7 +60,7 @@ std::string replaceMacro(const std::string& text, const std::string& search, con
                 out.replace(pos, token.length(), replacement);
                 pos += replacement.length() - 1;
                 replaced = true;
-                break;
+                continue;
             }
         }
 
@@ -70,7 +70,7 @@ std::string replaceMacro(const std::string& text, const std::string& search, con
             out.replace(pos, token.length(), replacement);
             pos += replacement.length() - 1;
             replaced = true;
-            break;
+            continue;
         }
 
         replaced = false;

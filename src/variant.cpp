@@ -120,7 +120,7 @@ double Variant::get_double() const
 std::string Variant::get_string() const
 {
     if (type == Type::BOOL) {
-        return (b ? "true" : "false");
+        return (b ? "True" : "False");
     } else if (type == Type::LONG) {
         return std::to_string(l);
     } else if (type == Type::UNSIGNED) {

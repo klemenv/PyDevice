@@ -232,8 +232,12 @@ bool PyWrapper::convert(void* in_, Variant& out)
             PyErr_Clear();
             return false;
         }
-        out = Variant(o);
+        out = Variant(std::string(o));
         Py_XDECREF(tmp);
+        return true;
+    }
+    if (PyBool_Check(in)) {
+        out = Variant(static_cast<bool>(PyObject_IsTrue(in)));
         return true;
     }
 #if PY_MAJOR_VERSION < 3
@@ -254,10 +258,6 @@ bool PyWrapper::convert(void* in_, Variant& out)
             return false;
         }
         out = Variant(o);
-        return true;
-    }
-    if (PyBool_Check(in)) {
-        out = Variant(static_cast<long>(PyObject_IsTrue(in)));
         return true;
     }
     if (PyFloat_Check(in)) {
@@ -389,37 +389,29 @@ Variant PyWrapper::eval(const PyWrapper::ByteCode& bytecode, const std::map<std:
             item = PyList_New(0);
             auto vals = keyval.second.get_long_array();
             for (auto& val: vals) {
-                PyObject* tmp = PyLong_FromLongLong(val);
-                PyList_Append(item, tmp);
-                Py_XDECREF(tmp);
+                PyList_Append(item, PyLong_FromLongLong(val));
             }
         } else if (keyval.second.type == Variant::Type::VECTOR_UNSIGNED) {
             item = PyList_New(0);
             auto vals = keyval.second.get_unsigned_array();
             for (auto& val: vals) {
-                PyObject* tmp = PyLong_FromUnsignedLongLong(val);
-                PyList_Append(item, tmp);
-                Py_XDECREF(tmp);
+                PyList_Append(item, PyLong_FromUnsignedLongLong(val));
             }
         } else if (keyval.second.type == Variant::Type::VECTOR_DOUBLE) {
             item = PyList_New(0);
             auto vals = keyval.second.get_double_array();
             for (auto& val: vals) {
-                PyObject* tmp = PyFloat_FromDouble(val);
-                PyList_Append(item, tmp);
-                Py_XDECREF(tmp);
+                PyList_Append(item, PyFloat_FromDouble(val));
             }
         } else if (keyval.second.type == Variant::Type::VECTOR_STRING) {
             item = PyList_New(0);
             auto vals = keyval.second.get_string_array();
             for (auto& val: vals) {
 #if PY_MAJOR_VERSION < 3
-                PyObject* tmp = PyString_FromString(val.c_str());
+                PyList_Append(item, PyString_FromString(val.c_str()));
 #else
-                PyObject* tmp = PyUnicode_FromString(val.c_str());
+                PyList_Append(item, PyUnicode_FromString(val.c_str()));
 #endif
-                PyList_Append(item, tmp);
-                Py_XDECREF(tmp);
             }
         }
         if (item == nullptr) {
