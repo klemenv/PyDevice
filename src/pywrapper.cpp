@@ -17,6 +17,45 @@ static PyObject* locDict = nullptr;
 static PyThreadState* mainThread = nullptr;
 static std::map<std::string, std::pair<PyWrapper::Callback, PyObject*>> params;
 
+struct PyGIL
+{
+    PyGILState_STATE state;
+    PyGIL() {
+        state = PyGILState_Ensure();
+    }
+    ~PyGIL() {
+        PyGILState_Release(state);
+    }
+};
+
+PyWrapper::ByteCode::ByteCode()
+    : code(nullptr)
+{
+}
+
+PyWrapper::ByteCode::ByteCode(void* c)
+{
+    code = c;
+}
+
+PyWrapper::ByteCode::~ByteCode()
+{
+    assert(code == nullptr);
+}
+
+PyWrapper::ByteCode::ByteCode(ByteCode&& o)
+{
+    code = o.code;
+    o.code = nullptr;
+}
+
+PyWrapper::ByteCode& PyWrapper::ByteCode::operator=(ByteCode&& o)
+{
+    code = o.code;
+    o.code = nullptr;
+    return *this;
+}
+
 /**
  * Function for caching parameter value or notifying record of new value.
  *
@@ -145,7 +184,6 @@ bool PyWrapper::init()
 #else /* PY_MAJOR_VERSION < 3 */
     exec("import builtins", true);
     exec("builtins.pydev=pydev", true);
-    exec("import pydev", true);
 #endif /* PY_MAJOR_VERSION  <  3 */
 
     return true;
@@ -167,17 +205,7 @@ void PyWrapper::registerIoIntr(const std::string& name, const Callback& cb)
     params[name].second = nullptr;
 }
 
-struct PyGIL {
-    PyGILState_STATE state;
-    PyGIL() {
-        state = PyGILState_Ensure();
-    }
-    ~PyGIL() {
-        PyGILState_Release(state);
-    }
-};
-
-bool PyWrapper::convert(void* in_, MultiTypeValue& out)
+bool PyWrapper::convert(void* in_, Variant& out)
 {
     PyObject* in = reinterpret_cast<PyObject*>(in_);
 
@@ -188,8 +216,7 @@ bool PyWrapper::convert(void* in_, MultiTypeValue& out)
             PyErr_Clear();
             return false;
         }
-        out.s = o;
-        out.type = MultiTypeValue::Type::STRING;
+        out = Variant(o);
         return true;
     }
 #endif
@@ -205,111 +232,110 @@ bool PyWrapper::convert(void* in_, MultiTypeValue& out)
             PyErr_Clear();
             return false;
         }
-        out.s = o;
-        out.type = MultiTypeValue::Type::STRING;
+        out = Variant(std::string(o));
         Py_XDECREF(tmp);
+        return true;
+    }
+    if (PyBool_Check(in)) {
+        out = Variant(static_cast<bool>(PyObject_IsTrue(in)));
         return true;
     }
 #if PY_MAJOR_VERSION < 3
     if (PyInt_Check(in)) {
-        long o = PyInt_AsLong(in);
+        auto o = PyInt_AsLong(in);
         if (o == -1 && PyErr_Occurred()) {
             PyErr_Clear();
             return false;
         }
-        out.i = o;
-        out.type = MultiTypeValue::Type::INTEGER;
+        out = Variant(o);
         return true;
     }
 #endif
     if (PyLong_Check(in)) {
-        long o = PyLong_AsLong(in);
+        auto o = PyLong_AsLongLong(in);
         if (o == -1 && PyErr_Occurred()) {
             PyErr_Clear();
             return false;
         }
-        out.i = o;
-        out.type = MultiTypeValue::Type::INTEGER;
-        return true;
-    }
-    if (PyBool_Check(in)) {
-        out.b = PyObject_IsTrue(in);
-        out.type = MultiTypeValue::Type::BOOL;
+        out = Variant(o);
         return true;
     }
     if (PyFloat_Check(in)) {
-        double o = PyFloat_AsDouble(in);
+        auto o = PyFloat_AsDouble(in);
         if (o == -1.0 && PyErr_Occurred()) {
             PyErr_Clear();
             return false;
         }
-        out.f = o;
-        out.type = MultiTypeValue::Type::FLOAT;
+        out = Variant(o);
         return true;
     }
 
     if (PyList_Check(in)) {
-        out.type = MultiTypeValue::Type::NONE;
-        out.vi.clear();
-        out.vf.clear();
-        out.vs.clear();
+        std::vector<double> vd;
+        std::vector<long long int> vl;
+        std::vector<std::string> vs;
+        Variant::Type t = Variant::Type::NONE;
 
         for (Py_ssize_t i = 0; i < PyList_Size(in); i++) {
             PyObject* el = PyList_GetItem(in, i);
 #if PY_MAJOR_VERSION < 3
-            if (PyInt_Check(el) && (out.type == MultiTypeValue::Type::NONE || out.type == MultiTypeValue::Type::VECTOR_INTEGER)) {
-                long val = PyInt_AsLong(el);
+            if (PyInt_Check(el) && (t == Variant::Type::NONE || t == Variant::Type::VECTOR_LONG)) {
+                long long val = PyInt_AsLong(el);
                 if (val == 1 && PyErr_Occurred()) {
                     PyErr_Clear();
                     return false;
                 }
-                out.vi.push_back(val);
-                out.type = MultiTypeValue::Type::VECTOR_INTEGER;
+                vl.push_back(val);
+                t = Variant::Type::VECTOR_LONG;
             }
 #endif
-            if (PyLong_Check(el) && (out.type == MultiTypeValue::Type::NONE || out.type == MultiTypeValue::Type::VECTOR_INTEGER)) {
+            if (PyLong_Check(el) && (t == Variant::Type::NONE || t == Variant::Type::VECTOR_LONG)) {
                 long val = PyLong_AsLong(el);
                 if (val == -1 && PyErr_Occurred()) {
                     PyErr_Clear();
                     return false;
                 }
-                out.vi.push_back(val);
-                out.type = MultiTypeValue::Type::VECTOR_INTEGER;
+                vl.push_back(val);
+                t = Variant::Type::VECTOR_LONG;
             }
-            if (PyBool_Check(el) && (out.type == MultiTypeValue::Type::NONE || out.type == MultiTypeValue::Type::VECTOR_INTEGER)) {
+            if (PyBool_Check(el) && (t == Variant::Type::NONE || t == Variant::Type::VECTOR_LONG)) {
                 long val = (PyObject_IsTrue(el) ? 1 : 0);
-                out.vi.push_back(val);
-                out.type = MultiTypeValue::Type::VECTOR_INTEGER;
+                vl.push_back(val);
+                t = Variant::Type::VECTOR_LONG;
             }
-            if (PyFloat_Check(el) && (out.type == MultiTypeValue::Type::NONE || out.type == MultiTypeValue::Type::VECTOR_FLOAT)) {
+            if (PyFloat_Check(el) && (t == Variant::Type::NONE || t == Variant::Type::VECTOR_DOUBLE)) {
                 double val = PyFloat_AsDouble(el);
                 if (val == -1.0 && PyErr_Occurred()) {
                     PyErr_Clear();
                     return false;
                 }
-                out.vf.push_back(val);
-                out.type = MultiTypeValue::Type::VECTOR_FLOAT;
+                vd.push_back(val);
+                t = Variant::Type::VECTOR_DOUBLE;
             }
-            if (PyBytes_Check(el) && (out.type == MultiTypeValue::Type::NONE || out.type == MultiTypeValue::Type::VECTOR_STRING)) {
-                const char *cval = PyBytes_AsString(el);
+#if PY_MAJOR_VERSION < 3
+            if (PyString_Check(el) && (t == Variant::Type::NONE || t == Variant::Type::VECTOR_STRING)) {
+                const char *cval = PyString_AsString(el);
+#else
+            if (PyUnicode_Check(el) && (t == Variant::Type::NONE || t == Variant::Type::VECTOR_STRING)) {
+                const char *cval = PyBytes_AsString(PyUnicode_AsASCIIString(el));
+#endif
                 if (!cval) {
-                    if (PyErr_Occurred()) {
-                        PyErr_Clear();
-                    } else {
-                        // according to documentation should not end up here;
-                        printf("ERROR: santiy check failed. PyBytes_AsString returned NULL"
-                               ", but no exception was set");
-                    }
+                    PyErr_Clear();
                     return false;
                 }
-                out.vs.push_back(cval);
-                out.type = MultiTypeValue::Type::VECTOR_STRING;
+                vs.push_back(cval);
+                t = Variant::Type::VECTOR_STRING;
             }
         }
 
-        if (out.type == MultiTypeValue::Type::NONE) {
-            out.type = MultiTypeValue::Type::VECTOR_INTEGER;
+        if (t == Variant::Type::VECTOR_LONG) {
+            out = Variant(vl);
+        } else if (t == Variant::Type::VECTOR_STRING) {
+            out = Variant(vs);
+        } else {
+            out = Variant(vd);
         }
+
         return true;
     }
 
@@ -317,138 +343,129 @@ bool PyWrapper::convert(void* in_, MultiTypeValue& out)
     return false;
 }
 
-template <typename T>
-bool PyWrapper::exec(const std::string& line, bool debug, T* val)
+PyWrapper::ByteCode PyWrapper::compile(const std::string& code, bool debug)
 {
-    auto out = exec(line, debug);
-    switch (out.type) {
-    case MultiTypeValue::Type::INTEGER:
-        *val = out.i;
-        return true;
-    case MultiTypeValue::Type::FLOAT:
-        *val = out.f;
-        return true;
-    case MultiTypeValue::Type::BOOL:
-        *val = out.b;
-        return true;
-    default:
-        return false;
-    }
-}
-template bool PyWrapper::exec(const std::string&, bool, char*);
-template bool PyWrapper::exec(const std::string&, bool, int8_t*);
-template bool PyWrapper::exec(const std::string&, bool, uint8_t*);
-template bool PyWrapper::exec(const std::string&, bool, int16_t*);
-template bool PyWrapper::exec(const std::string&, bool, uint16_t*);
-template bool PyWrapper::exec(const std::string&, bool, int32_t*);
-template bool PyWrapper::exec(const std::string&, bool, uint32_t*);
-template bool PyWrapper::exec(const std::string&, bool, int64_t*);
-template bool PyWrapper::exec(const std::string&, bool, uint64_t*);
-template bool PyWrapper::exec(const std::string&, bool, float*);
-template bool PyWrapper::exec(const std::string&, bool, double*);
-// These are needed on 64-bit GNU system that defines int64_t as long instead of long long
-// Unfortunately this makes the code here not very portable.
-template bool PyWrapper::exec(const std::string&, bool, long long*);
-template bool PyWrapper::exec(const std::string&, bool, unsigned long long*);
-
-bool PyWrapper::exec(const std::string& line, bool debug, std::string& val)
-{
-    auto out = exec(line, debug);
-    switch (out.type) {
-    case MultiTypeValue::Type::STRING:
-        val = out.s;
-        return true;
-    case MultiTypeValue::Type::INTEGER:
-        val = std::to_string(out.i);
-        return true;
-    case MultiTypeValue::Type::FLOAT:
-        val = std::to_string(out.f);
-        return true;
-    case MultiTypeValue::Type::BOOL:
-        val = std::to_string(out.b);
-        return true;
-    default:
-        return false;
-    }
-}
-
-template <>
-bool PyWrapper::exec(const std::string& line, bool debug, std::vector<double>& arr)
-{
-    auto out = exec(line, debug);
-    if (out.type == MultiTypeValue::Type::VECTOR_FLOAT) {
-        arr = out.vf;
-        return true;
-    } else if (out.type == MultiTypeValue::Type::VECTOR_INTEGER) {
-        arr = std::vector<double>(out.vi.begin(), out.vi.end());
-        return true;
-    }
-    return false;
-}
-template <>
-bool PyWrapper::exec(const std::string& line, bool debug, std::vector<long>& arr)
-{
-    auto out = exec(line, debug);
-    if (out.type == MultiTypeValue::Type::VECTOR_INTEGER) {
-        arr = out.vi;
-        return true;
-    } else if (out.type == MultiTypeValue::Type::VECTOR_FLOAT) {
-        arr = std::vector<long>(out.vf.begin(), out.vf.end());
-        return true;
-    }
-    return false;
-}
-
-
-template <>
-bool PyWrapper::exec(const std::string& line, bool debug, std::vector<std::string>& arr)
-{
-    auto out = exec(line, debug);
-    if (out.type == MultiTypeValue::Type::VECTOR_STRING) {
-        arr = out.vs;
-        return true;
-    }
-    if (debug) {
-        printf("exec for string array out type: %d ?\n", static_cast<int>(out.type));
-    }
-    return false;
-}
-
-PyWrapper::MultiTypeValue PyWrapper::exec(const std::string& line, bool debug)
-{
-    MultiTypeValue val;
     PyGIL gil;
 
-    if (debug) {
-        printf("Executing Python code: %s\n", line.c_str());
-    }
+    PyObject* bytecode = Py_CompileString(code.c_str(), "", Py_eval_input);
+    if (bytecode == NULL) {
+        // Ignore error, try with Py_file_input which works for 'import xxx' etc.
+        PyErr_Clear();
 
-    // Evaluating Python produces a return value
-    PyObject* r = PyRun_String(line.c_str(), Py_eval_input, globDict, locDict);
-    if (r != nullptr) {
-        bool converted = convert(r, val);
-        Py_DecRef(r);
-
-        if (!converted) {
+        bytecode = Py_CompileString((code+"\n").c_str(), "", Py_file_input);
+        if (bytecode == NULL) {
             if (debug) {
                 PyErr_Print();
             }
             PyErr_Clear();
+            //printf("Throwing error\n");
+            throw SyntaxError();
         }
-        return val;
     }
-    PyErr_Clear();
+    return ByteCode(bytecode);
+}
 
-    // Still here, let's try executing code instead, no return value
-    r = PyRun_String(line.c_str(), Py_single_input, globDict, locDict);
+Variant PyWrapper::eval(const PyWrapper::ByteCode& bytecode, const std::map<std::string, Variant>& args, bool debug)
+{
+    PyGIL gil;
+
+    for (auto& keyval: args) {
+        PyObject* item = nullptr;
+        if (keyval.second.type == Variant::Type::BOOL) {
+            item = (keyval.second.get_bool() == true ? Py_True : Py_False);
+        } else if (keyval.second.type == Variant::Type::LONG) {
+            item = PyLong_FromLongLong(keyval.second.get_long());
+        } else if (keyval.second.type == Variant::Type::UNSIGNED) {
+            item = PyLong_FromUnsignedLongLong(keyval.second.get_unsigned());
+        } else if (keyval.second.type == Variant::Type::DOUBLE) {
+            item = PyFloat_FromDouble(keyval.second.get_double());
+        } else if (keyval.second.type == Variant::Type::STRING) {
+#if PY_MAJOR_VERSION < 3
+            item = PyString_FromString(keyval.second.get_string().c_str());
+#else
+            item = PyUnicode_FromString(keyval.second.get_string().c_str());
+#endif
+        } else if (keyval.second.type == Variant::Type::VECTOR_LONG) {
+            item = PyList_New(0);
+            auto vals = keyval.second.get_long_array();
+            for (auto& val: vals) {
+                PyList_Append(item, PyLong_FromLongLong(val));
+            }
+        } else if (keyval.second.type == Variant::Type::VECTOR_UNSIGNED) {
+            item = PyList_New(0);
+            auto vals = keyval.second.get_unsigned_array();
+            for (auto& val: vals) {
+                PyList_Append(item, PyLong_FromUnsignedLongLong(val));
+            }
+        } else if (keyval.second.type == Variant::Type::VECTOR_DOUBLE) {
+            item = PyList_New(0);
+            auto vals = keyval.second.get_double_array();
+            for (auto& val: vals) {
+                PyList_Append(item, PyFloat_FromDouble(val));
+            }
+        } else if (keyval.second.type == Variant::Type::VECTOR_STRING) {
+            item = PyList_New(0);
+            auto vals = keyval.second.get_string_array();
+            for (auto& val: vals) {
+#if PY_MAJOR_VERSION < 3
+                PyList_Append(item, PyString_FromString(val.c_str()));
+#else
+                PyList_Append(item, PyUnicode_FromString(val.c_str()));
+#endif
+            }
+        }
+        if (item == nullptr) {
+            throw ArgumentError();
+        }
+        PyDict_SetItemString(locDict, keyval.first.c_str(), item);
+        if (item != Py_True && item != Py_False) {
+            Py_XDECREF(item);
+        }
+    }
+
+#if PY_MAJOR_VERSION < 3
+    auto code = reinterpret_cast<PyCodeObject*>(bytecode.code);
+#else
+    auto code = reinterpret_cast<PyObject*>(bytecode.code);
+#endif
+    if (code == nullptr)
+    {
+        throw std::invalid_argument("Missing compiled code");
+    }
+
+    PyObject *r = PyEval_EvalCode(code, globDict, locDict);
     if (r == nullptr) {
-        if (debug && PyErr_Occurred()) {
+        if (debug) {
             PyErr_Print();
         }
         PyErr_Clear();
-        throw std::runtime_error("Failed to execute Python code");
+        throw EvalError();
     }
+
+    Variant val;
+    bool converted = convert(r, val);
     Py_DecRef(r);
-    val.type = MultiTypeValue::Type::NONE;
+
+    if (!converted) {
+        if (debug) {
+            PyErr_Print();
+        }
+        PyErr_Clear();
+    }
     return val;
+}
+
+Variant PyWrapper::exec(const std::string &code, const std::map<std::string, Variant> &args, bool debug)
+{
+    auto bytecode = compile(code, true);
+    auto r = eval(bytecode, args, true);
+    destroy(std::move(bytecode));
+    return r;
+}
+
+void PyWrapper::destroy(PyWrapper::ByteCode&& bytecode)
+{
+    PyGIL gil;
+    Py_XDECREF(reinterpret_cast<PyObject *>(bytecode.code));
+    bytecode.code = nullptr;
 }

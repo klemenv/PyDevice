@@ -10,10 +10,10 @@
 
 namespace Util {
 
-std::map<std::string, std::string> getFields(const std::string& text)
+std::vector<std::string> getMacros(const std::string& text)
 {
     const long MAX_FIELD_LEN = 4;
-    std::map<std::string, std::string> fields;
+    std::vector<std::string> fields;
 
     std::string token;
     char prevChar = '\0';
@@ -27,7 +27,7 @@ std::map<std::string, std::string> getFields(const std::string& text)
         } else {
             if (!token.empty()) {
                 if (token.length() <= MAX_FIELD_LEN) {
-                    fields[token] = token;
+                    fields.push_back(token);
                 }
                 token.clear();
             }
@@ -36,47 +36,44 @@ std::map<std::string, std::string> getFields(const std::string& text)
     }
     if (!token.empty()) {
         if (token.length() <= MAX_FIELD_LEN) {
-            fields[token] = token;
+            fields.push_back(token);
         }
     }
 
     return fields;
 }
 
-std::string replaceFields(const std::string& text, const std::map<std::string, std::string>& fields)
+std::string replaceMacro(const std::string& text, const std::string& search, const std::string& replacement)
 {
     const std::string delimiter = "%";
     std::string out = text;
 
     bool replaced = false;
     for (size_t pos = 0; pos < out.length(); pos++) {
-        for (auto& field: fields) {
-            std::string token;
+        std::string token = search;
 
-            // Try exact match first, ie. VAL, but needs to be surrounded by non-alnum characters
-            token = field.first;
-            if (out.compare(pos, token.length(), token) == 0) {
-                char charBefore = (pos == 0 || replaced ? '.' : out.at(pos-1));
-                char charAfter  = (pos+token.length() >= out.length() ? '.' : out.at(pos+token.length()));
-                if (!isalnum(charBefore) && !isalnum(charAfter)) {
-                    out.replace(pos, token.length(), field.second);
-                    pos += field.second.length() - 1;
-                    replaced = true;
-                    break;
-                }
-            }
-
-            // Put % sign around the field name, ie. %VAL%
-            token = delimiter + field.first + delimiter;
-            if (out.compare(pos, token.length(), token) == 0) {
-                out.replace(pos, token.length(), field.second);
-                pos += field.second.length() - 1;
+        // Try exact match first, ie. VAL, but needs to be surrounded by non-alnum characters
+        if (out.compare(pos, token.length(), token) == 0) {
+            char charBefore = (pos == 0 || replaced ? '.' : out.at(pos-1));
+            char charAfter  = (pos+token.length() >= out.length() ? '.' : out.at(pos+token.length()));
+            if (!isalnum(charBefore) && !isalnum(charAfter)) {
+                out.replace(pos, token.length(), replacement);
+                pos += replacement.length() - 1;
                 replaced = true;
-                break;
+                continue;
             }
-
-            replaced = false;
         }
+
+        // Put % sign around the field name, ie. %VAL%
+        token = delimiter + search + delimiter;
+        if (out.compare(pos, token.length(), token) == 0) {
+            out.replace(pos, token.length(), replacement);
+            pos += replacement.length() - 1;
+            replaced = true;
+            continue;
+        }
+
+        replaced = false;
     }
 
     return out;

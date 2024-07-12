@@ -24,6 +24,8 @@ struct PyDevContext {
     CALLBACK callback;
     IOSCANPVT scan;
     int processCbStatus;
+    std::string code;
+    PyWrapper::ByteCode bytecode;
 };
 
 static std::map<std::string, IOSCANPVT> ioScanPvts;
@@ -81,32 +83,35 @@ static void processRecordCb(longinRecord* rec)
 {
     auto ctx = reinterpret_cast<PyDevContext*>(rec->dpvt);
 
-    auto fields = Util::getFields(rec->inp.value.instio.string);
-    for (auto& keyval: fields) {
-        if      (keyval.first == "VAL")  keyval.second = std::to_string(rec->val);
-        else if (keyval.first == "NAME") keyval.second = rec->name;
-        else if (keyval.first == "EGU")  keyval.second = rec->egu;
-        else if (keyval.first == "HOPR") keyval.second = std::to_string(rec->hopr);
-        else if (keyval.first == "LOPR") keyval.second = std::to_string(rec->lopr);
-        else if (keyval.first == "HIGH") keyval.second = std::to_string(rec->high);
-        else if (keyval.first == "HIHI") keyval.second = std::to_string(rec->hihi);
-        else if (keyval.first == "LOW")  keyval.second = std::to_string(rec->low);
-        else if (keyval.first == "LOLO") keyval.second = std::to_string(rec->lolo);
-        else if (keyval.first == "TPRO") keyval.second = std::to_string(rec->tpro);
+    std::string code = rec->inp.value.instio.string;
+    std::map<std::string, Variant> args;
+    for (auto& macro: Util::getMacros(code)) {
+        if      (macro == "VAL")  { args["pydevVAL"]  = Variant(rec->val);  code = Util::replaceMacro(code, "VAL",  "pydevVAL");  }
+        else if (macro == "NAME") { args["pydevNAME"] = Variant(rec->name); code = Util::replaceMacro(code, "NAME", "pydevNAME"); }
+        else if (macro == "EGU")  { args["pydevEGU"]  = Variant(rec->egu);  code = Util::replaceMacro(code, "EGU",  "pydevEGU");  }
+        else if (macro == "HOPR") { args["pydevHOPR"] = Variant(rec->hopr); code = Util::replaceMacro(code, "HOPR", "pydevHOPR"); }
+        else if (macro == "LOPR") { args["pydevLOPR"] = Variant(rec->lopr); code = Util::replaceMacro(code, "LOPR", "pydevLOPR"); }
+        else if (macro == "HIGH") { args["pydevHIGH"] = Variant(rec->high); code = Util::replaceMacro(code, "HIGH", "pydevHIGH"); }
+        else if (macro == "HIHI") { args["pydevHIHI"] = Variant(rec->hihi); code = Util::replaceMacro(code, "HIHI", "pydevHIHI"); }
+        else if (macro == "LOW")  { args["pydevLOW"]  = Variant(rec->low);  code = Util::replaceMacro(code, "LOW",  "pydevLOW"); }
+        else if (macro == "LOLO") { args["pydevLOLO"] = Variant(rec->lolo); code = Util::replaceMacro(code, "LOLO", "pydevLOLO"); }
+        else if (macro == "TPRO") { args["pydevTPRO"] = Variant(rec->tpro); code = Util::replaceMacro(code, "TPRO", "pydevTPRO"); }
     }
-    std::string code = Util::replaceFields(rec->inp.value.instio.string, fields);
 
     try {
-        if (PyWrapper::exec(code, (rec->tpro == 1), &rec->val) == true) {
-            ctx->processCbStatus = 0;
-        } else {
-            if (rec->tpro == 1) {
-                printf("ERROR: Can't convert returned Python type to record type\n");
-            }
-            recGblSetSevr(rec, epicsAlarmCalc, epicsSevInvalid);
-            ctx->processCbStatus = -1;
+        if (ctx->code != code) {
+            PyWrapper::destroy(std::move(ctx->bytecode));
+            ctx->bytecode = PyWrapper::compile(code, (rec->tpro == 1));
+            ctx->code = code;
         }
-    } catch (...) {
+        rec->val = PyWrapper::eval(ctx->bytecode, args, (rec->tpro == 1)).get_long();
+        rec->udf = 0;
+        ctx->processCbStatus = 0;
+
+    } catch (std::exception& e) {
+        if (rec->tpro == 1) {
+            printf("[%s] %s\n", rec->name, e.what());
+        }
         recGblSetSevr(rec, epicsAlarmCalc, epicsSevInvalid);
         ctx->processCbStatus = -1;
     }
