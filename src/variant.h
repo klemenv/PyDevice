@@ -60,21 +60,21 @@ public:
     Variant(const std::vector<std::string>& val);
 
     // Helper c'tors for EPICS types
-    Variant(const char val)               : Variant(static_cast<const long long int>(val)){};
-    Variant(const short int val)          : Variant(static_cast<const long long int>(val)){};
-    Variant(const int val)                : Variant(static_cast<const long long int>(val)){};
-    Variant(const long int val)           : Variant(static_cast<const long long int>(val)){};
+    Variant(const signed char val)        : Variant(static_cast<const long long int>(val)){};
+    Variant(const signed short int val)   : Variant(static_cast<const long long int>(val)){};
+    Variant(const signed int val)         : Variant(static_cast<const long long int>(val)){};
+    Variant(const signed long int val)    : Variant(static_cast<const long long int>(val)){};
     Variant(const unsigned char val)      : Variant(static_cast<const unsigned long long int>(val)){};
     Variant(const unsigned short int val) : Variant(static_cast<const unsigned long long int>(val)){};
     Variant(const unsigned int val)       : Variant(static_cast<const unsigned long long int>(val)){};
     Variant(const unsigned long int val)  : Variant(static_cast<const unsigned long long int>(val)){};
     Variant(const float val)              : Variant(static_cast<const double>(val)){};
 
-    Variant(const char* vals,                   size_t n) : Variant(std::vector<long long int>(vals, vals+n)) {};
-    Variant(const short int* vals,              size_t n) : Variant(std::vector<long long int>(vals, vals+n)) {};
-    Variant(const int* vals,                    size_t n) : Variant(std::vector<long long int>(vals, vals+n)) {};
-    Variant(const long int* vals,               size_t n) : Variant(std::vector<long long int>(vals, vals+n)) {};
-    Variant(const long long int* vals,          size_t n) : Variant(std::vector<long long int>(vals, vals+n)) {};
+    Variant(const signed char* vals,            size_t n) : Variant(std::vector<long long int>(vals, vals+n)) {};
+    Variant(const signed short int* vals,       size_t n) : Variant(std::vector<long long int>(vals, vals+n)) {};
+    Variant(const signed int* vals,             size_t n) : Variant(std::vector<long long int>(vals, vals+n)) {};
+    Variant(const signed long int* vals,        size_t n) : Variant(std::vector<long long int>(vals, vals+n)) {};
+    Variant(const signed long long int* vals,   size_t n) : Variant(std::vector<long long int>(vals, vals+n)) {};
     Variant(const unsigned char* vals,          size_t n) : Variant(std::vector<unsigned long long int>(vals, vals+n)) {};
     Variant(const unsigned short int* vals,     size_t n) : Variant(std::vector<unsigned long long int>(vals, vals+n)) {};
     Variant(const unsigned int* vals,           size_t n) : Variant(std::vector<unsigned long long int>(vals, vals+n)) {};
