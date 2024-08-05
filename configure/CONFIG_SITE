@@ -37,4 +37,4 @@ CHECK_RELEASE = YES
 #IOCS_APPL_TOP = </IOC/path/to/application/top>
 
 # Allow site specific changes that are not part of this repo
--include $(TOP)/configure/RELEASE.local
+-include $(TOP)/configure/CONFIG_SITE.local
