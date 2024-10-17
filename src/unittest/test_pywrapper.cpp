@@ -82,6 +82,11 @@ struct TestPyWrapper {
         testOk1(PyWrapper::exec("[1,2,3]").get_unsigned_array() == cmpulli);
         testOk1(PyWrapper::exec("[1,2,3]").get_double_array() == cmpd);
         testOk1(PyWrapper::exec("[1,2,3]").get_string_array() == cmps);
+
+	// tuple as input ...
+	testOk1(PyWrapper::exec("(1,2,3)").get_long_array() == cmplli);
+
+
     }
 };
 
