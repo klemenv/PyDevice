@@ -66,12 +66,3 @@ record(ao, "src:phs")
 
 
 ```
-
-```python
-
-from typing import Sequence
-import numpy as np
-
-
-
-```
