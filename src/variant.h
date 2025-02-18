@@ -50,6 +50,7 @@ public:
 
     Variant();
     Variant(const std::string& val);
+    Variant(const char *val) : Variant(std::string(val)) {};
     Variant(const bool val);
     Variant(const long long int val);
     Variant(const unsigned long long int val);
@@ -70,6 +71,7 @@ public:
     Variant(const unsigned long int val)  : Variant(static_cast<const unsigned long long int>(val)){};
     Variant(const float val)              : Variant(static_cast<const double>(val)){};
 
+    Variant(const char* vals,                   size_t n) : Variant(std::vector<long long int>(vals, vals+n)) {};
     Variant(const signed char* vals,            size_t n) : Variant(std::vector<long long int>(vals, vals+n)) {};
     Variant(const signed short int* vals,       size_t n) : Variant(std::vector<long long int>(vals, vals+n)) {};
     Variant(const signed int* vals,             size_t n) : Variant(std::vector<long long int>(vals, vals+n)) {};
