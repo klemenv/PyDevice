@@ -1,7 +1,7 @@
 # longin/longout PVs
 record(longout, "PyDev:Long:PrintVal") {
   field(DTYP, "pydev")
-  field(OUT,  "@print('NAME: val=VAL')")
+  field(OUT,  "@print(f'NAME: val={VAL}')")
   field(DESC, "Simply print record value to IOC console")
 }
 record(longout, "PyDev:Sleep") {
@@ -22,8 +22,8 @@ record(longin, "PyDev:Long:ReadB") {
 # stringin/stringout PVs
 record(stringout, "PyDev:Log") {
   field(DTYP, "pydev")
-  # Single quotes are needed around string based fields
-  field(OUT,  "@print('VAL')")
+  # (Some) record fields become Python variables
+  field(OUT,  "@print(VAL)")
 }
 record(stringout, "PyDev:Exec") {
   field(DTYP, "pydev")
@@ -47,7 +47,8 @@ record(longin, "PyDev:Equal") {
 # mbbi/mbbo PVs
 record(mbbo, "PyDev:Enum:PrintVal") {
   field(DTYP, "pydev")
-  field(OUT,  "@print('val=VAL rval=RVAL')")
+  # VAL and RVAL fields become Python variables, and as such can be used in f-string
+  field(OUT,  "@print(f'val={VAL} rval={RVAL}')")
   field(ZRVL, "0")
   field(ONVL, "10")
   field(TWVL, "20")
