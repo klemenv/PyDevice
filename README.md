@@ -21,43 +21,46 @@ This tutorial introduces main features of PyDevice through examples.
 
 ### Sample Python code
 
-Let's start with defining a standalone Python class that provides an interface to our device, in a file called mydevice.py:
+Let's start with defining a standalone Python class that provides an interface to our device, and save it as *python/mydevice.py* in the IOC's folder:
 
 ``` python
 import socket
 
 class MyDevice(object):
 
-def __init__(self, ip, port=4011):
+  def __init__(self, ip, port=4011):
     self.ip = ip
     self.port = port
     self.socket = None
     self.sent = 0
 
-def connect(self, timeout=1.0):
+  def connect(self, timeout=1.0):
     """ Connects to device, throws exception if can't connect """
     if self.socket:
-        self.socket.close()
+      self.socket.close()
     self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     self.socket.settimeout(timeout)
     self.socket.connect((self.ip, self.port))
 
-def disconnect(self):
-      if self.socket:
-          self.socket.close()
-          self.socket = None
+  def disconnect(self):
+    if self.socket:
+      self.socket.close()
+      self.socket = None
 
-def send(self, msg):
+  def send(self, msg):
     if not self.socket:
-        raise RuntimeError("not connected")
+      raise RuntimeError("not connected")
 
     # TODO: send() doesn't guarantee sending entire message
     sent = self.socket.send(msg)
     if sent == 0:
-        self.disconnect()
-        raise RuntimeError("socket connection broken")
+      self.disconnect()
+      raise RuntimeError("socket connection broken")
 
     self.sent += sent
+
+    # Send an I/O Intr to any interested record
+    pydev.iointr('bytes_sent', self.sent)
 ```
 
 Such class can be easily instantiated and tested in any Python environment:
@@ -72,7 +75,13 @@ if __name__ == "__main__":
 
 ### Instantiate Python object in the IOC context
 
-Assuming mydevice.py is in Python's search path, we can instantiate a MyDevice object from the IOC st.cmd file. This will create a *device1* variable in the global Python context:
+First we need to tell Python where to import script files from. Add this line close to the top of the IOC startup file, usually *st.cmd*:
+
+``` shell
+epicsEnvSet("PYTHONPATH", "$(TOP)/python")
+```
+
+We can now instantiate a new MyDevice object from the IOC's st.cmd file using the built-in pydev() function. The following snippet will create a *device1* variable in the global Python context:
 
 ``` shell
 pydev("from mydevice import MyDevice")
@@ -82,40 +91,43 @@ pydev("device1 = MyDevice('127.0.0.1')")
 *Hint: `pydev()` function allows to execute arbitrary single-line Python code from IOC shell.*
 
 
-### Trigger connect() from database
+### Connect to device from a record
 
-In this simple example of database record, we'll trigger establishing connection with the device whenever record processes:
+While setting up Python script, establishing connections, and other initialization tasks can be carried out at IOC startup, the power of PyDevice lies in triggering Python code from EPICS records.
+
+In this simple example of database record, we'll establish a connection with the device whenever record processes:
 
 ``` shell
 record(longout, "Device1:Connect")
 {
     field(DTYP, "pydev")
-    field(OUT,  "@device1.connect(timeout=2.0)
+    field(OUT,  "@device1.connect(timeout=2.0)")
+    field(PINI, "YES")
 }
 ```
 
-As noted from the Python code above, *connect()* function may throw an exception. In such case, PyDevice will intercept exception and reflect the failure through SEVR and STAT fields.
+As noted from the Python code above, *connect()* function may throw an exception. In such case, PyDevice will intercept exception and reflect the failure through record's SEVR and STAT fields.
 
 ### Sending a message to device
 
-This example will use `stringout` record to send simple ASCII text to the device whenever the record processes:
+This example will use `stringout` record to send a simple ASCII text to the device whenever the record processes:
 
 ``` shell
 record(stringout, "Device1:Send")
 {
     field(DTYP, "pydev")
-    field(OUT,  "@device1.send('VAL')
+    field(OUT,  "@device1.send(VAL)")
     field(VAL,  "127.0.0.1")
 }
 ```
 
-PyDevice will recognize common record fields and replace them with actual field value right before the Python code is executed. Field names must be stand-alone upper-case words, and need to be a valid record field. When field is part of the string, it should be enclosed by % sign, ie. RecordNameIs%NAME%.
+PyDevice will recognize common record fields and replace them with actual field value right before the Python code is executed. Field names must be stand-alone upper-case words as defined in EPICS record. Field values are converted to native Python types. When field is part of the string, it should be enclosed by % sign, ie. RecordNameIs%NAME%.
 
 *Hint: Arbitrary single-line Python code can be executed from any of the supported records.*
 
-### Getting values from Python code to records
+### Getting value from Python context to the record
 
-It is also possible to get value by evaluating Python expression. In this example we'll read value from a variable by simply referencing the variable name, but it is equally easy to call a function and use its return value:
+It is also possible to get a value by evaluating Python expression. In this example we'll create a record that displays a Python variable, but it is equally easy to call a function and use its return value:
 
 ``` shell
 record(longin, "Device1:Sent") {
@@ -130,7 +142,7 @@ Whenever this record processes, it will read the value of a member variable *sen
 
 ### Pushing values from Python to database
 
-In the previous example we've seen how a record can pull a value from Python context. Sometimes we want Python code to push values directly to record when available and avoid periodic scanning. In such case the record must select *I/O Intr* scanning and register a interrupt name using the built-in *pydev.iointr()* function. Let's add a new record that will process automatically when a value of device1.sent changes:
+In the previous example we've seen how a record can pull a value from Python context when the record processes. Sometimes we want Python code to decide when to push values to record and avoid periodic scanning. In such case the record must select *I/O Intr* scanning and register a interrupt name using the built-in *pydev.iointr()* function. Let's add a new record that will process automatically when a value of device1.sent changes:
 
 ```
 record(longin, "Device1:SentCb") {
@@ -140,20 +152,15 @@ record(longin, "Device1:SentCb") {
 }
 ```
 
-There's is no magic variable tracking implemented in PyDevice that would allow this record to just work. Instead, Python code needs to explicitly tell PyDevice about a new value. In a way, it needs to send an interrupt to PyDevice. In order to distinguish interrupts from different sources, database and Python code must agree on using the same name. In the above example, we simply used name *bytes_sent* but it could be any other unique string. Let's extend the Python sample and add the following line at the end of *send()* function:
-
-``` python
-pydev.iointr('bytes_sent', self.sent)
-```
-
-With this change, whenever a message is succesfully sent to device, the *Device1:SentCb* record will process and receive new value.
+There's is no automatic variable tracking implemented in PyDevice that would allow this record to just work. Instead, Python code needs to explicitly send a new value to
+the record. Look for a line *pydev.iointr()* in the Python script above. In order to support multiple interrupts, database and Python code must agree on using the same name. In the above example, we simply used name *bytes_sent* but it could be any other unique string.
 
 
 ## Record support
 
-Several records from EPICS base are supported by PyDevice: longin, longout, ai, ao, bi, bo, mbbi, mbbo, stringin, stringout and waveform. For the supported record to use PyDevice, record must specify DTYP as *pydev*. Next, record's INP or OUT field must specify Python code to be executed, prefixed with *@* character. Upon processing, record will execute Python code from the link. If Python code is an expression, returned value is assigned to record - this is required for all input records. Returned value is casted to record's value, in case conversion fails record's SEVR is set to INVALID. All Python exceptions from the executed code are intercepted and printed to the IOC console. In addition, record STAT field becomes INVALID.
+Several records from EPICS base are supported by PyDevice: longin, longout, ai, ao, bi, bo, mbbi, mbbo, stringin, stringout and waveform. For the supported record to use PyDevice, record must specify DTYP as *pydev*. Next, record's INP or OUT field must specify Python code to be executed, and prefix it with *@* character. Upon processing, record will execute Python code from the link. If Python code is an expression, returned value is assigned to record - returning a value is required for all input records. Returned value is converted to record's value, in case conversion fails record's SEVR is set to INVALID and STAT is set to CALC alarm. All Python exceptions from the executed code are also printed to the IOC console.
 
-### Pushing value from Python to record (aka Interrupt scanning)
+### Record interrupt scanning
 
 In order to support *I/O Intr* scaning, PyDevice provides built-in function called *pydev.iointr(param, value=None)*. Record's INP or OUT specification should call *pydev.iointr(param)* function with only parameter name specified and record's SCAN field should be specified as *I/O Intr*. When Python code wants to push new value to record(s), it must invoke same function with parameter name AND value. Doing so will immediately trigger processing of all records that use the same parameter name. Parameter name can be any valid string and is not coupled with any record name or Python variable.
 
@@ -172,21 +179,7 @@ if __name__ == "__main__":
 
 ### Field macros
 
-When record processes, PyDevice will search INP or OUT field for field macros and replace them with actual fields' values from record. Field macros are simply field names in all capital letters, for example *VAL*. They need to be standalone words and not surrounded by other alpha-numeric characters, in that case they should be enclosed in %-sign. Only a subset of fields is supported depending on the record. VAL field macro of waveform record is converted into a Python list.
-
-Note: Depeding how string fields are used, you may need to surround them with quotes. Consider these two working examples:
-
-```
-record(stringout, "PyDev:Log") {
-  field(DTYP, "pydev")
-  field(OUT,  "@print('VAL')")
-}
-record(stringout, "PyDev:Exec") {
-  field(DTYP, "pydev")
-  field(OUT,  "@VAL")
-  # caput PyDev:Exec "print('hello')"
-}
-```
+When record processes, PyDevice will scan INP or OUT field and search for sub-strings that match record fields. Any field found is then replaced them with actual fields' values from the record. Only a subset of fields is supported depending on the record. Another way to view this is to consider record fields as built-in Python variables that can be used in Python code specified in record's INP and OUT fields.
 
 Supported field macros per record:
 * longin & longout
@@ -204,24 +197,32 @@ Supported field macros per record:
 * waveform
   * VAL
 
+When replacing a field with its value, PyDevice tries to convert EPICS types to native Python types. For example, converting a *VAL* field of a *ao* record will generate a Python float number.
+
+Prior to PyDevice 1.3.0, the record fields were replaced with their string representation before Python code was executed. This had a side effect of loosing precision of double/float types, converting types twice, and others. Unfortunately the change in 1.3.0 introduced compatibility issues when using fields in Python strings. Consider the following two examples:
+
+With PyDevice before 1.3.0:
+``` 
+record(stringout, "PyDev:Log") {
+  field(DTYP, "pydev")
+  field(OUT,  "@print('VAL')")
+}
+```
+With PyDevice 1.3.0 and later:
+``` 
+record(stringout, "PyDev:Log") {
+  field(DTYP, "pydev")
+  field(OUT,  "@print(VAL)")
+}
+```
+
+
 ### Support for concurrent record processing
 
-PyDevice supports processing multiple pydev records at the same time. While
-Python protects the interpreted code with GIL, many of the built-in functions
-as well as external modules support releasing GIL when doing IO bound or CPU
-intensive operations. This works well for parallel processing with Python
-threads, and now PyDevice also supports processing multiple `pydev` records in
+PyDevice supports processing multiple pydev records at the same time. WhilePython protects the interpreted code with GIL, many of the built-in functions as well as external modules support releasing GIL when doing IO bound or CPU intensive operations. This works well for parallel processing with Python threads, and now PyDevice also supports processing multiple `pydev` records in
 parallel.
 
-When a record processes, the Python code from the record is pushed to the
-queue, record's PACT field is set to 1 and handle is returned to the caller.
-This allows requests without put/get callback to return immediately. When a
-worker thread becomes available, it processes the oldest request from the queue
-and executes the Python code referenced. Once the Python code is complete,
-record's value is updated and callback is executed. This allows requests with
-completion to properly get notified after Python code is done. By default there
-are 3 worker threads, which can be changed with the `PYDEV_NUM_THREADS`
-environment variable. 
+When a record processes, the Python code from the record is pushed to the queue, record's PACT field is set to 1 and handle is returned to the caller. This allows requests without put/get callback to return immediately. When a worker thread becomes available, it processes the oldest request from the queue and executes the Python code referenced. Once the Python code is complete, record's value is updated and callback is executed. This allows requests with completion to properly get notified after Python code is done. By default there are 3 worker threads, which can be changed with the `PYDEV_NUM_THREADS` environment variable. 
 
 ## Building and adding to IOC
 
@@ -236,11 +237,13 @@ environment variable.
 
 ### Compiling PyDevice
 
-In order to PyDevice, all its dependencies must be installed. In configure/RELEASE file change EPICS_BASE. In configure/CONFIG_SITE set PYTHON_CONFIG=python3-config if you want to use python3. Set Afterwards issue *make* command in the top level. The compilation will provide dynamic library to be included in the IOC as well as a testing IOC that can be executed from iocBoot/iocpydev folder.
+PyDevice depends on EPICS base and Python. `EPICS_BASE` needs to be specified in either *configure/RELEASE* or *configure/RELEASE*.local files. Python libraries and header files must be installed, usually as system packages. PyDevice uses python-config tool to determine how to include Python libraries, on some systems this tool may be called python3-config depending on installed Python versions. In such case, `PYTHON_CONFIG` parameter can be overriden in *configure/CONFIG_SITE* or *configure/CONFIG_SITE.local* with desired python-config name or path.
+
+After making those 2 changes in *configure/* folder, run the `make` command in the top folder of PyDevice. The compilation will provide dynamic library to be included in the IOC as well as a testing IOC that can be executed from iocBoot/iocpydev folder.
 
 Assuming all dependencies are satisfied, project should build linkable library and testing IOC binary. Running st.cmd from test iocBoot/iocpydev folder will start the demo IOC. At this point database and Python code can be modified without rebuilding the PyDevice source code.
 
-### Adding PyDevice support to IOC
+### Adding PyDevice support to the IOC
 
 For the existing IOC to receive PyDevice support, a few things need to be added.
 
@@ -259,12 +262,12 @@ After rebuilding, the IOC should have support for pydev.
 
 ## Python path and the use of virtual environments
 
-The Python search path can be defined by PYTHONPATH before starting the IOC, or can be defined within the context of the IOC, like:
+The Python search path can be defined by environment variable PYTHONPATH before starting the IOC, or can be defined in the IOC shell, ie:
 ```
 epicsEnvSet("PYTHONPATH","$(MODULE)/python")
 epicsEnvSet("PYTHONPATH","$(PYTHONPATH):$(TOP)/python")
 ```
-In the above case, Python source files can be searched for in ```$(MODULE)/python/``` and in a ```python/``` directory in the IOC ```$(TOP)```.
+In the above case, Python source files can be searched for in ```$(MODULE)/python/``` and in a ```python/``` directory of the IOC.
 
 
 It is also possible to make use of Python virtual environments, which may contain user installed Python packages that are not available via the default system packages. This is simply a case of starting the IOC after activating the environment. For example, to use an environment installed in ```/home/controls/common/python_env/main/env_scan```:
