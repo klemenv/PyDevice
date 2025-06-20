@@ -425,7 +425,7 @@ Variant PyWrapper::eval(const PyWrapper::ByteCode& bytecode, const std::map<std:
         if (item == nullptr) {
             throw ArgumentError();
         }
-        PyDict_SetItemString(locDict, keyval.first.c_str(), item);
+        PyDict_SetItemString(globDict, keyval.first.c_str(), item);
         if (item != Py_True && item != Py_False) {
             Py_XDECREF(item);
         }
