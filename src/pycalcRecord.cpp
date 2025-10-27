@@ -167,7 +167,7 @@ static void processRecordCb(pycalcRecord* rec)
 #endif
                         else if (*ft == DBR_FLOAT)  { args["pydev"+field] = Variant(*reinterpret_cast<epicsFloat32*>(*val)); }
                         else if (*ft == DBR_DOUBLE) { args["pydev"+field] = Variant(*reinterpret_cast<epicsFloat64*>(*val)); }
-                        else if (*ft == DBR_STRING) { args["pydev"+field] = Variant(*reinterpret_cast<        char*>(*val)); }
+                        else if (*ft == DBR_STRING) { args["pydev"+field] = Variant( reinterpret_cast<        char*>(*val)); }
                     } else {
                         if      (*ft == DBR_CHAR)   { auto a = reinterpret_cast<   epicsInt8*>(*val); args["pydev"+field] = Variant(a, *ne); }
                         else if (*ft == DBR_UCHAR)  { auto a = reinterpret_cast<  epicsUInt8*>(*val); args["pydev"+field] = Variant(a, *ne); }
