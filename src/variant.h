@@ -42,9 +42,15 @@ public:
 
     class ConvertError : public std::exception
     {
+        private:
+            std::string error;
+
         public:
+            ConvertError(const std::string& reason="Failed to convert value")
+            : error(reason) {}
+
             virtual const char* what() {
-                return "Failed to convert value";
+                return error.c_str();
             }
     };
 

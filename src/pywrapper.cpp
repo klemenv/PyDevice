@@ -359,7 +359,7 @@ PyWrapper::ByteCode PyWrapper::compile(const std::string& code, bool debug)
             }
             PyErr_Clear();
             //printf("Throwing error\n");
-            throw SyntaxError();
+            throw SyntaxError("Failed to compile '" + code + "', syntax error");
         }
     }
     return ByteCode(bytecode);
@@ -423,7 +423,7 @@ Variant PyWrapper::eval(const PyWrapper::ByteCode& bytecode, const std::map<std:
             }
         }
         if (item == nullptr) {
-            throw ArgumentError();
+            throw ArgumentError("Failed to convert argument "+keyval.first);
         }
         PyDict_SetItemString(globDict, keyval.first.c_str(), item);
         if (item != Py_True && item != Py_False) {
@@ -447,7 +447,7 @@ Variant PyWrapper::eval(const PyWrapper::ByteCode& bytecode, const std::map<std:
             PyErr_Print();
         }
         PyErr_Clear();
-        throw EvalError();
+        throw EvalError("Failed to evaluate Python code");
     }
 
     Variant val;

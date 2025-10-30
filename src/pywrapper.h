@@ -17,25 +17,43 @@ class PyWrapper {
     public:
         class SyntaxError : public std::exception
         {
+            private:
+                std::string error;
+
             public:
+                SyntaxError(const std::string& reason="Python code Syntax Error")
+                : error(reason) {}
+
                 virtual const char* what() {
-                    return "Python Syntax Error";
+                    return error.c_str();
                 }
         };
 
         class EvalError : public std::exception
         {
+            private:
+                std::string error;
+
             public:
+                EvalError(const std::string& reason="Failed to evaluate Python code")
+                : error(reason) {}
+
                 virtual const char* what() {
-                    return "Code Eval Error";
+                    return error.c_str();
                 }
         };
 
         class ArgumentError : public std::exception
         {
+            private:
+                std::string error;
+
             public:
+                ArgumentError(const std::string& reason="Invalid argument")
+                : error(reason) {}
+
                 virtual const char* what() {
-                    return "Argument Error";
+                    return error.c_str();
                 }
         };
 
