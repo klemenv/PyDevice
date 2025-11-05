@@ -358,7 +358,6 @@ PyWrapper::ByteCode PyWrapper::compile(const std::string& code, bool debug)
                 PyErr_Print();
             }
             PyErr_Clear();
-            //printf("Throwing error\n");
             throw SyntaxError("Failed to compile '" + code + "', syntax error");
         }
     }

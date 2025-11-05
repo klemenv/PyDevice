@@ -84,7 +84,7 @@ rset pycalcRSET = {
 epicsExportAddress(rset, pycalcRSET);
 
 static long initRecord(dbCommon *common, int pass)
-{
+{b975baa7077a9c7f533b342ec3e8d61d4e6299e0
     auto rec = reinterpret_cast<struct pycalcRecord *>(common);
 
     if (pass == 0) {
@@ -212,28 +212,28 @@ static void processRecordCb(pycalcRecord* rec)
             epicsInt32 val = ret.get_bool();
             auto convert = reinterpret_cast<convertRoutineCast>(dbFastPutConvertRoutine[DBF_LONG][rec->ftvl]);
             if (convert(&val, rec->val, 0) != 0) {
-                throw Variant::ConvertError();
+                throw Variant::ConvertError("Failed to convert Python return value to EPICS VAL field");
             }
             rec->nevl = 1;
         } else if (ret.type == Variant::Type::LONG) {
             epicsInt32 val = ret.get_long();
             auto convert = reinterpret_cast<convertRoutineCast>(dbFastPutConvertRoutine[DBF_LONG][rec->ftvl]);
             if (convert(&val, rec->val, 0) != 0) {
-                throw Variant::ConvertError();
+                throw Variant::ConvertError("Failed to convert Python return value to EPICS VAL field");
             }
             rec->nevl = 1;
         } else if (ret.type == Variant::Type::UNSIGNED) {
             epicsInt32 val = ret.get_unsigned();
             auto convert = reinterpret_cast<convertRoutineCast>(dbFastPutConvertRoutine[DBF_ULONG][rec->ftvl]);
             if (convert(&val, rec->val, 0) != 0) {
-                throw Variant::ConvertError();
+                throw Variant::ConvertError("Failed to convert Python return value to EPICS VAL field");
             }
             rec->nevl = 1;
         } else if (ret.type == Variant::Type::DOUBLE) {
             epicsFloat64 val = ret.get_double();
             auto convert = reinterpret_cast<convertRoutineCast>(dbFastPutConvertRoutine[DBF_DOUBLE][rec->ftvl]);
             if (convert(&val, rec->val, 0) != 0) {
-                throw Variant::ConvertError();
+                throw Variant::ConvertError("Failed to convert Python return value to EPICS VAL field");
             }
             rec->nevl = 1;
         } else if (ret.type == Variant::Type::STRING) {
@@ -242,7 +242,7 @@ static void processRecordCb(pycalcRecord* rec)
             val[MAX_STRING_SIZE-1] = 0;
             auto convert = reinterpret_cast<convertRoutineCast>(dbFastPutConvertRoutine[DBF_STRING][rec->ftvl]);
             if (convert(val, rec->val, 0) != 0) {
-                throw Variant::ConvertError();
+                throw Variant::ConvertError("Failed to convert Python return value to EPICS VAL field");
             }
             rec->nevl = 1;
         } else if (ret.type == Variant::Type::VECTOR_LONG) {
@@ -251,7 +251,7 @@ static void processRecordCb(pycalcRecord* rec)
             for (size_t i=0; i<values.size() && i<rec->mevl; i++) {
                 char* val = reinterpret_cast<char*>(rec->val) + i*dbValueSize(rec->ftvl);
                 if (convert(&values[i], val, 0) != 0) {
-                    throw Variant::ConvertError();
+                    throw Variant::ConvertError("Failed to convert Python return value to EPICS VAL field");
                 }
                 rec->nevl++;
             }
@@ -261,7 +261,7 @@ static void processRecordCb(pycalcRecord* rec)
             for (size_t i=0; i<values.size() && i<rec->mevl; i++) {
                 char* val = reinterpret_cast<char*>(rec->val) + i*dbValueSize(rec->ftvl);
                 if (convert(&values[i], val, 0) != 0) {
-                    throw Variant::ConvertError();
+                    throw Variant::ConvertError("Failed to convert Python return value to EPICS VAL field");
                 }
                 rec->nevl++;
             }
@@ -271,7 +271,7 @@ static void processRecordCb(pycalcRecord* rec)
             for (size_t i=0; i<values.size() && i<rec->mevl; i++) {
                 char* val = reinterpret_cast<char*>(rec->val) + i*dbValueSize(rec->ftvl);
                 if (convert(&values[i], val, 0) != 0) {
-                    throw Variant::ConvertError();
+                    throw Variant::ConvertError("Failed to convert Python return value to EPICS VAL field");
                 }
                 rec->nevl++;
             }
@@ -281,12 +281,14 @@ static void processRecordCb(pycalcRecord* rec)
             for (size_t i=0; i<values.size() && i<rec->mevl; i++) {
                 char* val = reinterpret_cast<char*>(rec->val) + i*dbValueSize(rec->ftvl);
                 if (convert(values[i].c_str(), val, 0) != 0) {
-                    throw Variant::ConvertError();
+                    throw Variant::ConvertError("Failed to convert Python return value to EPICS VAL field");
                 }
                 rec->nevl++;
             }
+        } else if (ret.type != Variant::Type::NONE) {
+            throw PyWrapper::EvalError("Python code returned an unsupported type");
         } else {
-            throw std::exception();
+            // Don't assign any value to the record if Python code didn't return anything
         }
         ctx->processCbStatus = 0;
 
