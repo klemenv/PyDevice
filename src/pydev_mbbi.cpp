@@ -130,7 +130,7 @@ static void processRecordCb(mbbiRecord* rec)
             ctx->bytecode = PyWrapper::compile(code, (rec->tpro == 1));
             ctx->code = code;
         }
-        rec->val = PyWrapper::eval(ctx->bytecode, args, (rec->tpro == 1)).get_long();
+        rec->rval = PyWrapper::eval(ctx->bytecode, args, (rec->tpro == 1)).get_long();
         rec->udf = 0;
         ctx->processCbStatus = 0;
 
