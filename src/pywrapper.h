@@ -24,7 +24,7 @@ class PyWrapper {
                 SyntaxError(const std::string& reason="Python code Syntax Error")
                 : error(reason) {}
 
-                virtual const char* what() {
+                const char* what() const noexcept {
                     return error.c_str();
                 }
         };
@@ -38,7 +38,7 @@ class PyWrapper {
                 EvalError(const std::string& reason="Failed to evaluate Python code")
                 : error(reason) {}
 
-                virtual const char* what() {
+                const char* what() const noexcept {
                     return error.c_str();
                 }
         };
@@ -52,7 +52,7 @@ class PyWrapper {
                 ArgumentError(const std::string& reason="Invalid argument")
                 : error(reason) {}
 
-                virtual const char* what() {
+                const char* what() const noexcept {
                     return error.c_str();
                 }
         };

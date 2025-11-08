@@ -209,6 +209,10 @@ bool PyWrapper::convert(void* in_, Variant& out)
 {
     PyObject* in = reinterpret_cast<PyObject*>(in_);
 
+    if (in == Py_None) {
+        out = Variant();
+        return true;
+    }
 #if PY_MAJOR_VERSION < 3
     if (PyString_Check(in)) {
         const char* o = PyString_AsString(in);
@@ -437,7 +441,7 @@ Variant PyWrapper::eval(const PyWrapper::ByteCode& bytecode, const std::map<std:
 #endif
     if (code == nullptr)
     {
-        throw std::invalid_argument("Missing compiled code");
+        throw EvalError("Missing compiled code");
     }
 
     PyObject *r = PyEval_EvalCode(code, globDict, locDict);
@@ -458,6 +462,7 @@ Variant PyWrapper::eval(const PyWrapper::ByteCode& bytecode, const std::map<std:
             PyErr_Print();
         }
         PyErr_Clear();
+        throw Variant::ConvertError("Failed to convert Python return value - unsupported type");
     }
     return val;
 }
@@ -465,9 +470,14 @@ Variant PyWrapper::eval(const PyWrapper::ByteCode& bytecode, const std::map<std:
 Variant PyWrapper::exec(const std::string &code, const std::map<std::string, Variant> &args, bool debug)
 {
     auto bytecode = compile(code, true);
-    auto r = eval(bytecode, args, true);
-    destroy(std::move(bytecode));
-    return r;
+    try {
+        auto r = eval(bytecode, args, true);
+        destroy(std::move(bytecode));
+        return r;
+    } catch (...) {
+        destroy(std::move(bytecode));
+        throw std::current_exception();
+    }
 }
 
 void PyWrapper::destroy(PyWrapper::ByteCode&& bytecode)

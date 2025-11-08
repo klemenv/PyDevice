@@ -84,7 +84,7 @@ rset pycalcRSET = {
 epicsExportAddress(rset, pycalcRSET);
 
 static long initRecord(dbCommon *common, int pass)
-{b975baa7077a9c7f533b342ec3e8d61d4e6299e0
+{
     auto rec = reinterpret_cast<struct pycalcRecord *>(common);
 
     if (pass == 0) {

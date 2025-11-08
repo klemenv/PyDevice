@@ -49,7 +49,7 @@ public:
             ConvertError(const std::string& reason="Failed to convert value")
             : error(reason) {}
 
-            virtual const char* what() {
+            const char* what() const noexcept {
                 return error.c_str();
             }
     };
