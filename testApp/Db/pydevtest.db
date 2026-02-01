@@ -77,6 +77,13 @@ record(waveform, "PyDev:Array:Stat") {
   field(FTVL, "DOUBLE")
 }
 
+record(waveform, "PyDev:Array:FromString") {
+  field(DTYP, "pydev")
+  field(INP,  "@str(license)")
+  field(NELM, "100")
+  field(FTVL, "CHAR")
+}
+
 record(waveform, "PyDev:Array:Strings") {
   field(DTYP, "pydev")
   field(INP,  "@[b'q3m2d1r', b'd05l2d1r', b'bm2d1r11', b'ABCDEFGHIJKLMNOPQRSTUVWXYZ.01234567890', b'm_beamport_22']")

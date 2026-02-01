@@ -156,6 +156,12 @@ std::vector<long long int> Variant::get_long_array() const
             out.push_back(std::stoll(v));
         }
         return out;
+    } else if (type == Type::STRING) {
+        std::vector<long long int> out;
+        for (auto& c: s) {
+            out.push_back(c);
+        }
+        return out;
     } else {
         throw ConvertError();
     }
