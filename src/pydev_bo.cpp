@@ -100,7 +100,12 @@ static void processRecordCb(boRecord* rec)
             ctx->bytecode = PyWrapper::compile(code, (rec->tpro == 1));
             ctx->code = code;
         }
-        rec->rval = PyWrapper::eval(ctx->bytecode, args, (rec->tpro == 1)).get_bool();
+        auto ret = PyWrapper::eval(ctx->bytecode, args, (rec->tpro == 1));
+        try {
+            rec->rval = ret.get_bool();
+        } catch (std::exception& e) {
+            // pass
+        }
         rec->udf = 0;
         ctx->processCbStatus = 0;
 

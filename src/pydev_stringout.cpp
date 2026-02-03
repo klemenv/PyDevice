@@ -97,7 +97,13 @@ static void processRecordCb(stringoutRecord* rec)
             ctx->bytecode = PyWrapper::compile(code, (rec->tpro == 1));
             ctx->code = code;
         }
-        std::string val = PyWrapper::eval(ctx->bytecode, args, (rec->tpro == 1)).get_string();
+        auto ret = PyWrapper::eval(ctx->bytecode, args, (rec->tpro == 1));
+        std::string val;
+        try {
+            val = ret.get_string();
+        } catch (std::exception& e) {
+            // pass
+        }
         strncpy(rec->val, val.c_str(), sizeof(rec->val)-1);
         rec->val[sizeof(rec->val)-1] = 0;
         rec->udf = 0;

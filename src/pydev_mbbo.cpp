@@ -130,7 +130,12 @@ static void processRecordCb(mbboRecord* rec)
             ctx->bytecode = PyWrapper::compile(code, (rec->tpro == 1));
             ctx->code = code;
         }
-        rec->val = PyWrapper::eval(ctx->bytecode, args, (rec->tpro == 1)).get_long();
+        auto ret = PyWrapper::eval(ctx->bytecode, args, (rec->tpro == 1));
+        try {
+            rec->val = ret.get_long();
+        } catch (std::exception& e) {
+            // pass
+        }
         rec->udf = 0;
         ctx->processCbStatus = 0;
 

@@ -106,7 +106,12 @@ static void processRecordCb(aoRecord* rec)
             ctx->bytecode = PyWrapper::compile(code, (rec->tpro == 1));
             ctx->code = code;
         }
-        rec->val = PyWrapper::eval(ctx->bytecode, args, (rec->tpro == 1)).get_double();
+        auto ret = PyWrapper::eval(ctx->bytecode, args, (rec->tpro == 1));
+        try {
+            rec->val = ret.get_double();
+        } catch (std::exception& e) {
+            // pass
+        }
         if (rec->aslo != 0.0) rec->val *= rec->aslo;
         rec->val += rec->aoff;
         rec->udf = 0;
