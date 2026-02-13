@@ -21,7 +21,8 @@ INSTALL_LOCATION = $(TOP)
 
 # As soon as python3 is the default configuration
 # PYTHON_CONFIG=python3-config
-PYTHON_CONFIG=python-config
+#PYTHON_CONFIG=python-config
+PYTHON_CONFIG=/epics/iocs/ioc-hkl/.pixi/envs/default/bin/python3.12-config
 
 # CONFIG_SITE files contain other build configuration settings
 include $(TOP)/configure/CONFIG_SITE
