@@ -302,11 +302,6 @@ bool PyWrapper::convert(void* in_, Variant& out)
                 vl.push_back(val);
                 t = Variant::Type::VECTOR_LONG;
             }
-            if (PyBool_Check(el) && (t == Variant::Type::NONE || t == Variant::Type::VECTOR_LONG)) {
-                long val = (PyObject_IsTrue(el) ? 1 : 0);
-                vl.push_back(val);
-                t = Variant::Type::VECTOR_LONG;
-            }
             if (PyFloat_Check(el) && (t == Variant::Type::NONE || t == Variant::Type::VECTOR_DOUBLE)) {
                 double val = PyFloat_AsDouble(el);
                 if (val == -1.0 && PyErr_Occurred()) {
