@@ -291,6 +291,7 @@ bool PyWrapper::convert(void* in_, Variant& out)
                 }
                 vl.push_back(val);
                 t = Variant::Type::VECTOR_LONG;
+                continue;
             }
 #endif
             if (PyLong_Check(el) && (t == Variant::Type::NONE || t == Variant::Type::VECTOR_LONG)) {
@@ -301,6 +302,7 @@ bool PyWrapper::convert(void* in_, Variant& out)
                 }
                 vl.push_back(val);
                 t = Variant::Type::VECTOR_LONG;
+                continue;
             }
             if (PyFloat_Check(el) && (t == Variant::Type::NONE || t == Variant::Type::VECTOR_DOUBLE)) {
                 double val = PyFloat_AsDouble(el);
@@ -310,10 +312,12 @@ bool PyWrapper::convert(void* in_, Variant& out)
                 }
                 vd.push_back(val);
                 t = Variant::Type::VECTOR_DOUBLE;
+                continue;
             }
 #if PY_MAJOR_VERSION < 3
             if (PyString_Check(el) && (t == Variant::Type::NONE || t == Variant::Type::VECTOR_STRING)) {
                 const char *cval = PyString_AsString(el);
+                continue;
 #else
             if (PyUnicode_Check(el) && (t == Variant::Type::NONE || t == Variant::Type::VECTOR_STRING)) {
                 const char *cval = PyBytes_AsString(PyUnicode_AsASCIIString(el));
@@ -324,6 +328,7 @@ bool PyWrapper::convert(void* in_, Variant& out)
                 }
                 vs.push_back(cval);
                 t = Variant::Type::VECTOR_STRING;
+                continue;
             }
         }
 
