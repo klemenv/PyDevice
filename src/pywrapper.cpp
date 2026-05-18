@@ -282,6 +282,12 @@ bool PyWrapper::convert(void* in_, Variant& out)
 
         for (Py_ssize_t i = 0; i < PyList_Size(in); i++) {
             PyObject* el = PyList_GetItem(in, i);
+            if (PyBool_Check(el) && (t == Variant::Type::NONE || t == Variant::Type::VECTOR_LONG)) {
+                long val = (PyObject_IsTrue(el) ? 1 : 0);
+                vl.push_back(val);
+                t = Variant::Type::VECTOR_LONG;
+                continue;
+            }
 #if PY_MAJOR_VERSION < 3
             if (PyInt_Check(el) && (t == Variant::Type::NONE || t == Variant::Type::VECTOR_LONG)) {
                 long long val = PyInt_AsLong(el);
